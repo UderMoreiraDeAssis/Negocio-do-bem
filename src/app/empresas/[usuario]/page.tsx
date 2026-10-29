@@ -6,21 +6,30 @@ import { denunciarDepoimento } from "@/acoes/depoimentos";
 import { AvisoDaUrl } from "@/components/Avisos";
 import { CausaBadge } from "@/components/CausaBadge";
 import { Historia } from "@/components/Historia";
+import { JsonLd } from "@/components/JsonLd";
 import { FotoEmpresa } from "@/components/FotoEmpresa";
 import { SeloStatus } from "@/components/SeloStatus";
 import { usuarioAtual, type UsuarioSessao } from "@/lib/auth/sessao";
-import { filtrarCausas } from "@/lib/causas";
+import { buscarCausa, filtrarCausas } from "@/lib/causas";
 import { buscarPerfil, ehDono, podeVerPerfil } from "@/lib/consultas";
+import { hrefCausa, hrefTipo, temPaginaDeTipo } from "@/lib/diretorio";
 import { MODERACAO_EMPRESA } from "@/lib/dominio";
 import { linkPerfil, normalizarUsername } from "@/lib/instagram";
+import { FORA_DA_BUSCA, jsonLdDoNegocio, metadadosDaPagina, paginaDaCidade } from "@/lib/seo";
 import { formatarData, formatarWhatsapp, tempoDeLeitura } from "@/lib/texto";
 import { FormDepoimento } from "./FormDepoimento";
 
 export async function generateMetadata(props: PageProps<"/empresas/[usuario]">): Promise<Metadata> {
   const username = normalizarUsername((await props.params).usuario);
   const empresa = username ? await buscarPerfil(username) : null;
-  if (!empresa || empresa.moderacao !== "aprovada" || empresa.oculta) return { title: "Perfil" };
-  return { title: empresa.nome, description: empresa.resumo };
+  if (!empresa || empresa.moderacao !== "aprovada" || empresa.oculta) return { title: "Perfil", robots: FORA_DA_BUSCA };
+  // "Café da Ana — Café e padaria em Salvador, BA": o que as pessoas buscam é o tipo e a cidade.
+  const onde = `${empresa.cidade}, ${empresa.uf}`;
+  return metadadosDaPagina({
+    titulo: empresa.categoria === "Outros" ? `${empresa.nome} em ${onde}` : `${empresa.nome} — ${empresa.categoria} em ${onde}`,
+    descricao: empresa.resumo,
+    caminho: `/empresas/${empresa.instagramUsername}`,
+  });
 }
 
 export default function PaginaEmpresa(props: PageProps<"/empresas/[usuario]">) {
@@ -45,6 +54,7 @@ async function Perfil({ params, searchParams }: Pick<PageProps<"/empresas/[usuar
 
   return (
     <article>
+      {publico && <JsonLd dados={jsonLdDoNegocio(empresa, causas.map((slug) => buscarCausa(slug)!.nome))} />}
       <header className="border-b border-linha bg-gradient-to-b from-superficie to-papel">
         <div className="mx-auto max-w-3xl px-4 pt-12 pb-10 sm:px-6">
           <div className="mb-6 space-y-3">
@@ -70,11 +80,23 @@ async function Perfil({ params, searchParams }: Pick<PageProps<"/empresas/[usuar
                   @{empresa.instagramUsername}
                 </a>
                 <span aria-hidden="true">·</span>
-                <span>{empresa.categoria}</span>
+                {publico && temPaginaDeTipo(empresa.categoria) ? (
+                  <Link href={hrefTipo(empresa.categoria)} className="hover:text-tinta hover:underline">
+                    {empresa.categoria}
+                  </Link>
+                ) : (
+                  <span>{empresa.categoria}</span>
+                )}
                 <span aria-hidden="true">·</span>
-                <span>
-                  {empresa.cidade}, {empresa.uf}
-                </span>
+                {publico ? (
+                  <Link href={paginaDaCidade(empresa.cidade, empresa.uf).caminho} className="hover:text-tinta hover:underline">
+                    {empresa.cidade}, {empresa.uf}
+                  </Link>
+                ) : (
+                  <span>
+                    {empresa.cidade}, {empresa.uf}
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -85,9 +107,15 @@ async function Perfil({ params, searchParams }: Pick<PageProps<"/empresas/[usuar
 
           {causas.length > 0 && (
             <div className="mt-6 flex flex-wrap gap-2">
-              {causas.map((slug) => (
-                <CausaBadge key={slug} slug={slug} grande />
-              ))}
+              {causas.map((slug) =>
+                publico ? (
+                  <Link key={slug} href={hrefCausa(slug)} className="transition hover:opacity-80">
+                    <CausaBadge slug={slug} grande />
+                  </Link>
+                ) : (
+                  <CausaBadge key={slug} slug={slug} grande />
+                ),
+              )}
             </div>
           )}
 

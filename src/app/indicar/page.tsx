@@ -2,9 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { usuarioAtual } from "@/lib/auth/sessao";
+import { metadadosDaPagina } from "@/lib/seo";
 import { FormIndicar } from "./FormIndicar";
 
-export const metadata: Metadata = { title: "Indicar um negócio" };
+export const metadata: Metadata = metadadosDaPagina({
+  titulo: "Indicar um negócio",
+  descricao: "Conhece um negócio que faz o bem? Indique para o diretório: a moderação confere e publica, e o dono pode assumir o perfil depois.",
+  caminho: "/indicar",
+});
 
 export default function Indicar() {
   return (

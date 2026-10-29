@@ -19,12 +19,17 @@ import {
   type Ordem,
 } from "@/lib/diretorio";
 import { CATEGORIAS } from "@/lib/dominio";
+import { metadadosDaPagina } from "@/lib/seo";
 import { OrdenarPor } from "./OrdenarPor";
 
-export const metadata: Metadata = {
-  title: "Explorar negócios",
-  description: "Busque negócios do bem por cidade, tipo de negócio e pelas causas que importam para você.",
-};
+// Com filtros, o canônico continua sendo /explorar: as combinações de filtros
+// não viram páginas separadas na busca.
+export const metadata: Metadata = metadadosDaPagina({
+  titulo: "Explorar negócios",
+  descricao:
+    "Busque negócios do bem por cidade, tipo de negócio e pelas causas que importam para você: liderados por mulheres, afroempreendedores, opções veganas, sustentáveis e mais.",
+  caminho: "/explorar",
+});
 
 // Os tipos com mais negócios aparecem direto; o resto fica em "Ver todos".
 const TIPOS_VISIVEIS = 8;

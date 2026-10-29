@@ -13,8 +13,9 @@ import { configLogin, configWebhook, normalizarUsername, perfilOficial } from "@
 import { formatarDataHora } from "@/lib/texto";
 import { CopiarCodigo } from "./CopiarCodigo";
 import { FormDocumento, FormGerarCodigo } from "./Formularios";
+import { FORA_DA_BUSCA } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Reivindicar perfil" };
+export const metadata: Metadata = { title: "Reivindicar perfil", robots: FORA_DA_BUSCA };
 
 export default function PaginaReivindicar(props: PageProps<"/empresas/[usuario]/reivindicar">) {
   return (

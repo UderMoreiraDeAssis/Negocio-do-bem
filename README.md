@@ -3,6 +3,7 @@
 Um diretório de negócios com consciência social e conexão com a comunidade. As pessoas encontram negócios que compartilham dos seus valores, indicam quem admiram e deixam depoimentos. Os donos assumem o perfil do negócio e contam a própria história.
 
 - **Diretório** com busca (sem diferenciar acentos) e filtros por causa e estado.
+- **Páginas por cidade, causa e tipo de negócio** (`/cidades/salvador-ba`, `/causas/opcoes-veganas`, `/tipos/cafe-e-padaria`), feitas para a busca do Google.
 - **Perfis** com foto, botões de contato (WhatsApp, site e e-mail), a história do negócio no estilo Substack (Markdown, tipografia serifada, fotos com legenda), badges de causas e depoimentos.
 - **Causas** como Pet friendly, Antirracista, Escala 5x2, Escala 4x3 e outras (lista em `src/lib/causas.ts`).
 - **Indicação** pela comunidade, publicada na hora. A moderação tira do ar o que for impróprio.
@@ -164,6 +165,7 @@ Funciona em qualquer hospedagem de Next.js com um PostgreSQL gerenciado.
    - O site não precisa da `BLOB_READ_WRITE_TOKEN`. Se o painel recomendar revogar o token (na página **Projects** do Blob), faça um redeploy e revogue.
 5. Crie um **segundo Blob** público, só para os previews, e conecte do mesmo jeito, só no ambiente **Preview**. Assim, o código de um PR nunca grava nem apaga as fotos de produção.
 6. Opcional: em **Environment Variables**, só para **Production**, configure `NEXT_PUBLIC_GA_ID` com o ID de medição do Google Analytics (`G-…`). Sem ela, o Analytics não carrega.
+   - Para o Google Search Console e o Bing Webmaster Tools, configure também `GOOGLE_SITE_VERIFICATION` e `BING_SITE_VERIFICATION`, e depois envie o `sitemap.xml` nos dois painéis. O passo a passo está em [Como o projeto foi feito](docs/como-foi-feito.md#cadastrar-o-site-no-google-e-no-bing).
 7. A cada deploy, de produção ou de preview, o `scripts/vercel-build.sh` aplica as migrações pendentes no banco daquele ambiente antes do build. Nos previews, ele também roda o seed, que só preenche um banco vazio.
 8. Depois do primeiro deploy, cadastre a sua conta no site e dê a moderação a ela com a conexão direta do banco de produção: `DATABASE_URL="postgresql://..." npm run moderacao -- dar voce@exemplo.com`.
 
@@ -179,10 +181,11 @@ Nunca rode o seed em produção: ele cria contas com senha conhecida e se recusa
 ## Estrutura
 
 ```
+assets/fontes/       fontes das imagens de compartilhamento (licença OFL)
 docs/                regras de negócio, como o projeto foi feito e prints
 prisma/              esquema, migrações e dados de exemplo
 src/acoes/           Server Actions (formulários), sempre conferindo permissão no servidor
-scripts/             build do Vercel e a rotina de fotos do Instagram (roda no seu computador)
+scripts/             build do Vercel, ícones da marca e a rotina de fotos do Instagram (roda no seu computador)
 src/app/             páginas e rotas (api/instagram, api/webhooks/instagram e api/fotos-instagram)
 src/components/      componentes de interface
 src/lib/             regras de negócio: reivindicacao.ts, instagram.ts, auth/, causas.ts, cnpj.ts…

@@ -7,8 +7,9 @@ import { exigirUsuario } from "@/lib/auth/sessao";
 import { db } from "@/lib/db";
 import { METODOS_REIVINDICACAO, MODERACAO_EMPRESA, STATUS_REIVINDICACAO } from "@/lib/dominio";
 import { formatarData } from "@/lib/texto";
+import { FORA_DA_BUSCA } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Meu painel" };
+export const metadata: Metadata = { title: "Meu painel", robots: FORA_DA_BUSCA };
 
 export default function Painel() {
   return (
