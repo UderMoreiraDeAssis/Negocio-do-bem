@@ -1,12 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import { exigirUsuario } from "@/lib/auth/sessao";
 import { cnpjValido, limparCnpj } from "@/lib/cnpj";
 import { db } from "@/lib/db";
 import { campoSite, errosPorCampo, texto, valoresDoFormulario, type EstadoFormulario } from "@/lib/formulario";
 import { perfilOficial } from "@/lib/instagram";
+import { avisarNovaReivindicacao } from "@/lib/notificacoes";
 import { cancelar, ErroReivindicacao, iniciarPorCodigoDm, solicitarPorDocumento } from "@/lib/reivindicacao";
 
 async function carregar(dados: FormData) {
@@ -71,6 +73,7 @@ export async function enviarDocumento(_estado: EstadoFormulario, dados: FormData
     if (erro instanceof ErroReivindicacao) return { erro: erro.message, valores: valoresDoFormulario(dados) };
     throw erro;
   }
+  if (!aprovada) after(() => avisarNovaReivindicacao(empresa.id));
   redirect(aprovada ? `/painel/${empresa.instagramUsername}?aviso=verificada` : `${caminho}?aviso=documento_enviado`);
 }
 

@@ -141,6 +141,17 @@ Um script no seu computador preenche, todo dia, a foto de perfil dos negócios q
 
 Contas pessoais ou privadas não aparecem na API. Para esses negócios, salve a foto em `fotos-manuais/<@>.jpg` (ou `.png`, `.webp`): ela tem prioridade sobre a da API.
 
+## Ativando os avisos por e-mail (opcional)
+
+O site avisa por e-mail quem pediu uma reivindicação quando a moderação decide, a moderação quando chega um pedido ou uma denúncia na fila, e os donos quando chega um depoimento. O envio é pelo [Resend](https://resend.com). As regras estão na [seção 14 das regras de negócio](docs/regras-de-negocio.md#14-avisos-por-e-mail).
+
+1. Crie uma conta no Resend e adicione o domínio do site em **Domains**. Crie no DNS do domínio os registros que ele mostrar: o DKIM em `resend._domainkey` e, no subdomínio `send`, um MX e um SPF. Eles não mexem no MX nem no SPF da caixa de e-mail do domínio.
+2. Quando o domínio aparecer como verificado, crie uma chave em **API Keys**, com permissão só de envio (**Sending access**).
+3. No Vercel, só em **Production**, configure `RESEND_API_KEY` com a chave e `EMAIL_REMETENTE` com o remetente, como `Negócio do Bem <avisos@negociodobem.com>`. Opcional: `EMAIL_RESPOSTA`, para onde vão as respostas, como `ola@negociodobem.com`.
+4. Faça um redeploy. A aba "Sistema" da moderação mostra se os avisos estão ligados.
+
+Nos previews o envio fica desligado mesmo com as variáveis, porque o banco dos previews só tem contas de teste.
+
 ## Testes e verificações
 
 ```bash
@@ -195,9 +206,8 @@ tests/               testes (unit/ sem banco, db/ com banco)
 ## Próximos passos sugeridos
 
 - Uma verificação de verdade para o dono: hoje quem pede um negócio sem dono vira dono na hora, sem conferência. Um caminho é comparar o nome de quem pede com os sócios que a Receita devolve para o CNPJ.
-- Recuperação de senha e confirmação de e-mail (precisa de um serviço de envio de e-mail).
+- Recuperação de senha e confirmação de e-mail, com o envio que já existe em `src/lib/email.ts`.
 - Limite de tentativas de login por IP.
-- Avisar o dono por e-mail quando a reivindicação for decidida ou quando chegar um depoimento.
 - Renovação automática do token do Instagram usado pelo webhook.
 
 ## Como contribuir

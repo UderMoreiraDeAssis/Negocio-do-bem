@@ -1,10 +1,12 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import { exigirUsuario } from "@/lib/auth/sessao";
 import { db } from "@/lib/db";
 import { texto, valoresDoFormulario, type EstadoFormulario } from "@/lib/formulario";
+import { avisarNovaDenuncia, avisarNovoDepoimento } from "@/lib/notificacoes";
 
 const esquemaDepoimento = z
   .string()
@@ -37,7 +39,8 @@ export async function publicarDepoimento(_estado: EstadoFormulario, dados: FormD
   });
   if (jaEscreveu) return { erro: "Você já deixou um depoimento para este negócio. Obrigado!" };
 
-  await db.depoimento.create({ data: { empresaId: empresa.id, autorId: usuario.id, texto: resultado.data } });
+  const depoimento = await db.depoimento.create({ data: { empresaId: empresa.id, autorId: usuario.id, texto: resultado.data } });
+  after(() => avisarNovoDepoimento(depoimento.id));
   redirect(`/empresas/${empresa.instagramUsername}?aviso=depoimento_publicado#depoimentos`);
 }
 
@@ -78,6 +81,7 @@ export async function denunciarDepoimento(dados: FormData): Promise<void> {
         denunciadoPorId: usuario.id,
       },
     });
+    after(() => avisarNovaDenuncia(depoimento.id));
   }
   redirect(`${voltar}?aviso=denuncia_enviada#depoimentos`);
 }

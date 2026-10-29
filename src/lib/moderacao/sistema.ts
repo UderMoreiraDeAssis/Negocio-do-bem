@@ -1,6 +1,7 @@
 import "server-only";
 import { usaBlob } from "@/lib/armazenamento";
 import { db } from "@/lib/db";
+import { envioLigado } from "@/lib/email";
 import { tokenDasFotos } from "@/lib/fotos-instagram";
 import { configLogin, configWebhook, perfilOficial } from "@/lib/instagram";
 import { ENDERECO_DO_SITE, INDEXAVEL } from "@/lib/seo";
@@ -41,6 +42,12 @@ export function integracoes(): Integracao[] {
       ligada: tokenDasFotos() !== null,
       ligadaTexto: "A rota /api/fotos-instagram aceita o script local que busca as fotos.",
       desligadaTexto: "Sem FOTOS_TOKEN (de pelo menos 32 caracteres), a rota responde 404.",
+    },
+    {
+      nome: "Avisos por e-mail",
+      ligada: envioLigado(),
+      ligadaTexto: "Donos e moderação recebem os avisos por e-mail, enviados pelo Resend.",
+      desligadaTexto: "Sem RESEND_API_KEY e EMAIL_REMETENTE, ou fora da produção, ninguém recebe e-mail.",
     },
     {
       nome: "Google Analytics",

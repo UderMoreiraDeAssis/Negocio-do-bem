@@ -21,9 +21,10 @@ O raciocínio por trás das decisões e a história do projeto estão em [Como o
 11. [Diretório e busca](#11-diretório-e-busca)
 12. [Causas, categorias e estados do Brasil](#12-causas-categorias-e-estados-do-brasil)
 13. [Auditoria](#13-auditoria)
-14. [Privacidade: o que guardamos e quem vê](#14-privacidade-o-que-guardamos-e-quem-vê)
-15. [Números e limites](#15-números-e-limites)
-16. [Comportamentos atuais que valem conhecer](#16-comportamentos-atuais-que-valem-conhecer)
+14. [Avisos por e-mail](#14-avisos-por-e-mail)
+15. [Privacidade: o que guardamos e quem vê](#15-privacidade-o-que-guardamos-e-quem-vê)
+16. [Números e limites](#16-números-e-limites)
+17. [Comportamentos atuais que valem conhecer](#17-comportamentos-atuais-que-valem-conhecer)
 
 ---
 
@@ -390,7 +391,7 @@ O que a moderação confere: se o CNPJ, o site e o contato batem com o @ do Inst
 
 **Duas pessoas da moderação ao mesmo tempo:** se um pedido já foi decidido, a segunda decisão é recusada com o aviso "Esta solicitação já tinha sido decidida por outra pessoa da moderação".
 
-**Depois da decisão,** a pessoa acompanha em `/painel`, em "Minhas solicitações de reivindicação". Aparecem as 20 mais recentes, menos as canceladas, com o status e, se recusada, o motivo.
+**Depois da decisão,** a pessoa recebe um e-mail com o resultado ([seção 14](#14-avisos-por-e-mail)) e acompanha em `/painel`, em "Minhas solicitações de reivindicação". Aparecem as 20 mais recentes, menos as canceladas, com o status e, se recusada, o motivo.
 
 ### Estados de um pedido
 
@@ -630,6 +631,7 @@ Código: `src/acoes/depoimentos.ts`, `decidirDenuncia` em `src/acoes/moderacao.t
 - **Um depoimento por pessoa por negócio.**
 - **Tamanho:** de 20 a 1.500 caracteres.
 - **Vai ao ar na hora,** sem moderação prévia, com o nome de quem escreveu e a data.
+- **Os donos recebem um e-mail** com o texto e o link para responder ([seção 14](#14-avisos-por-e-mail)).
 - **Ordem:** os depoimentos aparecem do mais novo para o mais antigo.
 - **Edição:** o autor não edita nem apaga o próprio depoimento. Não existe tela para isso.
 - **Resposta do dono:**
@@ -642,6 +644,7 @@ Código: `src/acoes/depoimentos.ts`, `decidirDenuncia` em `src/acoes/moderacao.t
 - **Quem denuncia:** qualquer pessoa logada que **não seja a autora** do depoimento, incluindo o dono do negócio.
 - **Motivo:** opcional, até 300 caracteres. Sem motivo, fica "Sem motivo informado".
 - **Denunciar não esconde o depoimento.** Ele continua no ar até a moderação decidir.
+- **A moderação recebe um e-mail** com o negócio e o link da fila, sem dizer quem denunciou.
 - **Uma denúncia aberta por vez:**
   - enquanto há uma denúncia aberta, o botão "Denunciar" some para todos;
   - uma segunda denúncia não substitui a primeira.
@@ -827,14 +830,40 @@ Para uma ação nova de moderação, registre sempre na auditoria e dê a ela um
 
 ---
 
-## 14. Privacidade: o que guardamos e quem vê
+## 14. Avisos por e-mail
+
+Código: `src/lib/email.ts` (o envio) e `src/lib/notificacoes.ts` (quem recebe o quê).
+
+O site manda poucos e-mails: só quando alguém precisa agir ou saber de uma decisão.
+
+| Quando | Quem recebe | O que vai no e-mail |
+| --- | --- | --- |
+| A moderação aprova um pedido de reivindicação: como co-dono, com transferência ou pelo botão "Aprovar os N pedidos sem dono" | Quem pediu | O negócio e o link do painel dele. |
+| A moderação recusa um pedido | Quem pediu | O negócio, o motivo da recusa e o link do painel. |
+| Um pedido pelos dados do negócio fica na fila (o negócio tem dono ou está fora do ar), ou um "Entrar com Instagram" fica em análise | Cada pessoa da moderação | O negócio e o link da fila de reivindicações. |
+| Um depoimento é denunciado | Cada pessoa da moderação | O negócio e o link da fila de denúncias. |
+| Chega um depoimento novo | Cada dono do negócio | Quem escreveu, o texto e o link para responder. |
+
+- **A aprovação na hora não manda e-mail.** Quem vira dono pelos dados do negócio ou pelo Instagram já vê o resultado na tela.
+- **Cada pessoa recebe o próprio e-mail.** Ninguém vê o endereço de outra, nem entre a moderação nem entre co-donos.
+- **Os avisos para a moderação não levam dados pessoais:** nada de nome, e-mail ou contato de quem pediu ou denunciou. Isso fica só nas filas.
+- **O e-mail sai depois da resposta,** pelo `after()` do Next. A pessoa não espera o envio, e uma falha fica só no log, sem desfazer a ação.
+- **Remetente e resposta:** o e-mail sai de `EMAIL_REMETENTE`, um endereço de domínio verificado no Resend, e as respostas vão para `EMAIL_RESPOSTA`.
+- **Ligado só com `RESEND_API_KEY` e `EMAIL_REMETENTE`.** Sem elas, ninguém recebe e-mail, e o resto funciona igual. Nos previews do Vercel o envio fica desligado mesmo com as variáveis, porque o banco dos previews só tem contas de teste. A aba "Sistema" da moderação mostra se o envio está ligado.
+- **Fica de fora:**
+  - o código por DM, desligado por padrão, não avisa a moderação;
+  - quem indica um negócio, tem o negócio tirado do ar ou deixa de ser dono numa transferência não recebe e-mail.
+
+---
+
+## 15. Privacidade: o que guardamos e quem vê
 
 ### O que é guardado
 
 | Dado | Onde | Quem vê |
 | --- | --- | --- |
 | Nome da conta | `Usuario` | **Público** quando a pessoa escreve um depoimento ou quando a indicação dela aparece no perfil ("indicado por …"). A moderação vê nas filas. |
-| E-mail da conta | `Usuario` | Só a própria pessoa (no menu) e a moderação, que vê o e-mail de todas as contas na aba "Contas" e na ficha de cada uma, além das filas. Nunca aparece no site público. |
+| E-mail da conta | `Usuario` | Só a própria pessoa (no menu) e a moderação, que vê o e-mail de todas as contas na aba "Contas" e na ficha de cada uma, além das filas. Nunca aparece no site público. Serve para entrar e para receber os [avisos por e-mail](#14-avisos-por-e-mail). |
 | Senha | `Usuario.senhaHash` | Ninguém: só o hash scrypt é guardado. |
 | Sessões | `Sessao` | Ninguém vê o token: só o hash é guardado. A moderação vê quantas sessões abertas uma conta tem e quando foram abertas. |
 | Dados do perfil do negócio | `Empresa` | **Público** quando o negócio está publicado. |
@@ -873,7 +902,7 @@ Para uma ação nova de moderação, registre sempre na auditoria e dê a ela um
 
 ---
 
-## 15. Números e limites
+## 16. Números e limites
 
 | Regra | Valor | Onde |
 | --- | --- | --- |
@@ -909,10 +938,12 @@ Para uma ação nova de moderação, registre sempre na auditoria e dê a ela um
 | Semanas no gráfico de atividade | 12 | `src/lib/moderacao/indicadores.ts` |
 | Itens de cada lista do diretório na visão geral | 8 | `src/app/moderacao/VisaoGeral.tsx` |
 | Leitura da história | 200 palavras por minuto | `src/lib/texto.ts` |
+| Espera pela resposta do Resend | 10 segundos | `src/lib/email.ts` |
+| E-mails pelo plano gratuito do Resend | 100 por dia, 3.000 por mês | Conta do Resend |
 
 ---
 
-## 16. Comportamentos atuais que valem conhecer
+## 17. Comportamentos atuais que valem conhecer
 
 O sistema funciona hoje assim. Algumas destas situações podem ser intencionais e outras são lacunas. Antes de mudar qualquer uma, abra uma issue para combinar o caminho.
 
@@ -942,7 +973,7 @@ O sistema funciona hoje assim. Algumas destas situações podem ser intencionais
 - Não há limite de tentativas de login.
 - Não há registro do último acesso: "Sair" apaga a sessão, então o painel só sabe das sessões que continuam abertas.
 - Sessões vencidas deixam de valer, mas não são apagadas do banco.
-- Ninguém recebe e-mail: nem o dono quando o pedido é decidido, nem a moderação quando chega algo novo. Hoje o site não tem serviço de envio de e-mail.
+- O e-mail da conta não é confirmado. Um aviso pode ir para um endereço digitado errado, e ninguém fica sabendo.
 
 **Fotos**
 
