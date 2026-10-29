@@ -262,6 +262,21 @@ A página inicial juntava apresentação, busca, filtros de causas e a lista de 
 - **Cada opção mostra quantos negócios aparecem ao marcá-la.** São poucas consultas por página: um `groupBy` por categoria ignorando os tipos marcados, e um `groupBy` das causas entre os resultados.
 - **O "Onde?" sugere só lugares com negócios** (`listarCidades`). A lista é pequena e vai pronta para o navegador. O texto escolhido ("Recife, PE") vai na URL e o servidor o interpreta, então digitar à mão também funciona.
 
+### 29 de outubro: banco separado para os previews ([#18](https://github.com/fabsreis/Negocio-do-bem/issues/18))
+
+Os previews do Vercel, inclusive o da `stage`, usavam o banco de produção. Testar a homologação mexia em dados reais, e um bug num PR podia apagá-los.
+
+- **Os previews ganharam um projeto Neon só deles**, conectado ao Vercel apenas no ambiente Preview. O de produção ficou só em Production.
+- **O build dos previews passou a aplicar as migrações** no banco deles. Um PR que muda o banco já funciona no preview.
+- **O seed roda no build dos previews**, para a homologação ter dados de exemplo, e só preenche um banco vazio.
+
+### 29 de outubro: um Blob só para os previews ([#27](https://github.com/fabsreis/Negocio-do-bem/issues/27))
+
+Os previews também usavam o Vercel Blob de produção, onde ficam as fotos. Então o código de um PR podia gravar e apagar as fotos reais.
+
+- **O Preview ganhou um Blob público próprio,** e o de produção ficou só em Production. As credenciais de cada ambiente, o token e o OIDC do deploy, só alcançam o Blob dele.
+- **O código não precisou mudar.** O site aceita fotos de qualquer store do Vercel Blob (`ehFotoDoSite`), então as fotos enviadas num preview aparecem no próprio preview. Um teste garante isso.
+
 ---
 
 ## 4. Arquitetura
@@ -281,6 +296,8 @@ A página inicial juntava apresentação, busca, filtros de causas e a lista de 
 | **Vitest** | 5 | Testes de unidade e de banco. |
 
 A autenticação é feita no próprio projeto (`src/lib/auth/`), com e-mail, senha (scrypt) e sessão em cookie. Isso evita depender de um serviço externo para algo simples.
+
+Como o e-mail do cadastro não é confirmado, ele nunca dá permissão. A moderação vem só do `papel` gravado no banco, conferido no servidor a cada requisição, e quem cuida do projeto dá esse papel com `npm run moderacao`. Até outubro de 2026 a variável `ADMIN_EMAILS` também dava moderação, e qualquer pessoa que se cadastrasse com um daqueles e-mails antes do dono levava o acesso.
 
 ### Como uma requisição anda
 
@@ -434,29 +451,44 @@ npm run typecheck
 | Peça | Onde | Observação |
 | --- | --- | --- |
 | Site | Vercel, funções em São Paulo (`gru1`) | Produção em https://negociodobem.vercel.app |
-| Banco | Neon (PostgreSQL), São Paulo | Conectado ao Vercel, que cria `DATABASE_URL` e `DATABASE_URL_UNPOOLED`. |
-| Fotos | Vercel Blob, público | Conectado ao Vercel, que cria `BLOB_STORE_ID`. O site se autentica pelo OIDC do deploy, sem token. |
+| Banco de produção | Neon (PostgreSQL), São Paulo | Conectado ao Vercel só em Production. O Vercel cria `DATABASE_URL` e `DATABASE_URL_UNPOOLED`. |
+| Banco dos previews | Outro projeto Neon (`negocio-do-bem-preview`), São Paulo | Conectado só em Preview: serve à `stage` e aos PRs. Tem senha e cota de compute próprias e só guarda dados de teste. |
+| Fotos de produção | Vercel Blob, público, São Paulo | Conectado ao Vercel só em Production, que cria `BLOB_STORE_ID`. O site se autentica pelo OIDC do deploy, sem token. |
+| Fotos dos previews | Outro Vercel Blob, público, São Paulo | Conectado só em Preview, do mesmo jeito. As credenciais dele não alcançam o Blob de produção, e ele não guarda fotos reais. |
 | Medição | Google Analytics 4 | `NEXT_PUBLIC_GA_ID` só em Production. |
 | Fotos do Instagram | Script local (launchd) + app "Negócio do Bem" na Meta | `FOTOS_TOKEN` no Vercel; o resto fica no `.env.fotos` do computador que roda a rotina. |
 
 **Como um deploy acontece:**
 
 1. Cada PR para a `stage` ganha um **preview** do Vercel. O merge na `stage` atualiza o preview dela, que serve de homologação.
+   - **Os previews guardam as fotos num Blob próprio.** Uma foto enviada num preview, ou na `stage`, fica no Blob dos previews e aparece no próprio preview. O código de um PR, mesmo com bug, não grava nem apaga as fotos de produção.
 2. Um PR da `stage` para a `main` leva o que foi homologado para produção. O merge na `main` dispara o deploy de produção no Vercel. O passo a passo está na receita [Publicar em produção](#publicar-em-produção).
    - O merge é sempre com **"Create a merge commit"**, a única opção que o ruleset da `main` aceita. Com ele, a ponta da `stage` passa a fazer parte da história da `main`. Por isso o PR de publicação mostra só os commits que ainda não estão em produção e não conflita com o que já foi publicado.
-3. O `scripts/vercel-build.sh` aplica as migrações pendentes (`prisma migrate deploy`) usando a conexão direta do Neon. Depois, roda o build.
-   - O build do preview, inclusive o da `stage`, não aplica migrações: só o de produção aplica.
-   - Num PR que muda o banco, as telas que dependem da mudança podem falhar no preview e na `stage` até a mudança chegar à `main`. Teste essas telas no seu computador.
+3. O `scripts/vercel-build.sh` aplica as migrações pendentes (`prisma migrate deploy`) no banco daquele ambiente, usando a conexão direta do Neon. Nos previews, roda também o seed. Depois, roda o build.
+
+**O banco dos previews:**
+
+- **Um preview nunca toca no banco de produção.** O ambiente Preview do Vercel só tem as credenciais do banco dos previews. Um PR, mesmo com bug, não lê nem altera os dados reais.
+- **Um PR que muda o banco já funciona no preview.** O build do preview aplica as migrações do PR no banco dos previews.
+- **A `stage` e todos os PRs dividem o mesmo banco.** A migração de um PR entra nele no primeiro deploy do PR, antes do merge. Se ela apaga ou renomeia uma coluna, a `stage` pode falhar até o PR entrar.
+- **Um PR fechado sem merge deixa a migração no banco.** O build não falha, porque o `prisma migrate deploy` ignora migrações que não estão no código, mas o banco fica diferente da `stage`. Para limpar, apague as tabelas pelo console do Neon (confira antes que é o projeto `negocio-do-bem-preview`) e faça um novo deploy da `stage`. O build recria as tabelas e o seed preenche de novo.
+- **O seed só preenche um banco vazio.** No Vercel, se o banco já tem algum usuário, ele não faz nada. Assim, um preview ligado por engano ao banco de produção não cria as contas de senha conhecida. Elas são as do [README](../README.md#rodando-localmente), e os previews exigem login no Vercel.
+
+**Por que um projeto Neon separado, e não um branch do Neon por preview:**
+
+- **Um branch copia os dados de produção**, com e-mails e senhas (em hash), para cada PR. Isso contraria a [privacidade por padrão](#privacidade-por-padrão).
+- **Os branches de um projeto dividem a cota de compute.** No plano Free, são 100 CU-horas por mês por projeto. Se os previews gastarem a cota, o compute é suspenso e a produção para. O branch também herda a senha do banco de produção.
+- **O plano Free tem 10 branches por projeto**, e a integração do Vercel só apaga o branch de um preview quando o deploy expira (6 meses, por padrão). Com a cota cheia, os builds falham.
+- **Um segundo projeto não custa nada.** O plano Free permite até 100 projetos, cada um com armazenamento e cota de compute próprios.
 
 **Variáveis de ambiente:**
 
 | Variável | Obrigatória | Para quê |
 | --- | --- | --- |
-| `DATABASE_URL` | Sim | Conexão com o Postgres. |
+| `DATABASE_URL` | Sim | Conexão com o Postgres. No Vercel, Production e Preview apontam para bancos diferentes. |
 | `DATABASE_URL_UNPOOLED` | No Neon | Conexão direta, usada pelas migrações. |
 | `APP_URL` | Sim | Endereço público do site, sem barra no final. |
-| `ADMIN_EMAILS` | Sim | E-mails da moderação, separados por vírgula. |
-| `BLOB_STORE_ID` | Em produção, no Vercel | Fotos no Vercel Blob. Criada com a conexão do Blob. O `@vercel/blob` se autentica pelo OIDC do deploy com este id. |
+| `BLOB_STORE_ID` | Em produção, no Vercel | Fotos no Vercel Blob. Criada com a conexão do Blob. O `@vercel/blob` se autentica pelo OIDC do deploy com este id. Production e Preview apontam para Blobs diferentes. |
 | `BLOB_READ_WRITE_TOKEN` | Em produção, fora do Vercel | Fotos no Vercel Blob onde não há OIDC. No Vercel, o site não precisa dela. |
 | `NEXT_PUBLIC_GA_ID` | Não | Google Analytics. Configure só em Production. |
 | `FOTOS_TOKEN` | Não | Liga a rota da rotina de fotos do Instagram. No mínimo 32 caracteres. |
@@ -466,7 +498,7 @@ npm run typecheck
 
 O `.env.example` explica cada uma, e o [README](../README.md#publicando) tem o passo a passo de publicação.
 
-**Nunca rode o seed em produção.** Ele cria contas com senha conhecida e se recusa a rodar quando `NODE_ENV=production`.
+**Nunca rode o seed em produção.** Ele cria contas com senha conhecida e se recusa a rodar quando `NODE_ENV=production` ou, no Vercel, quando `VERCEL_ENV=production`.
 
 ---
 
@@ -512,6 +544,14 @@ Para trocar o slug de uma causa existente, crie uma migração que atualize `Emp
 2. Registre na auditoria com `registrarAuditoria`, com uma ação no formato `alvo.verbo` (por exemplo, `empresa.despublicada`).
 3. Volte para a aba certa com um aviso: `redirect("/moderacao?aba=…&aviso=feito")`.
 4. Atualize a [tabela da auditoria](regras-de-negocio.md#13-auditoria).
+
+### Dar ou tirar a moderação
+
+1. A pessoa se cadastra no site com o e-mail dela.
+2. Com a conexão do banco certo, rode `npm run moderacao -- dar <e-mail>` (ou `tirar <e-mail>`). Para a produção, passe a conexão do Neon na frente: `DATABASE_URL="postgresql://..." npm run moderacao -- dar <e-mail>`.
+3. Confira com `npm run moderacao -- listar`, que mostra quem é moderação e quem já fez ações de moderação, marcando quem não é mais.
+
+Nunca crie uma regra que dê permissão pelo e-mail ou por outro dado que a própria pessoa digita no cadastro.
 
 ### Mostrar uma mensagem depois de uma ação
 

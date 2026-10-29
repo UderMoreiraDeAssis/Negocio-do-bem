@@ -42,7 +42,7 @@ Requisitos: Node 22.12+ e Docker (ou um PostgreSQL seu).
 
 ```bash
 docker compose up -d          # sobe o Postgres em localhost:5433
-cp .env.example .env          # ajuste ADMIN_EMAILS com o seu e-mail
+cp .env.example .env
 npm install                   # também gera o cliente do Prisma
 npm run db:migrate            # cria as tabelas
 npm run db:seed               # dados de exemplo (opcional)
@@ -57,9 +57,9 @@ O seed cria negócios fictícios e estas contas, todas com a senha `senha-demo-1
 | `ana@exemplo.com`, `joao@exemplo.com`, `bia@exemplo.com` | donos de negócios de exemplo |
 | `carla@exemplo.com` | enviou os dados do Café Arco-Íris e espera a moderação |
 
-Quem estiver em `ADMIN_EMAILS` vira moderador ao entrar.
+Para a sua própria conta virar moderação, cadastre-se no site e rode `npm run moderacao -- dar seu@email.com`. O `npm run moderacao -- listar` mostra quem é moderação.
 
-As fotos enviadas no seu computador ficam em `public/enviados/` (fora do Git). Em produção elas vão para o Vercel Blob.
+As fotos enviadas no seu computador ficam em `public/enviados/` (fora do Git). No Vercel, elas vão para o Vercel Blob: um para a produção e outro para os previews.
 
 ### Problemas comuns
 
@@ -156,20 +156,25 @@ Funciona em qualquer hospedagem de Next.js com um PostgreSQL gerenciado.
 
 **No Vercel**
 
-1. Em **Storage**, crie um banco **Neon** e conecte ao projeto sem prefixo, para as variáveis se chamarem `DATABASE_URL` e `DATABASE_URL_UNPOOLED`.
-2. Em **Environment Variables**, configure `ADMIN_EMAILS` e `APP_URL` (o domínio público, como `https://seu-projeto.vercel.app`). As do Instagram são opcionais.
-3. Em **Storage**, crie um **Blob** com acesso público e conecte ao projeto. É onde ficam as fotos dos perfis e das histórias. A conexão cria a `BLOB_STORE_ID`, e o site se autentica pelo OIDC do deploy, sem token.
+1. Em **Storage**, crie um banco **Neon** e conecte ao projeto sem prefixo, só no ambiente **Production**, para as variáveis se chamarem `DATABASE_URL` e `DATABASE_URL_UNPOOLED`.
+2. Crie um **segundo banco Neon**, só para os previews, e conecte do mesmo jeito, só no ambiente **Preview**. Assim, o código de um PR nunca lê nem altera os dados de produção.
+3. Em **Environment Variables**, configure `APP_URL` (o domínio público, como `https://seu-projeto.vercel.app`). As do Instagram são opcionais.
+4. Em **Storage**, crie um **Blob** com acesso público e conecte ao projeto só no ambiente **Production**. É onde ficam as fotos dos perfis e das histórias. A conexão cria a `BLOB_STORE_ID`, e o site se autentica pelo OIDC do deploy, sem token.
+   - Crie o Blob pelo Storage da conta, e não pelo do projeto: criado dentro do projeto, ele já se conecta a Production e Preview.
    - O site não precisa da `BLOB_READ_WRITE_TOKEN`. Se o painel recomendar revogar o token (na página **Projects** do Blob), faça um redeploy e revogue.
-4. Opcional: em **Environment Variables**, só para **Production**, configure `NEXT_PUBLIC_GA_ID` com o ID de medição do Google Analytics (`G-…`). Sem ela, o Analytics não carrega.
-5. Pronto. A cada deploy de produção, o `scripts/vercel-build.sh` aplica as migrações pendentes antes do build.
+5. Crie um **segundo Blob** público, só para os previews, e conecte do mesmo jeito, só no ambiente **Preview**. Assim, o código de um PR nunca grava nem apaga as fotos de produção.
+6. Opcional: em **Environment Variables**, só para **Production**, configure `NEXT_PUBLIC_GA_ID` com o ID de medição do Google Analytics (`G-…`). Sem ela, o Analytics não carrega.
+7. A cada deploy, de produção ou de preview, o `scripts/vercel-build.sh` aplica as migrações pendentes no banco daquele ambiente antes do build. Nos previews, ele também roda o seed, que só preenche um banco vazio.
+8. Depois do primeiro deploy, cadastre a sua conta no site e dê a moderação a ela com a conexão direta do banco de produção: `DATABASE_URL="postgresql://..." npm run moderacao -- dar voce@exemplo.com`.
 
 **Em outra hospedagem**
 
 1. Configure as variáveis de `.env.example` no painel da hospedagem. `APP_URL` precisa ser o domínio público. Para as fotos, use a `BLOB_READ_WRITE_TOKEN` de um Vercel Blob: fora do Vercel não há OIDC.
 2. Aplique as migrações no banco de produção com `npm run db:deploy`. Faça isso a cada mudança no `prisma/schema.prisma`.
 3. O `npm install` gera o cliente do Prisma, e o `npm run build` faz o resto.
+4. Cadastre a sua conta no site e dê a moderação a ela: `DATABASE_URL="<conexão de produção>" npm run moderacao -- dar voce@exemplo.com`.
 
-Nunca rode o seed em produção: ele cria contas com senha conhecida e se recusa a rodar quando `NODE_ENV=production`.
+Nunca rode o seed em produção: ele cria contas com senha conhecida e se recusa a rodar quando `NODE_ENV=production` ou, no Vercel, quando `VERCEL_ENV=production`.
 
 ## Estrutura
 

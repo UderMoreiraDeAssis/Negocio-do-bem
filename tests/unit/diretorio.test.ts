@@ -57,6 +57,12 @@ describe("lerFiltros", () => {
     expect(lerFiltros({ pagina: "9999" }).pagina).toBe(500);
   });
 
+  it("não aceita chaves do protótipo como ordem", () => {
+    for (const ordem of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+      expect(lerFiltros({ ordem }).ordem).toBe("verificados");
+    }
+  });
+
   it("entende o ?uf= dos links antigos", () => {
     expect(lerFiltros({ uf: "pe" }).onde).toBe("Pernambuco (estado)");
     expect(lerFiltros({ uf: "XX" }).onde).toBe("");

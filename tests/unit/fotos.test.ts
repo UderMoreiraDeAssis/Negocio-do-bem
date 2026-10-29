@@ -37,6 +37,11 @@ describe("ehFotoDoSite", () => {
     expect(ehFotoDoSite("/enviados/historias/x.jpg")).toBe(true);
   });
 
+  it("aceita qualquer store do Vercel Blob, como o de produção e o dos previews", () => {
+    expect(ehFotoDoSite("https://producao1.public.blob.vercel-storage.com/perfis/x.jpg")).toBe(true);
+    expect(ehFotoDoSite("https://previews2.public.blob.vercel-storage.com/historias/x.jpg")).toBe(true);
+  });
+
   it("recusa imagens de outros endereços e caminhos suspeitos", () => {
     expect(ehFotoDoSite("https://exemplo.com/foto.jpg")).toBe(false);
     expect(ehFotoDoSite("http://abc123.public.blob.vercel-storage.com/x.jpg")).toBe(false);

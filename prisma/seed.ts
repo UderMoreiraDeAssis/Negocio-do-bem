@@ -7,7 +7,11 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import { gerarHashSenha } from "../src/lib/auth/senha";
 import { textoDeBusca } from "../src/lib/texto";
 
-if (process.env.NODE_ENV === "production") {
+// No Vercel, quem diz o ambiente é VERCEL_ENV: o build dos previews também roda o seed.
+const emProducao = process.env.VERCEL_ENV
+  ? process.env.VERCEL_ENV === "production"
+  : process.env.NODE_ENV === "production";
+if (emProducao) {
   throw new Error("O seed cria contas com senha conhecida e não pode rodar em produção.");
 }
 
@@ -189,6 +193,13 @@ const DEPOIMENTOS: { negocio: string; autor: string; texto: string; resposta?: s
 ];
 
 async function main() {
+  // No Vercel, só preenche um banco vazio. Um preview ligado por engano ao banco
+  // de produção encontra usuários reais e não cria as contas de senha conhecida.
+  if (process.env.VERCEL && (await db.usuario.count()) > 0) {
+    console.log("O banco já tem usuários. No Vercel, o seed só preenche um banco vazio.");
+    return;
+  }
+
   if (await db.usuario.findUnique({ where: { email: "moderacao@exemplo.com" } })) {
     console.log("Os dados de exemplo já existem. Nada a fazer.");
     return;

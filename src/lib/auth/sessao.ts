@@ -19,13 +19,13 @@ function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
-export function ehModerador(usuario: { papel: string; email: string }): boolean {
-  if (usuario.papel === "moderador") return true;
-  const admins = (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  return admins.includes(usuario.email.toLowerCase());
+/**
+ * Só o papel gravado no banco dá moderação. O cadastro não confirma o e-mail,
+ * então nenhuma regra pode dar acesso pelo e-mail: quem se cadastrasse primeiro
+ * com o endereço certo levaria a moderação. Para dar ou tirar: `npm run moderacao`.
+ */
+export function ehModerador(usuario: { papel: string }): boolean {
+  return usuario.papel === "moderador";
 }
 
 /** Cria a sessão e grava o cookie. Só pode ser chamada em Server Actions e Route Handlers. */

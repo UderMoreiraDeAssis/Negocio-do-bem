@@ -34,7 +34,7 @@ O raciocínio por trás das decisões e a história do projeto estão em [Como o
 | Negócio | `Empresa` | Um negócio do diretório. Cada um é identificado pelo @ do Instagram. |
 | Conta | `Usuario` | Quem se cadastrou com e-mail e senha. |
 | Dono | `EmpresaMembro` com `papel = "dono"` | Uma conta responsável por um negócio: aprovada na hora, quando o negócio ainda não tinha dono, ou pela moderação. Um negócio pode ter mais de um dono (co-donos). |
-| Moderação | `Usuario.papel = "moderador"` ou e-mail em `ADMIN_EMAILS` | Quem tira do ar o que for impróprio, decide disputas de reivindicação e denúncias, e pode editar qualquer perfil. |
+| Moderação | `Usuario.papel = "moderador"` | Quem tira do ar o que for impróprio, decide disputas de reivindicação e denúncias, e pode editar qualquer perfil. |
 | Indicação | criação de uma `Empresa` | Alguém da comunidade (ou o próprio dono) cadastra um negócio. |
 | Reivindicação | `Reivindicacao` | O pedido de uma pessoa para virar dona de um negócio. |
 | Depoimento | `Depoimento` | O relato de alguém da comunidade sobre um negócio. |
@@ -81,11 +81,12 @@ Um papel não exclui o outro: uma pessoa da moderação também pode ser dona de
 | **Visitante** | Sem login | Ver o diretório, os perfis publicados e os depoimentos. Não indica, não escreve depoimento, não reivindica. |
 | **Membro** | Qualquer conta | Indicar negócios, escrever depoimentos, denunciar depoimentos, reivindicar um negócio, ver as próprias indicações e solicitações em `/painel`. |
 | **Dono** | Conta aprovada como dona de um negócio | Tudo do membro, mais: editar o perfil do próprio negócio, trocar a foto, responder depoimentos e ocultar ou mostrar o negócio no diretório. Não pode escrever depoimento no próprio negócio. |
-| **Moderação** | `papel = "moderador"` no banco **ou** e-mail em `ADMIN_EMAILS` | Tudo do membro, mais: as filas de `/moderacao`, tirar do ar e publicar de novo qualquer negócio, editar qualquer perfil, ver a auditoria. |
+| **Moderação** | `papel = "moderador"` no banco | Tudo do membro, mais: as filas de `/moderacao`, tirar do ar e publicar de novo qualquer negócio, editar qualquer perfil, ver a auditoria. |
 
 Detalhes da moderação:
 
-- `ADMIN_EMAILS` é conferido a cada requisição e não grava nada no banco. Tirar o e-mail da variável tira o acesso.
+- **Só o papel no banco dá moderação.** O cadastro não confirma o e-mail, então o e-mail nunca dá acesso: se desse, quem se cadastrasse primeiro com o endereço certo levaria a moderação.
+- Quem cuida do projeto dá e tira a moderação com `npm run moderacao`, que roda com a conexão direta do banco e registra na auditoria. Vale a partir da próxima página aberta, sem precisar sair e entrar.
 - Para quem não é moderação, `/moderacao` e `/moderacao/negocios/<@>` respondem 404: a área simplesmente não existe.
 - A moderação **não** responde depoimentos nem oculta negócios dos outros. Isso é só do dono.
 
@@ -533,10 +534,11 @@ Código: `scripts/fotos-instagram.ts` (roda no computador de quem cuida do proje
 - O nome do arquivo é aleatório, nas pastas `perfis/` ou `historias/`.
 - Onde a foto fica:
   - em produção, no **Vercel Blob**, com acesso público. O site usa o Blob quando existe `BLOB_STORE_ID` (no Vercel, com o OIDC do deploy) ou `BLOB_READ_WRITE_TOKEN`;
+  - nos previews do Vercel, inclusive o da `stage`, em outro Vercel Blob, só deles;
   - no computador de quem desenvolve, sem nenhuma das duas, em `public/enviados/`, fora do Git;
   - em produção sem nenhuma das duas, a pessoa vê uma mensagem de erro em vez de o site quebrar.
 
-**O site só mostra fotos guardadas por ele mesmo** (`ehFotoDoSite`): endereços do Vercel Blob ou da pasta `/enviados/`. Uma imagem de outro endereço avisaria aquele servidor a cada visita ao perfil, então ela simplesmente não aparece.
+**O site só mostra fotos guardadas por ele mesmo** (`ehFotoDoSite`): endereços de qualquer store do Vercel Blob (o de produção ou o dos previews) ou da pasta `/enviados/`. Uma imagem de outro endereço avisaria aquele servidor a cada visita ao perfil, então ela simplesmente não aparece.
 
 ---
 
@@ -697,6 +699,7 @@ Toda decisão e edição importante grava quem fez, o quê, em qual alvo e quand
 | `reivindicacao.aprovada` / `reivindicacao.aprovada_com_transferencia` | Um pedido foi aprovado, como co-dono ou com transferência. Os detalhes trazem o pedido, o caminho e a pessoa. |
 | `reivindicacao.recusada` | Um pedido foi recusado. Os detalhes trazem o motivo. |
 | `depoimento.mantido` / `depoimento.removido` | A moderação decidiu uma denúncia. |
+| `usuario.moderacao_dada` / `usuario.moderacao_tirada` | Alguém virou moderação ou deixou de ser, pelo `npm run moderacao`. Aparece como "Sistema"; os detalhes trazem o e-mail. |
 
 O que **não** vai para a auditoria hoje:
 
