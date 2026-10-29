@@ -71,7 +71,8 @@ export default function Sobre() {
           acima e, no painel, clique em &ldquo;Ocultar meu negócio&rdquo;. Ele sai do diretório na hora.
         </p>
         <p>
-          <strong>Que dados vocês guardam?</strong> Da sua conta, nome e e-mail. Dos negócios, só o que aparece no perfil:
+          <strong>Que dados vocês guardam?</strong> Da sua conta, nome e e-mail. O e-mail nunca aparece no site: só a
+          moderação vê. Dos negócios, só o que aparece no perfil:
           textos, fotos e contatos públicos.
           Não fazemos raspagem do Instagram e não guardamos tokens de acesso.
         </p>

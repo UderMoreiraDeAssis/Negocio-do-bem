@@ -5,6 +5,7 @@ import { registrarAuditoria } from "@/lib/auditoria";
 import { exigirModerador } from "@/lib/auth/sessao";
 import { db } from "@/lib/db";
 import { texto } from "@/lib/formulario";
+import { comAviso, destinoNaModeracao } from "@/lib/moderacao/filtros";
 import { aprovar, aprovarPendentesSemDono, ErroReivindicacao, recusar, type ModoAprovacao } from "@/lib/reivindicacao";
 
 function voltar(aba: string, aviso: string): never {
@@ -62,7 +63,10 @@ export async function recusarReivindicacao(dados: FormData): Promise<void> {
   voltar("reivindicacoes", "feito");
 }
 
-/** Publica ou tira do ar um negócio. Serve para a fila de indicações e para a aba Negócios. */
+/**
+ * Publica ou tira do ar um negócio. Serve para a fila de indicações e para a aba
+ * Negócios, que manda em `voltar` a lista filtrada de onde o pedido saiu.
+ */
 export async function moderarEmpresa(dados: FormData): Promise<void> {
   const moderador = await exigirModerador();
   const decisao = dados.get("decisao") === "aprovar" ? "aprovada" : "rejeitada";
@@ -78,6 +82,8 @@ export async function moderarEmpresa(dados: FormData): Promise<void> {
     alvoId: empresa.id,
     detalhes: `@${empresa.instagramUsername}`,
   });
+  const destino = destinoNaModeracao(dados.get("voltar"));
+  if (destino) redirect(comAviso(destino, "feito"));
   voltar(aba, "feito");
 }
 

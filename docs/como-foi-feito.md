@@ -314,6 +314,17 @@ O "Onde?" mostrava "São Paulo · 43 negócios", mas escolher a cidade trazia 1 
 - **`npm run cidades:corrigir` arruma o banco,** para o perfil e os cartões também mostrarem o nome oficial. Ele grava direto no SQL, para não mudar o `atualizadoEm`, que ordena o diretório, e refaz o campo `busca`.
 - **As páginas de cidade usam o mesmo nome oficial.** O endereço (`/cidades/sao-paulo-sp`), as cidades de uma causa ou de um tipo (`cidadesCom`) e os links do perfil e do sitemap juntam as grafias. Assim, um negócio gravado como "Tubarão-SC" leva à página de Tubarão, SC.
 
+### 29 de outubro: painel da moderação ([#75](https://github.com/fabsreis/Negocio-do-bem/issues/75))
+
+A moderação via as filas, os 50 negócios atualizados por último e os 100 últimos registros da auditoria. Não dava para ver as contas, os números do projeto nem tudo o que uma pessoa fez no site.
+
+- **Um painel, não um sistema novo.** O `/moderacao` ganhou um menu lateral com a visão geral, as filas que já existiam, os cadastros (negócios, contas e depoimentos) e os registros (auditoria e sistema). Os endereços antigos (`?aba=reivindicacoes` e os outros) continuam valendo.
+- **Só consulta.** As ações continuam as mesmas. Dar moderação, suspender ou apagar uma conta mudam regras de permissão e de privacidade e ficaram para issues próprias.
+- **Números do banco, não de um serviço de métricas.** A visão geral conta direto no Postgres, a cada abertura, sem `use cache`. Os agrupamentos (`groupBy`) somam várias situações numa consulta só.
+- **Semanas de 7 dias corridos até agora.** A atividade não usa a semana do calendário: assim nenhuma semana fica pela metade e o fuso horário não muda a conta. O agrupamento (`agruparPorSemana`) é uma função pura, com teste.
+- **A ficha não lê a senha.** As consultas de contas usam sempre `select`, e um teste confere que o hash não vem junto.
+- **O que a URL traz é conferido.** Aba, situação, página, ação, pessoa e alvo passam por `lerFiltros`, como os filtros do diretório. O "Tirar do ar" volta para a lista filtrada de onde saiu, mas só aceita um endereço da própria moderação.
+
 ---
 
 ## 4. Arquitetura
@@ -362,7 +373,7 @@ As linhas tracejadas são serviços opcionais. O site funciona sem eles.
 | `prisma/` | Esquema do banco (`schema.prisma`), migrações e dados de exemplo (`seed.ts`). |
 | `src/app/` | Páginas e rotas. Cada pasta é um endereço: `explorar/` é o diretório, `empresas/[usuario]` é o perfil, `painel/` é o painel do dono, `moderacao/` é a moderação, `api/` tem as rotas do Instagram. |
 | `src/acoes/` | Server Actions, uma por formulário ou botão. Conferem a permissão e validam os dados. |
-| `src/lib/` | Regras de negócio e utilitários, sem interface: `reivindicacao.ts`, `consultas.ts`, `instagram.ts`, `causas.ts`, `cnpj.ts`, `formulario.ts`, `armazenamento.ts`, `auth/`… |
+| `src/lib/` | Regras de negócio e utilitários, sem interface: `reivindicacao.ts`, `consultas.ts`, `instagram.ts`, `causas.ts`, `cnpj.ts`, `formulario.ts`, `armazenamento.ts`, `auth/`, `moderacao/` (filtros, indicadores e consultas do painel da moderação)… |
 | `src/components/` | Componentes de interface reutilizados entre páginas. |
 | `tests/` | `unit/` (sem banco) e `db/` (com banco). |
 | `docs/` | Esta documentação e os prints do README. |
@@ -469,7 +480,7 @@ npm run typecheck
 ```
 
 - **`tests/unit/`:** funções sem banco. Cobrem CNPJ, senha, normalização de texto, causas, campos de formulário, tempo de leitura, fotos (inclusive quando elas vão para o Vercel Blob) e Instagram.
-- **`tests/db/`:** as regras de reivindicação contra um Postgres de verdade:
+- **`tests/db/`:** as consultas do diretório e do painel da moderação, e as regras de reivindicação contra um Postgres de verdade:
   - código por DM;
   - Entrar com Instagram;
   - conflitos;
@@ -601,9 +612,16 @@ Para trocar o slug de uma causa existente, crie uma migração que atualize `Emp
 ### Criar uma ação de moderação
 
 1. Crie a Server Action em `src/acoes/moderacao.ts`, começando por `exigirModerador()`.
-2. Registre na auditoria com `registrarAuditoria`, com uma ação no formato `alvo.verbo` (por exemplo, `empresa.despublicada`).
-3. Volte para a aba certa com um aviso: `redirect("/moderacao?aba=…&aviso=feito")`.
+2. Registre na auditoria com `registrarAuditoria`, com uma ação no formato `alvo.verbo` (por exemplo, `empresa.despublicada`), e acrescente a descrição dela em `ACOES_AUDITORIA` (`src/lib/dominio.ts`).
+3. Volte para a aba certa com um aviso: `redirect("/moderacao?aba=…&aviso=feito")`. Se o botão fica numa lista com busca, filtro ou página, mande a lista num campo `voltar` e redirecione com `destinoNaModeracao` e `comAviso`, como em `moderarEmpresa`.
 4. Atualize a [tabela da auditoria](regras-de-negocio.md#13-auditoria).
+
+### Acrescentar um número ou uma lista ao painel da moderação
+
+1. Conte no banco em `src/lib/moderacao/indicadores.ts` (números da visão geral) ou consulte em `src/lib/moderacao/consultas.ts` (listas). Contas sempre com `select`, nunca com o hash da senha.
+2. Um filtro novo na URL entra em `src/lib/moderacao/filtros.ts`, numa lista de opções conhecidas, para `lerFiltros` recusar o resto.
+3. Mostre na tela com as peças de `src/app/moderacao/Blocos.tsx` (`Numero`, `Detalhes`, `Colunas`, `Barras`, `Etiqueta`).
+4. Cubra a consulta em `tests/db/moderacao.test.ts` e descreva o número na [seção 2 das regras de negócio](regras-de-negocio.md#o-painel-da-moderação).
 
 ### Dar ou tirar a moderação
 

@@ -9,7 +9,7 @@ import { normalizarTexto } from "@/lib/texto";
 export const POR_PAGINA = 18;
 
 /** Só aparecem no diretório os negócios publicados que o dono não escondeu. */
-const NO_DIRETORIO = { moderacao: "aprovada", oculta: false } satisfies Prisma.EmpresaWhereInput;
+export const NO_DIRETORIO = { moderacao: "aprovada", oculta: false } satisfies Prisma.EmpresaWhereInput;
 
 const ORDENACAO: Record<Ordem, Prisma.EmpresaOrderByWithRelationInput[]> = {
   // Verificados primeiro, depois os atualizados mais recentemente.

@@ -81,14 +81,77 @@ Um papel não exclui o outro: uma pessoa da moderação também pode ser dona de
 | **Visitante** | Sem login | Ver o diretório, os perfis publicados e os depoimentos. Não indica, não escreve depoimento, não reivindica. |
 | **Membro** | Qualquer conta | Indicar negócios, escrever depoimentos, denunciar depoimentos, reivindicar um negócio, ver as próprias indicações e solicitações em `/painel`. |
 | **Dono** | Conta aprovada como dona de um negócio | Tudo do membro, mais: editar o perfil do próprio negócio, trocar a foto, responder depoimentos e ocultar ou mostrar o negócio no diretório. Não pode escrever depoimento no próprio negócio. |
-| **Moderação** | `papel = "moderador"` no banco | Tudo do membro, mais: as filas de `/moderacao`, tirar do ar e publicar de novo qualquer negócio, editar qualquer perfil, ver a auditoria. |
+| **Moderação** | `papel = "moderador"` no banco | Tudo do membro, mais: o painel de `/moderacao` (visão geral, filas, todos os negócios, contas e depoimentos, auditoria e sistema), tirar do ar e publicar de novo qualquer negócio, editar qualquer perfil. |
 
 Detalhes da moderação:
 
 - **Só o papel no banco dá moderação.** O cadastro não confirma o e-mail, então o e-mail nunca dá acesso: se desse, quem se cadastrasse primeiro com o endereço certo levaria a moderação.
 - Quem cuida do projeto dá e tira a moderação com `npm run moderacao`, que roda com a conexão direta do banco e registra na auditoria. Vale a partir da próxima página aberta, sem precisar sair e entrar.
-- Para quem não é moderação, `/moderacao` e `/moderacao/negocios/<@>` respondem 404: a área simplesmente não existe.
+- Para quem não é moderação, `/moderacao`, `/moderacao/negocios/<@>` e `/moderacao/contas/<id>` respondem 404: a área simplesmente não existe.
 - A moderação **não** responde depoimentos nem oculta negócios dos outros. Isso é só do dono.
+- A moderação **não** dá nem tira a moderação pela tela, não suspende nem apaga contas: o painel só consulta.
+
+### O painel da moderação
+
+Código: `src/app/moderacao/` (telas) e `src/lib/moderacao/` (filtros da URL, indicadores e consultas).
+
+O painel tem um menu com quatro grupos. No celular, ele vira uma linha que rola para o lado.
+
+| Grupo | Seção | O que mostra |
+| --- | --- | --- |
+| Painel | **Visão geral** (abre primeiro) | As filas que esperam a moderação, os números do projeto, a atividade das últimas semanas, o diretório por estado, tipo e causa, e a saúde dos dados. |
+| Filas | **Reivindicações**, **Indicações**, **Denúncias** | As filas que já existiam ([seções 5](#5-moderação-das-indicações), [6](#a-decisão-da-moderação) e [10](#denúncias)). O menu mostra quantos itens esperam em cada uma. |
+| Cadastros | **Negócios** | Todos os negócios, com filtros por situação ([seção 5](#editar-qualquer-perfil)). |
+| Cadastros | **Contas** | Todas as contas, com busca e filtros, e a ficha de cada uma. |
+| Cadastros | **Depoimentos** | Todos os depoimentos, publicados e removidos. |
+| Registros | **Auditoria** | Quem fez o quê, com filtros ([seção 13](#13-auditoria)). |
+| Registros | **Sistema** | O ambiente, as integrações ligadas, as tabelas e as migrações do banco. |
+
+**Visão geral:**
+
+- **Filas:** um cartão por fila com itens esperando. Sem nada esperando, aparece "Nenhuma fila esperando a moderação".
+- **Números do projeto:** contam tudo o que está no banco, inclusive o que o público não vê:
+  - negócios no diretório e cadastrados, verificados, sem dono, tirados do ar, ocultos pelo dono e indicados nos últimos 7 dias;
+  - contas cadastradas, donas de negócio, de moderação, com sessão aberta, sem atividade e criadas nos últimos 7 dias;
+  - depoimentos publicados, com e sem resposta do dono, com denúncia aberta, removidos e escritos nos últimos 7 dias;
+  - pedidos de reivindicação aprovados, recusados, em análise, e cancelados ou expirados.
+
+  Cada número leva à lista filtrada, quando ela existe.
+- **Atividade:** negócios indicados, contas criadas, depoimentos e pedidos em cada uma das últimas 12 semanas. Cada semana são 7 dias corridos até o momento da consulta, então a última não fica pela metade. Ao passar o mouse, cada coluna mostra o total e as datas. "Ver os números de cada semana" abre a mesma informação em tabela.
+- **O diretório:** os negócios que o público vê, por estado, por tipo e por causa. Aparecem os 8 maiores de cada lista, e os links abrem as páginas públicas.
+- **Saúde dos dados:**
+  - negócios do diretório sem foto, sem nenhum contato (site, WhatsApp ou e-mail) e sem história;
+  - cidades gravadas com um nome diferente do oficial do IBGE naquela UF, como "Sao Paulo" (ver [seção 12](#municípios)), com o nome oficial ao lado ("fora da lista" quando não há) e quantos negócios há em cada uma. O `npm run cidades:corrigir` grava os nomes oficiais;
+  - pedidos em análise com o prazo vencido;
+  - sessões vencidas que continuam no banco.
+
+  Zero aparece como "tudo certo"; acima de zero, com um link para a lista.
+
+**Contas:**
+
+- **A lista** mostra nome, e-mail, se é moderação, quando a conta foi criada, desde quando tem sessão aberta e quantos negócios, indicações, depoimentos e pedidos ela tem. As mais novas aparecem primeiro, 30 por página.
+- **A busca** procura no nome e no e-mail. Cada palavra precisa aparecer, sem diferenciar maiúsculas. Acentos contam: "joao" não acha "João".
+- **Filtros:** todas, moderação, donos de negócio, novas (criadas nos últimos 7 dias) e sem atividade (não indicaram, não escreveram depoimento nem denúncia, não pediram e não são donas de nenhum negócio).
+- **A ficha da conta** (`/moderacao/contas/<id>`) junta:
+  - nome, e-mail, papel, quando a conta foi criada e as sessões abertas;
+  - os negócios de que é dona, as indicações, os depoimentos, as denúncias e os pedidos de reivindicação, até 30 de cada, os mais recentes primeiro, com o total quando há mais;
+  - quantos pedidos decidiu, se é moderação;
+  - os 20 registros mais recentes da auditoria feitos por ela ou sobre a conta dela, com um link para todos.
+- **Sessão aberta** é uma sessão que ainda não venceu. Como "Sair" apaga a sessão, a ficha não sabe quando alguém entrou pela última vez.
+- **Denúncias da ficha:** só ficam guardadas as abertas e as que levaram à remoção. Quando a moderação mantém o depoimento, a denúncia é apagada ([seção 10](#denúncias)).
+- Os nomes das pessoas nas filas, nos negócios, nos depoimentos e na auditoria levam à ficha.
+
+**Depoimentos:** todos, dos mais novos aos mais antigos, 30 por página.
+
+- Filtros: publicados, com denúncia aberta, removidos e sem resposta do dono.
+- A busca procura no texto, no nome do autor e no nome do negócio, sem diferenciar maiúsculas.
+- A aba só consulta: a decisão sobre uma denúncia continua na fila "Denúncias", com o link "Decidir na fila".
+
+**Sistema:**
+
+- **Ambiente:** o nome (`production`, `preview` ou `development`), o endereço público, se os buscadores podem indexar e, no Vercel, o branch, o commit e a região.
+- **Integrações:** só se cada uma está ligada (fotos no Vercel Blob, código por DM, Entrar com Instagram, confirmação automática da DM, rotina de fotos, Google Analytics e verificação nos buscadores), com o que falta para ligar. Os valores das variáveis nunca aparecem.
+- **Banco:** quantas linhas cada tabela tem e as migrações aplicadas, da mais nova para a mais antiga. Uma migração que começou e não terminou aparece em destaque, porque trava o próximo deploy.
 
 ---
 
@@ -223,9 +286,10 @@ Código: `moderarEmpresa` e `publicarIndicacoesPendentes` em `src/acoes/moderaca
 
 Código: aba "Negócios" e `src/app/moderacao/negocios/[usuario]/page.tsx`.
 
-- **A aba "Negócios"** lista todos os negócios, publicados, pendentes, fora do ar e ocultos, com foto, cidade, situação na moderação, se tem dono e os botões "Editar perfil" e "Tirar do ar" (ou "Publicar de novo").
-  - A busca usa os mesmos campos da busca do diretório.
-  - Sem busca, a lista mostra os 50 atualizados mais recentemente.
+- **A aba "Negócios"** lista todos os negócios, publicados, pendentes, fora do ar e ocultos, dos atualizados mais recentemente aos mais antigos, 30 por página. Cada um mostra foto, @, tipo, cidade, quantos depoimentos publicados tem, os donos, quem indicou e quando, a situação ("No diretório", "Oculto pelo dono", "Fora do ar", "Aguardando moderação" e "Verificado") e os botões "Editar perfil", "Histórico" (a auditoria do negócio) e "Tirar do ar" (ou "Publicar de novo").
+  - A busca usa os mesmos campos da busca do diretório e aceita o @ com a arroba.
+  - **Filtros:** no diretório, tirados do ar, ocultos pelo dono, aguardando moderação, verificados, sem dono e, entre os do diretório, sem foto, sem contato e sem história.
+  - Depois de "Tirar do ar" ou "Publicar de novo", a moderação volta para a mesma lista, com a busca, o filtro e a página. O endereço de volta só é aceito se for da própria moderação (`destinoNaModeracao`).
 - **Edição:** `/moderacao/negocios/<@>` usa o **mesmo formulário do painel do dono**: foto, informações, contatos, causas e história.
   - Um aviso lembra que a edição é pela moderação e que fica registrada.
   - Se o negócio tem dono, o aviso pede para mudar só o necessário.
@@ -730,7 +794,13 @@ A cidade vem da lista de municípios do IBGE, gravada no projeto em `src/lib/mun
 
 Código: `src/lib/auditoria.ts`.
 
-Toda decisão e edição importante grava quem fez, o quê, em qual alvo e quando. A aba "Auditoria" mostra os 100 registros mais recentes. "Sistema" aparece quando a ação foi automática, por exemplo uma aprovação pelo webhook.
+Toda decisão e edição importante grava quem fez, o quê, em qual alvo e quando. "Sistema" aparece quando a ação foi automática, por exemplo uma aprovação pelo webhook.
+
+A aba "Auditoria" do painel mostra os registros do mais novo ao mais antigo, 50 por página:
+
+- cada ação aparece com uma descrição em português (`ACOES_AUDITORIA`, em `src/lib/dominio.ts`) e com o código embaixo;
+- quem fez leva à ficha da conta, e o alvo leva ao negócio, à conta ou ao perfil do depoimento, enquanto ele existir. Alvo apagado aparece como "removido";
+- **filtros:** por ação (a lista mostra quantas vezes cada uma aparece), por quem fez (inclusive "sistema") e por alvo. O link "histórico" de cada linha, o "Histórico" da aba Negócios e o "Tudo o que esta conta fez" da ficha usam esses filtros.
 
 | Ação registrada | Quando |
 | --- | --- |
@@ -753,7 +823,7 @@ O que **não** vai para a auditoria hoje:
 - depoimentos, respostas e denúncias;
 - envio de fotos da história.
 
-Para uma ação nova de moderação, registre sempre na auditoria.
+Para uma ação nova de moderação, registre sempre na auditoria e dê a ela uma descrição em `ACOES_AUDITORIA`.
 
 ---
 
@@ -764,9 +834,9 @@ Para uma ação nova de moderação, registre sempre na auditoria.
 | Dado | Onde | Quem vê |
 | --- | --- | --- |
 | Nome da conta | `Usuario` | **Público** quando a pessoa escreve um depoimento ou quando a indicação dela aparece no perfil ("indicado por …"). A moderação vê nas filas. |
-| E-mail da conta | `Usuario` | Só a própria pessoa (no menu) e a moderação (de quem pede a reivindicação, dos donos atuais e de quem escreveu um depoimento denunciado). Nunca aparece no site público. |
+| E-mail da conta | `Usuario` | Só a própria pessoa (no menu) e a moderação, que vê o e-mail de todas as contas na aba "Contas" e na ficha de cada uma, além das filas. Nunca aparece no site público. |
 | Senha | `Usuario.senhaHash` | Ninguém: só o hash scrypt é guardado. |
-| Sessões | `Sessao` | Ninguém: só o hash do token. |
+| Sessões | `Sessao` | Ninguém vê o token: só o hash é guardado. A moderação vê quantas sessões abertas uma conta tem e quando foram abertas. |
 | Dados do perfil do negócio | `Empresa` | **Público** quando o negócio está publicado. |
 | Dados do pedido de reivindicação (relação, contato, CNPJ, site, mensagem) | `Reivindicacao` | Só a moderação. A pessoa vê o status e o motivo da recusa. |
 | Depoimentos | `Depoimento` | **Públicos**, com nome e data. |
@@ -832,7 +902,12 @@ Para uma ação nova de moderação, registre sempre na auditoria.
 | Tipos de negócio visíveis nos filtros | 8 (o resto em "Ver todos") | `src/app/explorar/page.tsx` |
 | Sugestões do "Onde?" | até 8 | `src/lib/diretorio.ts` |
 | Itens por fila da moderação | 50 | `src/app/moderacao/page.tsx` |
-| Registros na aba de auditoria | 100 | `src/app/moderacao/page.tsx` |
+| Itens por página nas listas do painel (negócios, contas e depoimentos) | 30 | `src/lib/moderacao/filtros.ts` |
+| Registros por página na auditoria | 50 | `src/lib/moderacao/filtros.ts` |
+| Itens de cada lista na ficha da conta | 30 | `src/lib/moderacao/consultas.ts` |
+| Registros da auditoria na ficha da conta | 20 | `src/lib/moderacao/consultas.ts` |
+| Semanas no gráfico de atividade | 12 | `src/lib/moderacao/indicadores.ts` |
+| Itens de cada lista do diretório na visão geral | 8 | `src/app/moderacao/VisaoGeral.tsx` |
 | Leitura da história | 200 palavras por minuto | `src/lib/texto.ts` |
 
 ---
@@ -865,6 +940,7 @@ O sistema funciona hoje assim. Algumas destas situações podem ser intencionais
 
 - Não há recuperação de senha, confirmação de e-mail, troca de nome ou e-mail, nem exclusão da conta.
 - Não há limite de tentativas de login.
+- Não há registro do último acesso: "Sair" apaga a sessão, então o painel só sabe das sessões que continuam abertas.
 - Sessões vencidas deixam de valer, mas não são apagadas do banco.
 - Ninguém recebe e-mail: nem o dono quando o pedido é decidido, nem a moderação quando chega algo novo. Hoje o site não tem serviço de envio de e-mail.
 

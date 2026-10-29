@@ -9,7 +9,7 @@ Um diretório de negócios com consciência social e conexão com a comunidade. 
 - **Indicação** pela comunidade, publicada na hora. A moderação tira do ar o que for impróprio.
 - **Reivindicação de propriedade** pelo dono, explicada abaixo.
 - **Painel do dono** para editar o perfil, responder depoimentos e ocultar o negócio.
-- **Moderação** com fila de disputas de reivindicação e de denúncias, botão para tirar um negócio do ar, edição de qualquer perfil (foto, contatos, textos e causas) e registro de auditoria.
+- **Moderação** com um painel próprio: os números do projeto, a atividade das últimas semanas e a saúde dos dados; filas de disputas de reivindicação e de denúncias; todos os negócios, contas e depoimentos, com a ficha de cada conta; botão para tirar um negócio do ar; edição de qualquer perfil (foto, contatos, textos e causas); e o registro de auditoria, com filtros.
 
 Vai colaborar? Comece por estes dois guias:
 
