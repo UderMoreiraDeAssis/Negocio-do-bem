@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { ConfirmarEmail } from "@/components/ConfirmarEmail";
 import { usuarioAtual } from "@/lib/auth/sessao";
 import { metadadosDaPagina } from "@/lib/seo";
 import { FormIndicar } from "./FormIndicar";
@@ -51,5 +52,6 @@ async function Conteudo() {
       </div>
     );
   }
+  if (!usuario.emailConfirmado) return <ConfirmarEmail email={usuario.email} para="indicar" voltar="/indicar" />;
   return <FormIndicar />;
 }

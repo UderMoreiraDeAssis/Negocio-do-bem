@@ -21,9 +21,10 @@ O raciocínio por trás das decisões e a história do projeto estão em [Como o
 11. [Diretório e busca](#11-diretório-e-busca)
 12. [Causas, categorias e estados do Brasil](#12-causas-categorias-e-estados-do-brasil)
 13. [Auditoria](#13-auditoria)
-14. [Privacidade: o que guardamos e quem vê](#14-privacidade-o-que-guardamos-e-quem-vê)
-15. [Números e limites](#15-números-e-limites)
-16. [Comportamentos atuais que valem conhecer](#16-comportamentos-atuais-que-valem-conhecer)
+14. [Avisos por e-mail](#14-avisos-por-e-mail)
+15. [Privacidade: o que guardamos e quem vê](#15-privacidade-o-que-guardamos-e-quem-vê)
+16. [Números e limites](#16-números-e-limites)
+17. [Comportamentos atuais que valem conhecer](#17-comportamentos-atuais-que-valem-conhecer)
 
 ---
 
@@ -72,6 +73,41 @@ Código: `src/acoes/conta.ts`, `src/lib/auth/`.
   - páginas que exigem login mandam para `/entrar?voltar=<caminho>`;
   - o `voltar` só aceita caminhos internos (`caminhoSeguro`), para não virar um redirecionamento para outro site.
 
+### E-mail confirmado e links por e-mail
+
+Código: `src/lib/auth/links.ts`, `src/acoes/conta.ts`, `src/app/api/link/route.ts` e `src/app/link/page.tsx`.
+
+- **O cadastro manda um link de confirmação** para o e-mail digitado. A conta já entra no site na hora.
+- **Sem o e-mail confirmado, a conta não** indica negócios, não escreve nem denuncia depoimentos e não reivindica negócios, por nenhum dos caminhos.
+  - Nesses lugares, e no topo do `/painel`, aparece "Confirme seu e-mail", com um botão para mandar o link de novo.
+  - As Server Actions conferem de novo no servidor e respondem "Antes, confirme o seu e-mail".
+- **O resto funciona sem confirmar:** entrar, sair, o painel, editar o próprio negócio, responder depoimentos e cancelar pedidos.
+- **Contas criadas antes da confirmação existir** (`emailConfirmadoEm` vazio) confirmam na próxima vez que forem fazer uma dessas ações.
+- **Entrar por link** (`/entrar/link`, também em "Esqueceu a senha?" no `/entrar`): a pessoa digita o e-mail e recebe um link para entrar sem senha.
+  - A resposta é sempre "Confira seu e-mail", com ou sem conta para aquele endereço.
+  - O link é criado e mandado depois da resposta, para o tempo de resposta também não revelar quais e-mails têm conta.
+  - A senha continua valendo. Entrar por link não muda a senha.
+- **Os dois links:**
+
+  | Link | Vale por | Ao usar |
+  | --- | --- | --- |
+  | Confirmar o e-mail | 24 horas | Confirma o e-mail. Não abre sessão. |
+  | Entrar | 15 minutos | Abre a sessão e também confirma o e-mail. |
+
+- **Cada link vale uma vez.** Dois cliques ao mesmo tempo usam o link uma vez só.
+- **O link só vale para o e-mail para onde foi.** Se a conta mudar de e-mail, os links antigos deixam de valer.
+- **Abrir o link não usa o link.** `/api/link` guarda o token num cookie (`ndb_link`, `httpOnly`, só no caminho `/link`) e leva a `/link`, que mostra a conta e pede um clique em "Entrar" ou em "Confirmar meu e-mail".
+  - Filtros de e-mail que abrem links sozinhos (Outlook, antivírus) não gastam o link nem confirmam um e-mail sem a pessoa.
+  - O token sai do endereço antes de a página carregar o Google Analytics.
+- **Depois do clique,** o link de entrar leva ao `voltar` de quando foi pedido. O de confirmar mostra "E-mail confirmado" e um botão para continuar de onde a pessoa estava.
+- **O banco guarda só o SHA-256 do token,** como na sessão.
+- **Limite:** no máximo **5 links por conta a cada hora**, somando os dois tipos.
+  - Ao mandar de novo a confirmação, quem passou do limite vê "Você pediu muitos e-mails na última hora".
+  - No "Entrar por link", a resposta continua a mesma, e o e-mail simplesmente não sai.
+  - Os links vencidos há mais de uma hora são apagados quando a conta recebe outro.
+- **O endereço do link vem da configuração** (`ENDERECO_DO_SITE`, ou o endereço do próprio preview nos previews do Vercel), nunca do cabeçalho `Host` da requisição.
+- **Sem o envio de e-mail configurado,** o link vai para o log do servidor no `npm run dev` e nos previews, para dar para testar. Na produção, ele não vai para o log.
+
 ### Papéis
 
 Um papel não exclui o outro: uma pessoa da moderação também pode ser dona de um negócio.
@@ -79,13 +115,13 @@ Um papel não exclui o outro: uma pessoa da moderação também pode ser dona de
 | Papel | Quem é | O que pode fazer |
 | --- | --- | --- |
 | **Visitante** | Sem login | Ver o diretório, os perfis publicados e os depoimentos. Não indica, não escreve depoimento, não reivindica. |
-| **Membro** | Qualquer conta | Indicar negócios, escrever depoimentos, denunciar depoimentos, reivindicar um negócio, ver as próprias indicações e solicitações em `/painel`. |
+| **Membro** | Qualquer conta | Ver as próprias indicações e solicitações em `/painel`. Com o [e-mail confirmado](#e-mail-confirmado-e-links-por-e-mail): indicar negócios, escrever e denunciar depoimentos e reivindicar um negócio. |
 | **Dono** | Conta aprovada como dona de um negócio | Tudo do membro, mais: editar o perfil do próprio negócio, trocar a foto, responder depoimentos e ocultar ou mostrar o negócio no diretório. Não pode escrever depoimento no próprio negócio. |
 | **Moderação** | `papel = "moderador"` no banco | Tudo do membro, mais: o painel de `/moderacao` (visão geral, filas, todos os negócios, contas e depoimentos, auditoria e sistema), tirar do ar e publicar de novo qualquer negócio, editar qualquer perfil. |
 
 Detalhes da moderação:
 
-- **Só o papel no banco dá moderação.** O cadastro não confirma o e-mail, então o e-mail nunca dá acesso: se desse, quem se cadastrasse primeiro com o endereço certo levaria a moderação.
+- **Só o papel no banco dá moderação.** O e-mail nunca dá acesso, nem confirmado: se desse, quem se cadastrasse primeiro com o endereço certo levaria a moderação, e as contas antigas nem confirmaram o e-mail.
 - Quem cuida do projeto dá e tira a moderação com `npm run moderacao`, que roda com a conexão direta do banco e registra na auditoria. Vale a partir da próxima página aberta, sem precisar sair e entrar.
 - Para quem não é moderação, `/moderacao`, `/moderacao/negocios/<@>` e `/moderacao/contas/<id>` respondem 404: a área simplesmente não existe.
 - A moderação **não** responde depoimentos nem oculta negócios dos outros. Isso é só do dono.
@@ -133,7 +169,7 @@ O painel tem um menu com quatro grupos. No celular, ele vira uma linha que rola 
 - **A busca** procura no nome e no e-mail. Cada palavra precisa aparecer, sem diferenciar maiúsculas. Acentos contam: "joao" não acha "João".
 - **Filtros:** todas, moderação, donos de negócio, novas (criadas nos últimos 7 dias) e sem atividade (não indicaram, não escreveram depoimento nem denúncia, não pediram e não são donas de nenhum negócio).
 - **A ficha da conta** (`/moderacao/contas/<id>`) junta:
-  - nome, e-mail, papel, quando a conta foi criada e as sessões abertas;
+  - nome, e-mail, papel, quando a conta foi criada, quando confirmou o e-mail e as sessões abertas;
   - os negócios de que é dona, as indicações, os depoimentos, as denúncias e os pedidos de reivindicação, até 30 de cada, os mais recentes primeiro, com o total quando há mais;
   - quantos pedidos decidiu, se é moderação;
   - os 20 registros mais recentes da auditoria feitos por ela ou sobre a conta dela, com um link para todos.
@@ -390,7 +426,7 @@ O que a moderação confere: se o CNPJ, o site e o contato batem com o @ do Inst
 
 **Duas pessoas da moderação ao mesmo tempo:** se um pedido já foi decidido, a segunda decisão é recusada com o aviso "Esta solicitação já tinha sido decidida por outra pessoa da moderação".
 
-**Depois da decisão,** a pessoa acompanha em `/painel`, em "Minhas solicitações de reivindicação". Aparecem as 20 mais recentes, menos as canceladas, com o status e, se recusada, o motivo.
+**Depois da decisão,** a pessoa recebe um e-mail com o resultado ([seção 14](#14-avisos-por-e-mail)) e acompanha em `/painel`, em "Minhas solicitações de reivindicação". Aparecem as 20 mais recentes, menos as canceladas, com o status e, se recusada, o motivo.
 
 ### Estados de um pedido
 
@@ -630,6 +666,7 @@ Código: `src/acoes/depoimentos.ts`, `decidirDenuncia` em `src/acoes/moderacao.t
 - **Um depoimento por pessoa por negócio.**
 - **Tamanho:** de 20 a 1.500 caracteres.
 - **Vai ao ar na hora,** sem moderação prévia, com o nome de quem escreveu e a data.
+- **Os donos recebem um e-mail** com o texto e o link para responder ([seção 14](#14-avisos-por-e-mail)).
 - **Ordem:** os depoimentos aparecem do mais novo para o mais antigo.
 - **Edição:** o autor não edita nem apaga o próprio depoimento. Não existe tela para isso.
 - **Resposta do dono:**
@@ -642,6 +679,7 @@ Código: `src/acoes/depoimentos.ts`, `decidirDenuncia` em `src/acoes/moderacao.t
 - **Quem denuncia:** qualquer pessoa logada que **não seja a autora** do depoimento, incluindo o dono do negócio. A página esconde o botão para a autora, e a ação também recusa: se ela chamar a ação direto, volta para o perfil sem gravar nada.
 - **Motivo:** opcional, até 300 caracteres. Sem motivo, fica "Sem motivo informado".
 - **Denunciar não esconde o depoimento.** Ele continua no ar até a moderação decidir.
+- **A moderação recebe um e-mail** com o negócio e o link da fila, sem dizer quem denunciou.
 - **Uma denúncia aberta por vez:**
   - enquanto há uma denúncia aberta, o botão "Denunciar" some para todos;
   - uma segunda denúncia não substitui a primeira.
@@ -827,16 +865,46 @@ Para uma ação nova de moderação, registre sempre na auditoria e dê a ela um
 
 ---
 
-## 14. Privacidade: o que guardamos e quem vê
+## 14. Avisos por e-mail
+
+Código: `src/lib/email.ts` (o envio) e `src/lib/notificacoes.ts` (quem recebe o quê).
+
+O site manda poucos e-mails: só quando alguém precisa agir ou saber de uma decisão.
+
+| Quando | Quem recebe | O que vai no e-mail |
+| --- | --- | --- |
+| A moderação aprova um pedido de reivindicação: como co-dono, com transferência ou pelo botão "Aprovar os N pedidos sem dono" | Quem pediu | O negócio e o link do painel dele. |
+| A moderação recusa um pedido | Quem pediu | O negócio, o motivo da recusa e o link do painel. |
+| Um pedido pelos dados do negócio fica na fila (o negócio tem dono ou está fora do ar), ou um "Entrar com Instagram" fica em análise | Cada pessoa da moderação | O negócio e o link da fila de reivindicações. |
+| Um depoimento é denunciado | Cada pessoa da moderação | O negócio e o link da fila de denúncias. |
+| Chega um depoimento novo | Cada dono do negócio | Quem escreveu, o texto e o link para responder. |
+| Alguém cria uma conta, ou pede de novo em "Confirme seu e-mail" | A própria pessoa | O link para confirmar o e-mail, que vale por 24 horas. |
+| Alguém pede para entrar por link | O e-mail digitado, se tiver conta | O link para entrar, que vale por 15 minutos. |
+
+- **Os links de confirmar e de entrar** seguem as regras de [e-mail confirmado e links por e-mail](#e-mail-confirmado-e-links-por-e-mail).
+- **A aprovação na hora não manda e-mail.** Quem vira dono pelos dados do negócio ou pelo Instagram já vê o resultado na tela.
+- **Cada pessoa recebe o próprio e-mail.** Ninguém vê o endereço de outra, nem entre a moderação nem entre co-donos.
+- **Os avisos para a moderação não levam dados pessoais:** nada de nome, e-mail ou contato de quem pediu ou denunciou. Isso fica só nas filas.
+- **O e-mail sai depois da resposta,** pelo `after()` do Next. A pessoa não espera o envio, e uma falha fica só no log, sem desfazer a ação.
+- **Remetente e resposta:** o e-mail sai de `EMAIL_REMETENTE`, um endereço de domínio verificado no Resend, e as respostas vão para `EMAIL_RESPOSTA`.
+- **Ligado só com `RESEND_API_KEY` e `EMAIL_REMETENTE`.** Sem elas, ninguém recebe e-mail, e o resto funciona igual. Nos previews do Vercel o envio fica desligado mesmo com as variáveis, porque o banco dos previews só tem contas de teste. A aba "Sistema" da moderação mostra se o envio está ligado.
+- **Fica de fora:**
+  - o código por DM, desligado por padrão, não avisa a moderação;
+  - quem indica um negócio, tem o negócio tirado do ar ou deixa de ser dono numa transferência não recebe e-mail.
+
+---
+
+## 15. Privacidade: o que guardamos e quem vê
 
 ### O que é guardado
 
 | Dado | Onde | Quem vê |
 | --- | --- | --- |
 | Nome da conta | `Usuario` | **Público** quando a pessoa escreve um depoimento ou quando a indicação dela aparece no perfil ("indicado por …"). A moderação vê nas filas. |
-| E-mail da conta | `Usuario` | Só a própria pessoa (no menu) e a moderação, que vê o e-mail de todas as contas na aba "Contas" e na ficha de cada uma, além das filas. Nunca aparece no site público. |
+| E-mail da conta | `Usuario` | Só a própria pessoa (no menu) e a moderação, que vê o e-mail de todas as contas na aba "Contas" e na ficha de cada uma, além das filas. Nunca aparece no site público. Serve para entrar e para receber os [avisos por e-mail](#14-avisos-por-e-mail). |
 | Senha | `Usuario.senhaHash` | Ninguém: só o hash scrypt é guardado. |
 | Sessões | `Sessao` | Ninguém vê o token: só o hash é guardado. A moderação vê quantas sessões abertas uma conta tem e quando foram abertas. |
+| Links por e-mail | `LinkEmail` | Ninguém vê o token: só o hash é guardado, com o e-mail para onde o link foi, para onde ele leva e quando foi usado. Os vencidos há mais de uma hora são apagados quando a conta recebe outro link. |
 | Dados do perfil do negócio | `Empresa` | **Público** quando o negócio está publicado. |
 | Dados do pedido de reivindicação (relação, contato, CNPJ, site, mensagem) | `Reivindicacao` | Só a moderação. A pessoa vê o status e o motivo da recusa. |
 | Depoimentos | `Depoimento` | **Públicos**, com nome e data. |
@@ -873,7 +941,7 @@ Para uma ação nova de moderação, registre sempre na auditoria e dê a ela um
 
 ---
 
-## 15. Números e limites
+## 16. Números e limites
 
 | Regra | Valor | Onde |
 | --- | --- | --- |
@@ -909,10 +977,12 @@ Para uma ação nova de moderação, registre sempre na auditoria e dê a ela um
 | Semanas no gráfico de atividade | 12 | `src/lib/moderacao/indicadores.ts` |
 | Itens de cada lista do diretório na visão geral | 8 | `src/app/moderacao/VisaoGeral.tsx` |
 | Leitura da história | 200 palavras por minuto | `src/lib/texto.ts` |
+| Espera pela resposta do Resend | 10 segundos | `src/lib/email.ts` |
+| E-mails pelo plano gratuito do Resend | 100 por dia, 3.000 por mês | Conta do Resend |
 
 ---
 
-## 16. Comportamentos atuais que valem conhecer
+## 17. Comportamentos atuais que valem conhecer
 
 O sistema funciona hoje assim. Algumas destas situações podem ser intencionais e outras são lacunas. Antes de mudar qualquer uma, abra uma issue para combinar o caminho.
 
@@ -942,7 +1012,7 @@ O sistema funciona hoje assim. Algumas destas situações podem ser intencionais
 - Não há limite de tentativas de login.
 - Não há registro do último acesso: "Sair" apaga a sessão, então o painel só sabe das sessões que continuam abertas.
 - Sessões vencidas deixam de valer, mas não são apagadas do banco.
-- Ninguém recebe e-mail: nem o dono quando o pedido é decidido, nem a moderação quando chega algo novo. Hoje o site não tem serviço de envio de e-mail.
+- O e-mail da conta não é confirmado. Um aviso pode ir para um endereço digitado errado, e ninguém fica sabendo.
 
 **Fotos**
 

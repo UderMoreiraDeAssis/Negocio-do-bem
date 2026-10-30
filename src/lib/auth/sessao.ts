@@ -13,6 +13,8 @@ export type UsuarioSessao = {
   nome: string;
   email: string;
   moderador: boolean;
+  // Indicar, escrever e denunciar depoimentos e reivindicar pedem o e-mail confirmado.
+  emailConfirmado: boolean;
 };
 
 function hashToken(token: string): string {
@@ -20,9 +22,9 @@ function hashToken(token: string): string {
 }
 
 /**
- * Só o papel gravado no banco dá moderação. O cadastro não confirma o e-mail,
- * então nenhuma regra pode dar acesso pelo e-mail: quem se cadastrasse primeiro
- * com o endereço certo levaria a moderação. Para dar ou tirar: `npm run moderacao`.
+ * Só o papel gravado no banco dá moderação, nunca o e-mail: quem se cadastrasse
+ * com o endereço certo antes da pessoa levaria a moderação, e as contas antigas
+ * nem confirmaram o e-mail. Para dar ou tirar: `npm run moderacao`.
  */
 export function ehModerador(usuario: { papel: string }): boolean {
   return usuario.papel === "moderador";
@@ -59,7 +61,13 @@ export const usuarioAtual = cache(async (): Promise<UsuarioSessao | null> => {
   });
   if (!sessao || sessao.expiraEm <= new Date()) return null;
   const { usuario } = sessao;
-  return { id: usuario.id, nome: usuario.nome, email: usuario.email, moderador: ehModerador(usuario) };
+  return {
+    id: usuario.id,
+    nome: usuario.nome,
+    email: usuario.email,
+    moderador: ehModerador(usuario),
+    emailConfirmado: usuario.emailConfirmadoEm !== null,
+  };
 });
 
 /** Exige login; senão manda para /entrar e volta para `voltarPara` depois. */

@@ -35,7 +35,7 @@ As imagens usam os dados de exemplo do seed.
 
 ## Stack
 
-Next.js 16 (App Router, Cache Components), React 19, Tailwind CSS 4, Prisma 7 + PostgreSQL, Zod e Vitest. A autenticação é por e-mail e senha (scrypt), com sessão em cookie `httpOnly`. O cookie guarda o token e o banco guarda só o hash dele.
+Next.js 16 (App Router, Cache Components), React 19, Tailwind CSS 4, Prisma 7 + PostgreSQL, Zod e Vitest. A autenticação é por e-mail e senha (scrypt) ou por link mandado ao e-mail, com sessão em cookie `httpOnly`. O cookie guarda o token e o banco guarda só o hash dele.
 
 ## Rodando localmente
 
@@ -50,13 +50,15 @@ npm run db:seed               # dados de exemplo (opcional)
 npm run dev                   # http://localhost:3000
 ```
 
-O seed cria negócios fictícios e estas contas, todas com a senha `senha-demo-123`:
+O seed cria negócios fictícios e estas contas, todas com a senha `senha-demo-123` e o e-mail já confirmado:
 
 | E-mail | Papel |
 | --- | --- |
 | `moderacao@exemplo.com` | moderação |
 | `ana@exemplo.com`, `joao@exemplo.com`, `bia@exemplo.com` | donos de negócios de exemplo |
 | `carla@exemplo.com` | enviou os dados do Café Arco-Íris e espera a moderação |
+
+Uma conta criada no site precisa confirmar o e-mail para indicar, escrever depoimentos e reivindicar. Sem o envio de e-mail configurado, o link de confirmação (e o de "Entrar por link") aparece no terminal do `npm run dev`.
 
 Para a sua própria conta virar moderação, cadastre-se no site e rode `npm run moderacao -- dar seu@email.com`. O `npm run moderacao -- listar` mostra quem é moderação.
 
@@ -141,6 +143,19 @@ Um script no seu computador preenche, todo dia, a foto de perfil dos negócios q
 
 Contas pessoais ou privadas não aparecem na API. Para esses negócios, salve a foto em `fotos-manuais/<@>.jpg` (ou `.png`, `.webp`): ela tem prioridade sobre a da API.
 
+## Ativando os avisos por e-mail (opcional)
+
+O site manda por e-mail o link para confirmar o e-mail e o link para entrar sem senha. Também avisa quem pediu uma reivindicação quando a moderação decide, a moderação quando chega um pedido ou uma denúncia na fila, e os donos quando chega um depoimento. O envio é pelo [Resend](https://resend.com). As regras estão na [seção 14 das regras de negócio](docs/regras-de-negocio.md#14-avisos-por-e-mail).
+
+1. Crie uma conta no Resend e adicione o domínio do site em **Domains**. Crie no DNS do domínio os registros que ele mostrar: o DKIM em `resend._domainkey` e, no subdomínio `send`, um MX e um SPF. Eles não mexem no MX nem no SPF da caixa de e-mail do domínio.
+2. Quando o domínio aparecer como verificado, crie uma chave em **API Keys**, com permissão só de envio (**Sending access**).
+3. No Vercel, só em **Production**, configure `RESEND_API_KEY` com a chave e `EMAIL_REMETENTE` com o remetente, como `Negócio do Bem <avisos@negociodobem.com>`. Opcional: `EMAIL_RESPOSTA`, para onde vão as respostas, como `ola@negociodobem.com`.
+4. Faça um redeploy. A aba "Sistema" da moderação mostra se os avisos estão ligados.
+
+Nos previews o envio fica desligado mesmo com as variáveis, porque o banco dos previews só tem contas de teste. Lá, os links de confirmar e de entrar aparecem no log da função no Vercel.
+
+Sem o envio ligado em produção, ninguém consegue confirmar o e-mail, e as contas novas não indicam, não escrevem depoimentos e não reivindicam.
+
 ## Testes e verificações
 
 ```bash
@@ -186,7 +201,7 @@ docs/                regras de negócio, como o projeto foi feito e prints
 prisma/              esquema, migrações e dados de exemplo
 src/acoes/           Server Actions (formulários), sempre conferindo permissão no servidor
 scripts/             build do Vercel, ícones da marca e a rotina de fotos do Instagram (roda no seu computador)
-src/app/             páginas e rotas (api/instagram, api/webhooks/instagram e api/fotos-instagram)
+src/app/             páginas e rotas (api/link, api/instagram, api/webhooks/instagram e api/fotos-instagram)
 src/components/      componentes de interface
 src/lib/             regras de negócio: reivindicacao.ts, instagram.ts, auth/, causas.ts, cnpj.ts…
 tests/               testes (unit/ sem banco, db/ com banco)
@@ -195,9 +210,8 @@ tests/               testes (unit/ sem banco, db/ com banco)
 ## Próximos passos sugeridos
 
 - Uma verificação de verdade para o dono: hoje quem pede um negócio sem dono vira dono na hora, sem conferência. Um caminho é comparar o nome de quem pede com os sócios que a Receita devolve para o CNPJ.
-- Recuperação de senha e confirmação de e-mail (precisa de um serviço de envio de e-mail).
+- Trocar a senha pelo painel, para completar a recuperação de senha: o "Entrar por link" já devolve o acesso a quem esqueceu.
 - Limite de tentativas de login por IP.
-- Avisar o dono por e-mail quando a reivindicação for decidida ou quando chegar um depoimento.
 - Renovação automática do token do Instagram usado pelo webhook.
 
 ## Como contribuir

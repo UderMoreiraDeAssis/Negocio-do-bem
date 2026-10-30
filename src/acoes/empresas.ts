@@ -5,6 +5,7 @@ import { z } from "zod";
 import { apagarFoto, conferirFoto, guardarFoto } from "@/lib/armazenamento";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { caminhoSeguro, exigirUsuario } from "@/lib/auth/sessao";
+import { AVISOS } from "@/lib/avisos";
 import { filtrarCausas } from "@/lib/causas";
 import { db } from "@/lib/db";
 import { CATEGORIAS } from "@/lib/dominio";
@@ -62,6 +63,7 @@ const esquemaIndicacao = z.object({
 export async function indicarEmpresa(_estado: EstadoFormulario, dados: FormData): Promise<EstadoFormulario> {
   const usuario = await exigirUsuario("/indicar");
   const valores = valoresDoFormulario(dados, ["causas"]);
+  if (!usuario.emailConfirmado) return { erro: AVISOS.confirmar_email.texto, valores };
 
   const resultado = esquemaIndicacao.safeParse({
     instagram: texto(dados, "instagram"),

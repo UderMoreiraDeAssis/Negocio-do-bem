@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 
 // A Server Action roda fora do Next: o redirect vira um erro com o destino, a
 // sessão devolve a conta que o teste escolher, e o aviso por e-mail (after) não roda.
-const sessao = vi.hoisted(() => ({ usuario: { id: "", nome: "", email: "", moderador: false } }));
+const sessao = vi.hoisted(() => ({ usuario: { id: "", nome: "", email: "", moderador: false, emailConfirmado: true } }));
 vi.mock("next/navigation", () => ({
   redirect: (destino: string) => {
     throw new Error(`redirect:${destino}`);
@@ -21,7 +21,7 @@ async function limparBanco() {
 }
 
 function entrarComo(usuario: { id: string; nome: string; email: string }) {
-  sessao.usuario = { ...usuario, moderador: false };
+  sessao.usuario = { ...usuario, moderador: false, emailConfirmado: true };
 }
 
 function formulario(campos: Record<string, string>) {

@@ -284,7 +284,7 @@ describe("documento e moderação", () => {
     const pedidoDaTerceira = await naFila(comDono.id, terceira.id, 10);
     const pedidoDaQuarta = await naFila(foraDoAr.id, quarta.id, 10);
 
-    expect(await aprovarPendentesSemDono(moderador.id)).toBe(1);
+    expect(await aprovarPendentesSemDono(moderador.id)).toEqual([pedidoDaPrimeira.id]);
 
     const status = async (id: string) => (await db.reivindicacao.findUniqueOrThrow({ where: { id } })).status;
     expect(await status(pedidoDaPrimeira.id)).toBe("aprovada");

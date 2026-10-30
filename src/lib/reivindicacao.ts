@@ -249,22 +249,22 @@ export async function solicitarPorDocumento(params: {
 /**
  * Aplica a regra acima às solicitações pelos dados do negócio que ficaram na fila.
  * Vale a ordem de chegada: se duas pessoas pediram o mesmo negócio, a primeira vira
- * dona e a segunda continua com a moderação. Devolve quantas foram aprovadas.
+ * dona e a segunda continua com a moderação. Devolve as solicitações aprovadas.
  */
-export async function aprovarPendentesSemDono(revisorId: string): Promise<number> {
+export async function aprovarPendentesSemDono(revisorId: string): Promise<string[]> {
   const pendentes = await db.reivindicacao.findMany({
     where: { status: "pendente", metodo: "documento" },
     orderBy: { criadoEm: "asc" },
     select: { id: true, empresaId: true },
   });
 
-  let aprovadas = 0;
+  const aprovadas: string[] = [];
   for (const { id, empresaId } of pendentes) {
     const empresa = await db.empresa.findUniqueOrThrow({ where: { id: empresaId }, include: { membros: true } });
     if (!aprovaSozinhoPorDocumento(empresa)) continue;
     try {
       await aprovar({ reivindicacaoId: id, revisorId });
-      aprovadas++;
+      aprovadas.push(id);
     } catch (erro) {
       // Outra pessoa da moderação decidiu esta solicitação no meio do caminho.
       if (!(erro instanceof ErroReivindicacao)) throw erro;
