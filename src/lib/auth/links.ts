@@ -9,6 +9,7 @@
 
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
+import { ambienteDeDeploy } from "@/lib/ambiente";
 import { db } from "@/lib/db";
 import { enviarEmail, envioLigado } from "@/lib/email";
 import { corpo, primeiroNome } from "@/lib/notificacoes";
@@ -103,11 +104,11 @@ export async function usarLink(token: string): Promise<LinkValido | null> {
 /**
  * Endereço que vai no e-mail. Vem da configuração e nunca do cabeçalho Host da
  * requisição: quem forjasse o Host receberia no próprio site o link de outra pessoa.
- * Nos previews do Vercel, o link aponta para o próprio preview.
+ * Nos previews do Vercel, o link aponta para o próprio preview; em Cloudflare,
+ * APP_URL é configurado para o endereço canônico.
  */
 export function urlDoLink(token: string): string {
-  const base =
-    process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : ENDERECO_DO_SITE;
+  const base = process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : ENDERECO_DO_SITE;
   return `${base}/api/link?t=${token}`;
 }
 
@@ -118,7 +119,7 @@ export function urlDoLink(token: string): string {
 export async function enviarLink(conta: Conta, finalidade: Finalidade, token: string): Promise<void> {
   const url = urlDoLink(token);
   if (!envioLigado()) {
-    if (process.env.VERCEL_ENV !== "production") {
+    if (ambienteDeDeploy() !== "production") {
       console.info(`[e-mail desligado] Link para ${finalidade} da conta ${conta.email}: ${url}`);
     }
     return;

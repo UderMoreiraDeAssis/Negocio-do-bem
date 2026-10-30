@@ -41,14 +41,21 @@ async function contar(chaveTentativa: string): Promise<number> {
  * IP de quem fez a requisição, ou null quando não há como saber com segurança.
  * Cabeçalho que o visitante pode escrever não vale: se valesse, cada tentativa
  * traria um IP novo e o limite nunca agiria.
- * - No Vercel (VERCEL=1), só o x-vercel-forwarded-for, que o próprio Vercel escreve.
+ * - No Cloudflare, só o cf-connecting-ip, escrito pela rede Cloudflare.
+ * - No Vercel (VERCEL=1), só o x-vercel-forwarded-for, escrito pelo Vercel.
  * - Em outra hospedagem, nenhum cabeçalho, a menos que quem cuida do site declare
  *   com AUTENTICACAO_PROXY_CONFIAVEL=1 que há um proxy na frente que escreve o
  *   x-forwarded-for. Vale o último valor da lista, que é o que o proxy acrescentou.
  */
 export function ipDoCabecalho(cabecalhos: Headers): string | null {
   const nome =
-    process.env.VERCEL === "1" ? "x-vercel-forwarded-for" : process.env.AUTENTICACAO_PROXY_CONFIAVEL === "1" ? "x-forwarded-for" : null;
+    process.env.CLOUDFLARE_DEPLOY === "1"
+      ? "cf-connecting-ip"
+      : process.env.VERCEL === "1"
+        ? "x-vercel-forwarded-for"
+        : process.env.AUTENTICACAO_PROXY_CONFIAVEL === "1"
+          ? "x-forwarded-for"
+          : null;
   const ip = nome ? cabecalhos.get(nome)?.split(",").at(-1)?.trim() : undefined;
   return ip && !ip.includes("%") && isIP(ip) ? normalizarIp(ip) : null;
 }

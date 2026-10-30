@@ -1,5 +1,6 @@
 import "server-only";
-import { usaBlob } from "@/lib/armazenamento";
+import { ambienteDeDeploy } from "@/lib/ambiente";
+import { usaArmazenamentoCloudflare } from "@/lib/armazenamento";
 import { db } from "@/lib/db";
 import { envioLigado } from "@/lib/email";
 import { tokenDasFotos } from "@/lib/fotos-instagram";
@@ -14,9 +15,9 @@ export type Integracao = { nome: string; ligada: boolean; ligadaTexto: string; d
 export function integracoes(): Integracao[] {
   return [
     {
-      nome: "Fotos no Vercel Blob",
-      ligada: usaBlob(),
-      ligadaTexto: "As fotos vão para o Vercel Blob deste ambiente.",
+      nome: "Fotos no Cloudflare R2",
+      ligada: usaArmazenamentoCloudflare(),
+      ligadaTexto: "As fotos vão para o bucket R2 deste ambiente.",
       desligadaTexto: "As fotos ficam em public/enviados, o que só serve no computador de quem desenvolve.",
     },
     {
@@ -64,10 +65,10 @@ export function integracoes(): Integracao[] {
   ];
 }
 
-/** Em que ambiente o site está rodando e de qual commit ele veio, quando o Vercel informa. */
+/** Em que ambiente o site está rodando e de qual commit ele veio, quando o host informa. */
 export function ambiente() {
   return {
-    nome: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "desconhecido",
+    nome: ambienteDeDeploy() ?? process.env.NODE_ENV ?? "desconhecido",
     endereco: ENDERECO_DO_SITE,
     indexavel: INDEXAVEL,
     branch: process.env.VERCEL_GIT_COMMIT_REF ?? null,
