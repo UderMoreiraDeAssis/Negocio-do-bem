@@ -796,6 +796,14 @@ Código: `src/lib/auditoria.ts`.
 
 Toda decisão e edição importante grava quem fez, o quê, em qual alvo e quando. "Sistema" aparece quando a ação foi automática, por exemplo uma aprovação pelo webhook.
 
+**A mudança e o registro andam juntos.** A alteração no banco e o registro da auditoria são gravados na mesma transação: se o registro falhar, a alteração é desfeita, e nada muda sem histórico. Vale para indicação, edição, troca e remoção de foto, visibilidade, foto do Instagram e decisões de reivindicação.
+
+**O limite é o armazenamento das fotos.** A foto fica no Vercel Blob (ou em `public/enviados`), fora do banco, e não entra na transação:
+
+- a foto nova é guardada antes da transação. Se a transação falhar, ela fica sem uso no armazenamento, mas o perfil continua com a foto de antes;
+- a foto antiga só é apagada depois que a transação terminou;
+- quando a gravação falha, o site não apaga a foto nova: sem saber se o commit aconteceu, apagar poderia deixar um perfil apontando para um arquivo que não existe. No pior caso, sobra um arquivo.
+
 A aba "Auditoria" do painel mostra os registros do mais novo ao mais antigo, 50 por página:
 
 - cada ação aparece com uma descrição em português (`ACOES_AUDITORIA`, em `src/lib/dominio.ts`) e com o código embaixo;

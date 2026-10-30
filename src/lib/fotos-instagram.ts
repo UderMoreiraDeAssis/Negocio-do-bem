@@ -48,17 +48,23 @@ export async function aplicarFotoDoInstagram(
 
   const fotoUrl = await guardarFoto(foto, "perfis");
   // O dono pode ter enviado uma foto enquanto esta subia: nesse caso, vale a dele.
-  const { count } = await db.empresa.updateMany({ where: { id: empresaId, fotoUrl: null }, data: { fotoUrl } });
-  if (count === 0) {
+  // A foto e a auditoria são gravadas juntas. Se a transação falhar, a foto nova não
+  // é apagada: sem saber se o commit aconteceu, apagar poderia deixar o perfil sem foto.
+  const gravada = await db.$transaction(async (tx) => {
+    const { count } = await tx.empresa.updateMany({ where: { id: empresaId, fotoUrl: null }, data: { fotoUrl } });
+    if (count === 0) return false;
+    await registrarAuditoria(tx, {
+      usuarioId: null,
+      acao: "empresa.foto_do_instagram",
+      alvoTipo: "empresa",
+      alvoId: empresaId,
+      detalhes: `@${empresa.instagramUsername}`,
+    });
+    return true;
+  });
+  if (!gravada) {
     await apagarFoto(fotoUrl);
     return "ja_tem_foto";
   }
-  await registrarAuditoria(db, {
-    usuarioId: null,
-    acao: "empresa.foto_do_instagram",
-    alvoTipo: "empresa",
-    alvoId: empresaId,
-    detalhes: `@${empresa.instagramUsername}`,
-  });
   return "gravada";
 }

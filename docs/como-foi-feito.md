@@ -428,7 +428,7 @@ Cada formulário chama uma função em `src/acoes/`, sempre na mesma ordem:
    Nunca confie em um botão escondido: a conferência é sempre no servidor.
 2. **Valida os dados com Zod.** Os campos reaproveitáveis (`campoSite`, `campoWhatsapp`, `campoEmail`) estão em `src/lib/formulario.ts`.
 3. **Faz a mudança no banco.** Use uma transação quando mais de uma tabela muda junto.
-4. **Registra na auditoria** se for uma decisão ou edição importante.
+4. **Registra na auditoria** se for uma decisão ou edição importante, na mesma transação da mudança (`db.$transaction(async (tx) => …)` e `registrarAuditoria(tx, …)`). Assim, se o registro falhar, a mudança é desfeita junto. Fotos ficam fora do banco: guarde a nova antes da transação e apague a antiga só depois dela.
 5. **Redireciona com um aviso:** `?aviso=codigo`, com o texto em `src/lib/avisos.ts`.
 
 Quando há erro de validação, a ação devolve um `EstadoFormulario` com os erros por campo e os valores enviados. Assim o formulário mostra o erro sem perder o que a pessoa digitou.
