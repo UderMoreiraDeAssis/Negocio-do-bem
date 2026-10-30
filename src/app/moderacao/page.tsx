@@ -333,7 +333,7 @@ async function Indicacoes() {
           </div>
           <p>{e.resumo}</p>
           {e.motivoIndicacao && <p className="text-sm text-suave italic">“{e.motivoIndicacao}”</p>}
-          {(e.site || e.whatsapp || e.emailContato) && (
+          {(e.site || e.whatsapp || e.emailContato || e.mapaUrl) && (
             <p className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-suave">
               {e.site && (
                 <a href={e.site} target="_blank" rel="noopener noreferrer nofollow" className="link break-all">
@@ -342,6 +342,11 @@ async function Indicacoes() {
               )}
               {e.whatsapp && <span>WhatsApp {formatarWhatsapp(e.whatsapp)}</span>}
               {e.emailContato && <span>{e.emailContato}</span>}
+              {e.mapaUrl && (
+                <a href={e.mapaUrl} target="_blank" rel="noopener noreferrer nofollow" className="link">
+                  Mapa
+                </a>
+              )}
             </p>
           )}
           {e.causas.length > 0 && (

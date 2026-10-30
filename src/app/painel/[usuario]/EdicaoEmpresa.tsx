@@ -15,6 +15,7 @@ type Empresa = {
   site: string | null;
   whatsapp: string | null;
   emailContato: string | null;
+  mapaUrl: string | null;
   historia: string;
   causas: { causa: string }[];
 };
@@ -40,6 +41,7 @@ export function EdicaoEmpresa({ empresa, voltar }: { empresa: Empresa; voltar: s
           site: empresa.site ?? "",
           whatsapp: empresa.whatsapp ? formatarWhatsapp(empresa.whatsapp) : "",
           emailContato: empresa.emailContato ?? "",
+          mapaUrl: empresa.mapaUrl ?? "",
           historia: empresa.historia,
           causas: empresa.causas.map((c) => c.causa),
         }}

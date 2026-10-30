@@ -69,7 +69,7 @@ Assim, um depoimento negativo e honesto não some só porque incomodou o dono, e
 - **Dados mínimos:** da conta, só nome e e-mail.
 - **Nada de raspagem:** o site não raspa o Instagram.
 - **Nada de tokens guardados:** o login com Instagram só serve para provar quem controla a conta.
-- **Só imagens próprias:** o site só mostra fotos que ele mesmo guardou, porque uma imagem de outro endereço avisaria aquele servidor a cada visita.
+- **Só imagens próprias:** o site só mostra fotos que ele mesmo guardou, porque uma imagem de outro endereço avisaria aquele servidor a cada visita. Pelo mesmo motivo, o mapa do negócio é um link ("Ver no mapa"), e não um mapa embutido.
 - **Direito de não aparecer:** o dono oculta o negócio a qualquer momento. É a resposta para quem foi indicado e não quer estar no diretório.
 
 ### Sem ranking e sem anúncio pago

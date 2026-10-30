@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { gerarHashSenha, verificarSenha } from "@/lib/auth/senha";
 import { filtrarCausas } from "@/lib/causas";
 import { cnpjValido, formatarCnpj } from "@/lib/cnpj";
-import { campoEmail, campoSite, campoWhatsapp } from "@/lib/formulario";
+import { campoEmail, campoMapa, campoSite, campoWhatsapp } from "@/lib/formulario";
 import { formatarWhatsapp, iniciais, normalizarTexto, tempoDeLeitura } from "@/lib/texto";
 
 describe("cnpjValido", () => {
@@ -105,6 +105,31 @@ describe("campoEmail", () => {
 
   it("recusa o que não é e-mail", () => {
     expect(campoEmail.safeParse("contato@").success).toBe(false);
+  });
+});
+
+describe("campoMapa", () => {
+  it("aceita vazio e links do Google Maps e do Apple Maps, sempre com https", () => {
+    expect(campoMapa.parse("")).toBeNull();
+    expect(campoMapa.parse(" https://maps.app.goo.gl/AbC123 ")).toBe("https://maps.app.goo.gl/AbC123");
+    expect(campoMapa.parse("maps.app.goo.gl/AbC123")).toBe("https://maps.app.goo.gl/AbC123");
+    expect(campoMapa.parse("https://www.google.com/maps/place/Padaria/@-8.05,-34.9,17z")).toBe(
+      "https://www.google.com/maps/place/Padaria/@-8.05,-34.9,17z",
+    );
+    expect(campoMapa.parse("https://www.google.com.br/maps?q=padaria")).toBe("https://www.google.com.br/maps?q=padaria");
+    expect(campoMapa.parse("http://maps.google.com/?q=padaria")).toBe("https://maps.google.com/?q=padaria");
+    expect(campoMapa.parse("https://goo.gl/maps/AbC123")).toBe("https://goo.gl/maps/AbC123");
+    expect(campoMapa.parse("https://maps.apple.com/?q=Padaria&ll=-8.05,-34.9")).toBe("https://maps.apple.com/?q=Padaria&ll=-8.05,-34.9");
+    expect(campoMapa.parse("https://maps.apple/p/AbC123")).toBe("https://maps.apple/p/AbC123");
+  });
+
+  it("recusa links que não são de mapa", () => {
+    expect(campoMapa.safeParse("https://www.google.com/search?q=padaria").success).toBe(false);
+    expect(campoMapa.safeParse("https://goo.gl/AbC123").success).toBe(false);
+    expect(campoMapa.safeParse("https://maps.google.com.golpe.example/").success).toBe(false);
+    expect(campoMapa.safeParse("https://meusite.com.br/maps").success).toBe(false);
+    expect(campoMapa.safeParse("javascript:alert(1)").success).toBe(false);
+    expect(campoMapa.safeParse("Rua das Flores, 10").success).toBe(false);
   });
 });
 

@@ -90,6 +90,9 @@ export function FormIndicar() {
             <input id="emailContato" name="emailContato" type="email" maxLength={200} placeholder="contato@negocio.com.br" defaultValue={valor("emailContato")} className="campo" />
           </Campo>
         </div>
+        <Campo rotulo="Link do mapa" erro={erros.mapaUrl} id="mapaUrl" ajuda="Do Google Maps ou do Apple Maps: abra o negócio, toque em Compartilhar e cole o link.">
+          <input id="mapaUrl" name="mapaUrl" maxLength={1000} placeholder="https://maps.app.goo.gl/..." defaultValue={valor("mapaUrl")} className="campo" />
+        </Campo>
       </div>
 
       {!souDono && (

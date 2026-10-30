@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import { CATEGORIAS } from "@/lib/dominio";
 import {
   campoEmail,
+  campoMapa,
   campoMunicipio,
   campoSite,
   campoWhatsapp,
@@ -34,10 +35,16 @@ const camposContato = {
   site: campoSite,
   whatsapp: campoWhatsapp,
   emailContato: campoEmail,
+  mapaUrl: campoMapa,
 };
 
 function lerContato(dados: FormData) {
-  return { site: texto(dados, "site"), whatsapp: texto(dados, "whatsapp"), emailContato: texto(dados, "emailContato") };
+  return {
+    site: texto(dados, "site"),
+    whatsapp: texto(dados, "whatsapp"),
+    emailContato: texto(dados, "emailContato"),
+    mapaUrl: texto(dados, "mapaUrl"),
+  };
 }
 
 /** O banco guarda cidade e UF em colunas separadas; o formulário manda os dois juntos. */

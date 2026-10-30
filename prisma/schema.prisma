@@ -62,6 +62,8 @@ model Empresa {
   // Só dígitos, com o 55 do Brasil (ex.: 5511991488052).
   whatsapp          String?
   emailContato      String?
+  // Link do Google Maps ou do Apple Maps (ver campoMapa em src/lib/formulario.ts).
+  mapaUrl           String?
   // "indicada" (sem dono) | "verificada" (tem dono que provou controlar o @)
   status            String   @default("indicada")
   // "pendente" | "aprovada" | "rejeitada" — só "aprovada" aparece no diretório

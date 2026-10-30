@@ -24,6 +24,7 @@ const NEGOCIO = {
   site: null,
   whatsapp: null,
   emailContato: null,
+  mapaUrl: null,
 };
 
 describe("endereço do site", () => {
@@ -57,11 +58,17 @@ describe("jsonLdDoNegocio", () => {
     expect(vazia).not.toHaveProperty("telephone");
     expect(vazia).not.toHaveProperty("email");
     expect(vazia).not.toHaveProperty("image");
+    expect(vazia).not.toHaveProperty("hasMap");
     expect(vazia.sameAs).toEqual(["https://www.instagram.com/padaria.florescer/"]);
     expect(vazia.keywords).toBe("Café e padaria, Liderado por mulheres");
 
-    const completa = ficha({ whatsapp: "5581999990000", emailContato: "oi@padaria.exemplo", site: "https://padaria.exemplo" });
-    expect(completa).toMatchObject({ telephone: "+5581999990000", email: "oi@padaria.exemplo" });
+    const completa = ficha({
+      whatsapp: "5581999990000",
+      emailContato: "oi@padaria.exemplo",
+      site: "https://padaria.exemplo",
+      mapaUrl: "https://maps.app.goo.gl/exemplo",
+    });
+    expect(completa).toMatchObject({ telephone: "+5581999990000", email: "oi@padaria.exemplo", hasMap: "https://maps.app.goo.gl/exemplo" });
     expect(completa.sameAs).toContain("https://padaria.exemplo");
   });
 

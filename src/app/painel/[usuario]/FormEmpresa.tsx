@@ -23,6 +23,7 @@ type DadosEmpresa = {
   site: string;
   whatsapp: string;
   emailContato: string;
+  mapaUrl: string;
   historia: string;
   causas: string[];
 };
@@ -84,6 +85,9 @@ export function FormEmpresa({ empresa, voltar }: { empresa: DadosEmpresa; voltar
             <input id="emailContato" name="emailContato" type="email" maxLength={200} placeholder="contato@meunegocio.com.br" defaultValue={valor("emailContato")} className="campo" />
           </Campo>
         </div>
+        <Campo id="mapaUrl" rotulo="Link do mapa" erro={erros.mapaUrl} ajuda="No Google Maps ou no Apple Maps, abra o negócio, toque em Compartilhar e cole o link aqui.">
+          <input id="mapaUrl" name="mapaUrl" maxLength={1000} placeholder="https://maps.app.goo.gl/..." defaultValue={valor("mapaUrl")} className="campo" />
+        </Campo>
       </section>
 
       <section className="cartao space-y-4 p-6 sm:p-8">

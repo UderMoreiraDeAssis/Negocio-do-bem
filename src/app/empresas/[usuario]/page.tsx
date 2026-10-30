@@ -168,7 +168,7 @@ async function Perfil({ params, searchParams }: Pick<PageProps<"/empresas/[usuar
 }
 
 function Contatos({ empresa }: { empresa: Perfil }) {
-  if (!empresa.whatsapp && !empresa.site && !empresa.emailContato) return null;
+  if (!empresa.whatsapp && !empresa.site && !empresa.emailContato && !empresa.mapaUrl) return null;
   return (
     <div className="mt-6 flex flex-wrap gap-2">
       {empresa.whatsapp && (
@@ -179,6 +179,11 @@ function Contatos({ empresa }: { empresa: Perfil }) {
       {empresa.site && (
         <a href={empresa.site} target="_blank" rel="noopener noreferrer nofollow" className="botao-claro botao-pequeno">
           {new URL(empresa.site).hostname.replace(/^www\./, "")} ↗
+        </a>
+      )}
+      {empresa.mapaUrl && (
+        <a href={empresa.mapaUrl} target="_blank" rel="noopener noreferrer nofollow" className="botao-claro botao-pequeno">
+          Ver no mapa ↗
         </a>
       )}
       {empresa.emailContato && (

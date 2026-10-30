@@ -185,6 +185,7 @@ Validação: `src/acoes/empresas.ts` e `src/lib/formulario.ts`.
 | Site | Não | Até 200 caracteres. Sem `http`, ganha `https://`. Precisa ter um ponto no domínio. |
 | WhatsApp | Não | Número brasileiro com DDD (ver abaixo). |
 | E-mail de contato | Não | E-mail válido, até 200 caracteres, guardado em minúsculas. |
+| Link do mapa | Não | Até 1.000 caracteres. Só links do Google Maps (`maps.app.goo.gl`, `maps.google.com`, `google.com/maps`, `goo.gl/maps`, também com `.br`) ou do Apple Maps (`maps.apple.com`, `maps.apple`). Sem `http`, ganha `https://`, e `http` vira `https`. |
 | Causas | Não | Qualquer combinação da lista oficial. Slugs desconhecidos são descartados. |
 | História | Não | Markdown, até 20 mil caracteres (ver [seção 8](#8-história-do-negócio)). |
 | Foto | Não | Ver [seção 9](#9-fotos). |
@@ -478,7 +479,8 @@ Código: `src/app/empresas/[usuario]/page.tsx`.
 - **Botões de contato** (só os preenchidos):
   - WhatsApp, que abre `wa.me`;
   - site, que mostra o domínio sem `www`;
-  - e-mail, que abre `mailto:`.
+  - e-mail, que abre `mailto:`;
+  - **"Ver no mapa"**, que abre o link do Google Maps ou do Apple Maps. O mapa não é embutido na página: um mapa carregado no perfil avisaria o Google ou a Apple a cada visita, pelo mesmo motivo de o site só mostrar fotos próprias.
 - **Resumo** e **causas** como selos.
 - **"Nossa história",** com "N min de leitura · atualizada em …". Sem história:
   - para o dono, um convite para escrever;

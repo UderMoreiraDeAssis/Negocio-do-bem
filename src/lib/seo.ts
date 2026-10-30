@@ -100,6 +100,7 @@ type NegocioPublico = {
   site: string | null;
   whatsapp: string | null;
   emailContato: string | null;
+  mapaUrl: string | null;
 };
 
 /** Ficha do negócio (LocalBusiness) e o caminho até ele, pela cidade (BreadcrumbList). Só para perfis públicos. */
@@ -123,6 +124,7 @@ export function jsonLdDoNegocio(empresa: NegocioPublico, causas: string[]) {
         },
         ...(empresa.whatsapp ? { telephone: `+${empresa.whatsapp}` } : {}),
         ...(empresa.emailContato ? { email: empresa.emailContato } : {}),
+        ...(empresa.mapaUrl ? { hasMap: empresa.mapaUrl } : {}),
         sameAs: [linkPerfil(empresa.instagramUsername), ...(empresa.site ? [empresa.site] : [])],
         keywords: [empresa.categoria, ...causas].join(", "),
       },
