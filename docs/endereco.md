@@ -1,6 +1,6 @@
 # Endereço e localização (#158)
 
-Esta entrega cobre o preenchimento manual, a persistência, a apresentação e a busca por subdivisões. **Não encerra a #158:** consulta de CEP, cache persistente e atualização postal dependem da definição da fonte e das condições de uso. O comentário de início na issue propõe essas partes em entregas separadas.
+Esta entrega cobre o preenchimento manual, a persistência, a apresentação e a busca por subdivisões. A consulta de CEP está na seção "Consulta de CEP" abaixo.
 
 ## Modelo e apresentação
 
@@ -29,17 +29,26 @@ As contagens municipais e páginas `/cidades` continuam agrupando só cidade/UF.
 
 A migração `20261030181540_endereco_completo` só adiciona colunas opcionais e o booleano com padrão falso. Não renomeia nem remove colunas, não muda endereços existentes e não atribui detalhes desconhecidos. O `busca` anterior continua correto porque todos os detalhes novos começam nulos; cada indicação/edição calcula o texto completo. Portanto, não há atualização em massa nesta migração.
 
-## Consulta postal pendente
+## Consulta de CEP
 
-Não foi habilitado provedor, criada tabela de cache, rotina agendada ou credencial. O formulário aceita o endereço manual. CEP com formato válido não é anunciado como existente nem como localização comprovada.
+Decisão de 30/10/2026: fonte gratuita, o [ViaCEP](https://viacep.com.br/), com o máximo de cuidado contra abuso. A regra completa está em `docs/regras-de-negocio.md` (seção 3); o código, em `src/lib/cep.ts` e `src/app/api/cep/route.ts`. Liga com `CEP_CONSULTA=viacep`.
 
-Na pesquisa de 30/10/2026:
+**Por que o ViaCEP.** Das fontes gratuitas avaliadas, é a que separa "CEP não existe" de falha: CEP de formato válido e inexistente volta com status 200 e `"erro": "true"`, formato inválido com 400. A [BrasilAPI](https://github.com/BrasilAPI/BrasilAPI/blob/main/pages/api/cep/v2/%5Bcep%5D.js) responde 404 tanto para CEP inexistente quanto para todos os provedores fora do ar, e o cabeçalho de cache de um dia vale também para esse 404. A [API Busca CEP dos Correios](https://api.correios.com.br/cep/v3/api-docs) exige contrato ("Tipo de autorização externa: Contrato"), e o token aceita 3 pedidos por segundo.
 
-- Os [termos públicos da BrasilAPI](https://brasilapi.com.br/#termos-de-uso) ainda se dizem em elaboração, proíbem varredura/crawling e orientam volume correspondente a consultas humanas. Não publicam uma cota numérica contratual nem esclarecem os direitos de retenção de uma base postal local. A [licença MIT](https://github.com/BrasilAPI/BrasilAPI/blob/main/LICENSE) trata do software; não foi tomada como autorização de redistribuição da base.
-- O [endpoint CEP v1](https://github.com/BrasilAPI/BrasilAPI/blob/main/pages/api/cep/v1/%5Bcep%5D.js) converte `service_error` em `NotFoundError`. Assim, um `404` desse endpoint, sozinho, não basta para concluir que um CEP não foi encontrado sem falha técnica. A integração precisará distinguir esses casos.
-- A API dos Correios exige a definição do acesso comercial, conforme a referência da issue ao [manual de Busca CEP](https://www.correios.com.br/atendimento/developers/manuais/manual-api-busca-cep).
+**Cuidados com o ViaCEP.** A página do serviço avisa que uso massivo para validar bases locais pode bloquear o acesso por tempo indeterminado. Por isso:
 
-Antes da próxima entrega, definir a fonte, os direitos de armazenamento e os parâmetros operacionais. Com esses dados, implementar a política da issue: cache persistente com fonte/datas, revalidação e idade máxima, atualização limitada e retomável, cotas e concorrência compartilhadas, unificação de consultas iguais, respeito a `Retry-After`, pausas em falhas e preenchimento manual sem perda de dados. A atualização postal nunca deve regravar os endereços informados pelas pessoas.
+- não há atualização em lote nem varredura de CEPs: uma cópia só é revalidada quando alguém usa aquele CEP, depois de 90 dias;
+- cotas pequenas e no banco, valendo para todas as instâncias: 20 chamadas por minuto e 1.000 por dia ao ViaCEP, e 20 consultas por origem a cada 10 minutos na nossa rota;
+- uma chamada por consulta, com 4 segundos de limite e sem nova tentativa; consultas iguais ao mesmo tempo esperam a mesma chamada;
+- depois de falha, pausa compartilhada de 1 minuto, dobrando até 1 hora, ou o `Retry-After` (até 24 horas), com até 20% a mais ao acaso;
+- a consulta só começa com o CEP completo e meio segundo depois da última tecla;
+- identificação própria no `User-Agent`, como na consulta de CNPJ.
+
+**Pacotes npm avaliados e não adotados.** `cep-promise` (sem versão desde 02/2024) dispara todos os provedores a cada consulta e usa o endpoint da página pública dos Correios; `@eusilvio/cep-lookup` também consulta todos ao mesmo tempo; `brasil-sdk` tinha 8 dias e licença fora do SPDX; `node-cep-correios` consulta a AwesomeAPI; `brasil-ceps-offline` não tem repositório público. Nenhum faz a cópia local, as cotas e a pausa compartilhadas, que são o que importa aqui; a chamada em si é um `fetch`.
+
+**Cópia local.** `CepConsultado` guarda só o que o ViaCEP devolve publicamente (UF, cidade, bairro, logradouro), a fonte e a data, nunca número, complemento ou dado de negócio. A cópia de um CEP só é substituída por uma resposta válida; falhas não apagam a anterior. A atualização postal nunca regrava os endereços dos negócios: ela só sugere valores para campos vazios no formulário. A região administrativa só é preenchida quando o bairro traz, entre parênteses, um nome da lista do GDF; nunca é deduzida de "Brasília".
+
+**Limites conhecidos.** A unificação de consultas iguais vale dentro de cada instância; entre instâncias, a cópia local e as cotas seguram a repetição. Os termos do ViaCEP não falam explicitamente em guardar as respostas; a cópia é pequena, sob demanda e com revalidação, e pode ser apagada (`CepConsultado`) sem afetar nenhum cadastro.
 
 ## Coordenação e validação
 
@@ -47,6 +56,6 @@ O PR #145 ainda estava aberto quando esta branch partiu de `stage`. Os campos fi
 
 [Captura do formulário no celular, com dados fictícios](prints/endereco-celular.png).
 
-Os testes de unidade e PostgreSQL cobrem formato, limites, DF/TO, endereços rurais, autorização para editar/publicar, preservação após erros, busca sem acentos, contagens, cadastros antigos e não exposição de detalhes privados na busca e no JSON-LD. Testes de falha, cota e recuperação do provedor postal ficam para a entrega da integração.
+Os testes de unidade e PostgreSQL cobrem formato, limites, DF/TO, endereços rurais, autorização para editar/publicar, preservação após erros, busca sem acentos, contagens, cadastros antigos e não exposição de detalhes privados na busca e no JSON-LD. Os testes da consulta de CEP (`tests/unit/cep.test.ts` e `tests/db/cep.test.ts`) simulam o ViaCEP: cópia válida e vencida, idade máxima, inexistente com prazo curto, erro 500, resposta inválida, rede fora do ar, `429` com `Retry-After`, pausa progressiva, cotas por origem e geral e consultas simultâneas.
 
 No teste exploratório com JavaScript desabilitado, o Next manteve o conteúdo transmitido por streaming em um contêiner oculto, tanto em `/indicar` quanto em `/entrar` (rota não alterada). Não foi possível validar o envio sem JavaScript pela interface; este PR não modifica a estratégia de renderização do aplicativo.

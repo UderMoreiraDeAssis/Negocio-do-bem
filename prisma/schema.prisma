@@ -13,26 +13,26 @@ datasource db {
 }
 
 model Usuario {
-  id        String   @id @default(cuid())
-  nome      String
-  email     String   @unique
-  senhaHash String
+  id                String    @id @default(cuid())
+  nome              String
+  email             String    @unique
+  senhaHash         String
   // "membro" | "moderador"
-  papel     String   @default("membro")
+  papel             String    @default("membro")
   // Quando a pessoa abriu um link mandado para o e-mail dela. Sem isso a conta entra,
   // mas não indica, não escreve nem denuncia depoimentos e não reivindica negócios.
   emailConfirmadoEm DateTime?
-  criadoEm  DateTime @default(now())
+  criadoEm          DateTime  @default(now())
 
-  sessoes             Sessao[]
-  links               LinkEmail[]
-  indicacoes          Empresa[]        @relation("IndicadaPor")
-  depoimentos         Depoimento[]     @relation("AutorDepoimento")
-  denuncias           Depoimento[]     @relation("DenunciadoPor")
-  empresas            EmpresaMembro[]
-  reivindicacoes      Reivindicacao[]  @relation("Solicitante")
-  revisoes            Reivindicacao[]  @relation("Revisor")
-  registrosAuditoria  RegistroAuditoria[]
+  sessoes            Sessao[]
+  links              LinkEmail[]
+  indicacoes         Empresa[]           @relation("IndicadaPor")
+  depoimentos        Depoimento[]        @relation("AutorDepoimento")
+  denuncias          Depoimento[]        @relation("DenunciadoPor")
+  empresas           EmpresaMembro[]
+  reivindicacoes     Reivindicacao[]     @relation("Solicitante")
+  revisoes           Reivindicacao[]     @relation("Revisor")
+  registrosAuditoria RegistroAuditoria[]
 }
 
 model Sessao {
@@ -75,49 +75,49 @@ model LinkEmail {
 }
 
 model Empresa {
-  id                String   @id @default(cuid())
+  id                   String   @id @default(cuid())
   // @ atual do Instagram, minúsculo e sem "@". Também é o endereço da página.
-  instagramUsername String   @unique
+  instagramUsername    String   @unique
   // ID fixo da conta profissional, obtido no "Entrar com Instagram".
-  instagramUserId   String?  @unique
+  instagramUserId      String?  @unique
   // ID da conta no escopo do nosso perfil (IGSID), obtido quando o dono manda DM.
-  instagramIgsid    String?  @unique
-  nome              String
-  resumo            String
-  historia          String   @default("")
-  categoria         String
-  cidade            String
-  uf                String
+  instagramIgsid       String?  @unique
+  nome                 String
+  resumo               String
+  historia             String   @default("")
+  categoria            String
+  cidade               String
+  uf                   String
   // Subdivisões públicas; no DF o município continua sendo Brasília.
   regiaoAdministrativa String?
-  bairro            String?
-  localidade        String?
+  bairro               String?
+  localidade           String?
   // Endereço postal opcional, informado pela pessoa (nunca atualizado pela base de CEP).
-  cep               String?
-  logradouro        String?
-  numero            String?
-  complemento       String?
+  cep                  String?
+  logradouro           String?
+  numero               String?
+  complemento          String?
   // Só o dono ou a moderação podem publicar os detalhes postais.
-  enderecoPublico   Boolean  @default(false)
+  enderecoPublico      Boolean  @default(false)
   // Foto do perfil, enviada pelo dono ou pela moderação (ver src/lib/armazenamento.ts).
-  fotoUrl           String?
-  site              String?
+  fotoUrl              String?
+  site                 String?
   // Só dígitos, com o 55 do Brasil (ex.: 5511991488052).
-  whatsapp          String?
-  emailContato      String?
+  whatsapp             String?
+  emailContato         String?
   // "indicada" (sem dono) | "verificada" (tem dono que provou controlar o @)
-  status            String   @default("indicada")
+  status               String   @default("indicada")
   // "pendente" | "aprovada" | "rejeitada" — só "aprovada" aparece no diretório
-  moderacao         String   @default("pendente")
+  moderacao            String   @default("pendente")
   // O dono pode tirar o negócio do diretório a qualquer momento.
-  oculta            Boolean  @default(false)
-  motivoIndicacao   String?
-  indicadaPorId     String?
-  indicadaPor       Usuario? @relation("IndicadaPor", fields: [indicadaPorId], references: [id], onDelete: SetNull)
+  oculta               Boolean  @default(false)
+  motivoIndicacao      String?
+  indicadaPorId        String?
+  indicadaPor          Usuario? @relation("IndicadaPor", fields: [indicadaPorId], references: [id], onDelete: SetNull)
   // Texto normalizado (minúsculo, sem acento) usado na busca.
-  busca             String   @default("")
-  criadoEm          DateTime @default(now())
-  atualizadoEm      DateTime @updatedAt
+  busca                String   @default("")
+  criadoEm             DateTime @default(now())
+  atualizadoEm         DateTime @updatedAt
 
   causas         EmpresaCausa[]
   depoimentos    Depoimento[]
@@ -223,4 +223,36 @@ model RegistroAuditoria {
 
   @@index([criadoEm])
   @@index([alvoTipo, alvoId])
+}
+
+// Cópia local das consultas de CEP ao ViaCEP (src/lib/cep.ts). Guarda só dados
+// postais públicos, nunca número, complemento ou outro dado de um negócio.
+model CepConsultado {
+  cep          String   @id // 8 dígitos
+  // "encontrado" | "inexistente". Falha técnica nunca é gravada aqui.
+  situacao     String
+  uf           String?
+  cidade       String?
+  bairro       String?
+  logradouro   String?
+  fonte        String
+  consultadoEm DateTime
+
+  @@index([consultadoEm])
+}
+
+// Contadores das cotas da consulta de CEP e pausa do provedor depois de falhas,
+// no banco porque o site roda em várias instâncias (src/lib/cep.ts).
+model CotaCep {
+  chave            String   @id
+  contagem         Int
+  janelaIniciadaEm DateTime
+
+  @@index([janelaIniciadaEm])
+}
+
+model PausaProvedorCep {
+  provedor       String   @id
+  falhasSeguidas Int
+  pausadoAte     DateTime
 }

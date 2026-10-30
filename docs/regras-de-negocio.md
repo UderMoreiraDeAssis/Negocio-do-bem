@@ -254,7 +254,14 @@ Validação: `src/acoes/empresas.ts` e `src/lib/formulario.ts`.
 
 **Visibilidade:** bairro, região e localidade são públicos. CEP, logradouro, número e complemento ficam restritos à edição pelo dono e pela moderação até que um deles marque "Mostrar CEP, logradouro, número e complemento no perfil público". Uma indicação, inclusive com "Este negócio é meu", não pode autorizar essa publicação. Desmarcar oculta os detalhes também dos dados estruturados. Os detalhes postais não entram no texto de busca, mesmo quando públicos.
 
-**Consulta de CEP:** ainda não há integração habilitada. O preenchimento é manual e funciona sem serviço postal externo. Fonte, retenção, cotas, cache, atualização e testes de indisponibilidade continuam pendentes da #158, conforme [decisões do endereço](endereco.md).
+**Consulta de CEP** (`src/lib/cep.ts`, rota `/api/cep`): só ajuda a preencher e fica desligada até `CEP_CONSULTA=viacep`. Sem ela, ou com ela fora do ar, o preenchimento é manual. Detalhes e motivos em [decisões do endereço](endereco.md).
+
+- **Quando consulta:** quando o CEP fica completo, com meio segundo de espera, nunca a cada tecla. A fonte é o ViaCEP, gratuito.
+- **O que preenche:** só campos vazios (cidade, logradouro, bairro e, no DF, a região administrativa que vem entre parênteses no bairro). Nunca apaga o que a pessoa escreveu nem mexe em número e complemento. Se a cidade informada for outra, só avisa.
+- **Respostas:** "não encontramos esse CEP" só quando o ViaCEP diz que ele não existe. Erro, demora acima de 4 segundos, `429` ou resposta estranha valem "consulta indisponível", nunca "CEP inexistente".
+- **Cópia local:** cada CEP consultado fica no banco (`CepConsultado`), só com UF, cidade, bairro e logradouro públicos dos Correios, sem dado de negócio. Encontrado vale 90 dias e depois é consultado de novo no uso; não existe atualização em lote. Com o ViaCEP fora do ar, a cópia vale até 1 ano, avisando que pode estar desatualizada. "Não encontrado" vale 7 dias. Falha nunca é gravada.
+- **Cotas, no banco, divididas entre as instâncias:** 20 consultas a cada 10 minutos por origem (IP, ou /64 no IPv6; sem IP confiável, todas dividem uma cota), contando também as respondidas pela cópia. Chamadas ao ViaCEP: no máximo 20 por minuto e 1.000 por dia, somando todo o site.
+- **Pausa:** depois de uma falha, ninguém chama o ViaCEP por 1 minuto, dobrando a cada falha seguida até 1 hora, ou pelo tempo do `Retry-After` (até 24 horas). Consultas iguais ao mesmo tempo esperam a mesma chamada, e não há nova tentativa automática.
 
 **Regras do WhatsApp:**
 

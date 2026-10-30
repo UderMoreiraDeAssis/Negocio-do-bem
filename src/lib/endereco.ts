@@ -13,6 +13,12 @@ export type Endereco = {
 export const CAMPOS_ENDERECO = ["regiaoAdministrativa", "bairro", "localidade", "cep", "logradouro", "numero", "complemento"] as const;
 export type CampoEndereco = (typeof CAMPOS_ENDERECO)[number] | "municipio";
 
+/** Os 8 dígitos do CEP, aceitando "01001000" ou "01001-000"; null para qualquer outro formato. */
+export function limparCep(valor: string): string | null {
+  const partes = /^\s*(\d{5})-?(\d{3})\s*$/.exec(valor);
+  return partes ? `${partes[1]}${partes[2]}` : null;
+}
+
 export function formatarLocalizacao(empresa: Endereco & { cidade: string; uf: string }): string {
   const detalhes = [...new Set([empresa.bairro, empresa.localidade, empresa.regiaoAdministrativa].filter(Boolean))];
   return [...detalhes, `${empresa.cidade}, ${empresa.uf}`].join(" · ");
