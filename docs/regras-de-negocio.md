@@ -56,7 +56,7 @@ Código: `src/acoes/conta.ts`, `src/lib/auth/`.
   - nome de 2 a 80 caracteres;
   - e-mail válido de até 200 caracteres, guardado em minúsculas;
   - senha de 8 a 200 caracteres.
-- **Um e-mail, uma conta.** O cadastro avisa quando o e-mail já existe ("Que tal entrar?").
+- **Um e-mail, uma conta.** O cadastro avisa quando o e-mail já existe ("Que tal entrar?"). Dois envios ao mesmo tempo com o mesmo e-mail criam uma conta só: o outro recebe o mesmo aviso, sem sessão.
 - **Login** (`/entrar`): e-mail e senha.
   - O erro é sempre o mesmo, "E-mail ou senha incorretos".
   - Quando o e-mail não existe, a senha é conferida contra um hash falso, para a resposta levar o mesmo tempo e não revelar quais e-mails têm conta.
@@ -162,7 +162,7 @@ O painel tem um menu com quatro grupos. No celular, ele vira uma linha que rola 
 Código: `normalizarUsername` em `src/lib/instagram.ts`.
 
 - Todo negócio é identificado pelo **@ do Instagram**, que também é o endereço da página: `/empresas/<@>`.
-- O @ é **único**: não existem dois negócios com o mesmo @.
+- O @ é **único**: não existem dois negócios com o mesmo @. Duas indicações do mesmo @ ao mesmo tempo criam um negócio só, e a outra pessoa vê o link para o perfil que já existe.
 - O @ é normalizado antes de guardar e de comparar:
   - aceita `@fulano`, `fulano` ou o link do perfil (`instagram.com/fulano`);
   - guarda em minúsculas e sem `@`;
@@ -627,7 +627,7 @@ Código: `src/acoes/depoimentos.ts`, `decidirDenuncia` em `src/acoes/moderacao.t
 - **Precisa de login.**
 - Só em negócios **publicados e não ocultos.**
 - **Donos não escrevem depoimento no próprio negócio.** Eles respondem.
-- **Um depoimento por pessoa por negócio.**
+- **Um depoimento por pessoa por negócio.** Vale também para dois envios ao mesmo tempo: o segundo recebe "Você já deixou um depoimento para este negócio".
 - **Tamanho:** de 20 a 1.500 caracteres.
 - **Vai ao ar na hora,** sem moderação prévia, com o nome de quem escreveu e a data.
 - **Ordem:** os depoimentos aparecem do mais novo para o mais antigo.

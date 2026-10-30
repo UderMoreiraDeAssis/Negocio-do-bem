@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { exigirUsuario } from "@/lib/auth/sessao";
-import { db } from "@/lib/db";
+import { db, semDuplicar } from "@/lib/db";
 import { texto, valoresDoFormulario, type EstadoFormulario } from "@/lib/formulario";
 
 const esquemaDepoimento = z
@@ -32,12 +32,15 @@ export async function publicarDepoimento(_estado: EstadoFormulario, dados: FormD
     return { erros: { texto: resultado.error.issues[0]?.message ?? "Texto inválido." }, valores: valoresDoFormulario(dados) };
   }
 
-  const jaEscreveu = await db.depoimento.findUnique({
-    where: { empresaId_autorId: { empresaId: empresa.id, autorId: usuario.id } },
-  });
-  if (jaEscreveu) return { erro: "Você já deixou um depoimento para este negócio. Obrigado!" };
+  const jaEscreveu = { erro: "Você já deixou um depoimento para este negócio. Obrigado!" };
+  if (await db.depoimento.findUnique({ where: { empresaId_autorId: { empresaId: empresa.id, autorId: usuario.id } } })) {
+    return jaEscreveu;
+  }
 
-  await db.depoimento.create({ data: { empresaId: empresa.id, autorId: usuario.id, texto: resultado.data } });
+  const depoimento = await semDuplicar(
+    db.depoimento.create({ data: { empresaId: empresa.id, autorId: usuario.id, texto: resultado.data } }),
+  );
+  if (!depoimento) return jaEscreveu;
   redirect(`/empresas/${empresa.instagramUsername}?aviso=depoimento_publicado#depoimentos`);
 }
 

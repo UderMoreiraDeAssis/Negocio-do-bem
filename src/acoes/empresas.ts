@@ -6,7 +6,7 @@ import { apagarFoto, conferirFoto, guardarFoto } from "@/lib/armazenamento";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { caminhoSeguro, exigirUsuario } from "@/lib/auth/sessao";
 import { filtrarCausas } from "@/lib/causas";
-import { db } from "@/lib/db";
+import { db, semDuplicar } from "@/lib/db";
 import { CATEGORIAS } from "@/lib/dominio";
 import {
   campoEmail,
@@ -76,14 +76,12 @@ export async function indicarEmpresa(_estado: EstadoFormulario, dados: FormData)
   const { instagram, motivo, ...campos } = comCidade(resultado.data);
   const souDono = dados.get("souDono") === "sim";
 
-  const existente = await db.empresa.findUnique({ where: { instagramUsername: instagram } });
-  if (existente) {
-    return {
-      erros: { instagram: `@${instagram} já está no Negócio do Bem.` },
-      existente: instagram,
-      valores,
-    };
-  }
+  const jaCadastrada: EstadoFormulario = {
+    erros: { instagram: `@${instagram} já está no Negócio do Bem.` },
+    existente: instagram,
+    valores,
+  };
+  if (await db.empresa.findUnique({ where: { instagramUsername: instagram } })) return jaCadastrada;
 
   const recentes = await db.empresa.count({
     where: { indicadaPorId: usuario.id, criadoEm: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
@@ -92,18 +90,21 @@ export async function indicarEmpresa(_estado: EstadoFormulario, dados: FormData)
     return { erro: "Você já fez muitas indicações hoje. Obrigado pela energia! Tente de novo amanhã.", valores };
   }
 
-  const empresa = await db.empresa.create({
-    data: {
-      ...campos,
-      instagramUsername: instagram,
-      motivoIndicacao: souDono ? null : motivo || null,
-      indicadaPorId: usuario.id,
-      // Toda indicação entra publicada. A moderação tira do ar o que for impróprio.
-      moderacao: "aprovada",
-      busca: textoDeBusca({ ...campos, instagramUsername: instagram }),
-      causas: { create: filtrarCausas(dados.getAll("causas").map(String)).map((causa) => ({ causa })) },
-    },
-  });
+  const empresa = await semDuplicar(
+    db.empresa.create({
+      data: {
+        ...campos,
+        instagramUsername: instagram,
+        motivoIndicacao: souDono ? null : motivo || null,
+        indicadaPorId: usuario.id,
+        // Toda indicação entra publicada. A moderação tira do ar o que for impróprio.
+        moderacao: "aprovada",
+        busca: textoDeBusca({ ...campos, instagramUsername: instagram }),
+        causas: { create: filtrarCausas(dados.getAll("causas").map(String)).map((causa) => ({ causa })) },
+      },
+    }),
+  );
+  if (!empresa) return jaCadastrada;
   await registrarAuditoria(db, {
     usuarioId: usuario.id,
     acao: "empresa.indicada",

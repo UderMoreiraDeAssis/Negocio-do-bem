@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { gerarHashSenha, verificarSenha } from "@/lib/auth/senha";
 import { caminhoSeguro, criarSessao, encerrarSessao } from "@/lib/auth/sessao";
-import { db } from "@/lib/db";
+import { db, semDuplicar } from "@/lib/db";
 import { errosPorCampo, texto, valoresDoFormulario, type EstadoFormulario } from "@/lib/formulario";
 
 const esquemaCadastro = z.object({
@@ -24,12 +24,15 @@ export async function cadastrar(_estado: EstadoFormulario, dados: FormData): Pro
   }
   const { nome, email, senha } = resultado.data;
 
-  const existente = await db.usuario.findUnique({ where: { email } });
-  if (existente) {
-    return { erros: { email: "Já existe uma conta com este e-mail. Que tal entrar?" }, valores: valoresDoFormulario(dados) };
-  }
+  const emailEmUso: EstadoFormulario = {
+    erros: { email: "Já existe uma conta com este e-mail. Que tal entrar?" },
+    valores: valoresDoFormulario(dados),
+  };
+  if (await db.usuario.findUnique({ where: { email } })) return emailEmUso;
 
-  const usuario = await db.usuario.create({ data: { nome, email, senhaHash: await gerarHashSenha(senha) } });
+  const senhaHash = await gerarHashSenha(senha);
+  const usuario = await semDuplicar(db.usuario.create({ data: { nome, email, senhaHash } }));
+  if (!usuario) return emailEmUso;
   await criarSessao(usuario.id);
   redirect(caminhoSeguro(texto(dados, "voltar")));
 }
