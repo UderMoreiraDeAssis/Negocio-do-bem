@@ -3,6 +3,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
+import { CONFIRMACAO_DE_EMAIL_LIGADA } from "@/lib/auth/links";
 import { db } from "@/lib/db";
 
 const COOKIE = "ndb_sessao";
@@ -14,6 +15,7 @@ export type UsuarioSessao = {
   email: string;
   moderador: boolean;
   // Indicar, escrever e denunciar depoimentos e reivindicar pedem o e-mail confirmado.
+  // Com CONFIRMACAO_DE_EMAIL_LIGADA desligada, é sempre true.
   emailConfirmado: boolean;
 };
 
@@ -66,7 +68,7 @@ export const usuarioAtual = cache(async (): Promise<UsuarioSessao | null> => {
     nome: usuario.nome,
     email: usuario.email,
     moderador: ehModerador(usuario),
-    emailConfirmado: usuario.emailConfirmadoEm !== null,
+    emailConfirmado: !CONFIRMACAO_DE_EMAIL_LIGADA || usuario.emailConfirmadoEm !== null,
   };
 });
 

@@ -88,6 +88,14 @@ Código: `src/acoes/conta.ts`, `src/lib/auth/`.
 
 Código: `src/lib/auth/links.ts`, `src/acoes/conta.ts`, `src/app/api/link/route.ts` e `src/app/link/page.tsx`.
 
+> **A exigência está desligada por enquanto** ([#148](https://github.com/fabsreis/Negocio-do-bem/issues/148)). `CONFIRMACAO_DE_EMAIL_LIGADA`, em `src/lib/auth/links.ts`, está `false` porque o plano grátis do Resend manda só 100 e-mails por dia, e quem se cadastrava depois disso ficava sem o link e travado. Enquanto ela estiver desligada:
+>
+> - toda conta, nova ou antiga, vale como confirmada: indica, escreve e denuncia depoimentos e reivindica sem confirmar nada, e "Confirme seu e-mail" não aparece em lugar nenhum;
+> - o cadastro não manda o link de confirmação;
+> - o "Entrar por link" e os links de confirmação já mandados continuam funcionando, e um link usado continua gravando `emailConfirmadoEm`.
+>
+> As regras abaixo voltam a valer quando a constante for ligada de novo, junto com a troca do envio de e-mails.
+
 - **O cadastro manda um link de confirmação** para o e-mail digitado. A conta já entra no site na hora.
 - **Sem o e-mail confirmado, a conta não** indica negócios, não escreve nem denuncia depoimentos e não reivindica negócios, por nenhum dos caminhos.
   - Nesses lugares, e no topo do `/painel`, aparece "Confirme seu e-mail", com um botão para mandar o link de novo.
@@ -126,7 +134,7 @@ Um papel não exclui o outro: uma pessoa da moderação também pode ser dona de
 | Papel | Quem é | O que pode fazer |
 | --- | --- | --- |
 | **Visitante** | Sem login | Ver o diretório, os perfis publicados e os depoimentos. Não indica, não escreve depoimento, não reivindica. |
-| **Membro** | Qualquer conta | Ver as próprias indicações e solicitações em `/painel`. Com o [e-mail confirmado](#e-mail-confirmado-e-links-por-e-mail): indicar negócios, escrever e denunciar depoimentos e reivindicar um negócio. |
+| **Membro** | Qualquer conta | Ver as próprias indicações e solicitações em `/painel`. Com o [e-mail confirmado](#e-mail-confirmado-e-links-por-e-mail) (exigência desligada por enquanto): indicar negócios, escrever e denunciar depoimentos e reivindicar um negócio. |
 | **Dono** | Conta aprovada como dona de um negócio | Tudo do membro, mais: editar o perfil do próprio negócio, trocar a foto, responder depoimentos e ocultar ou mostrar o negócio no diretório. Não pode escrever depoimento no próprio negócio. |
 | **Moderação** | `papel = "moderador"` no banco | Tudo do membro, mais: o painel de `/moderacao` (visão geral, filas, todos os negócios, contas e depoimentos, auditoria e sistema), tirar do ar e publicar de novo qualquer negócio, editar qualquer perfil. |
 
@@ -890,7 +898,7 @@ O site manda poucos e-mails: só quando alguém precisa agir ou saber de uma dec
 | Um pedido pelos dados do negócio fica na fila (o negócio tem dono ou está fora do ar), ou um "Entrar com Instagram" fica em análise | Cada pessoa da moderação | O negócio e o link da fila de reivindicações. |
 | Um depoimento é denunciado | Cada pessoa da moderação | O negócio e o link da fila de denúncias. |
 | Chega um depoimento novo | Cada dono do negócio | Quem escreveu, o texto e o link para responder. |
-| Alguém cria uma conta, ou pede de novo em "Confirme seu e-mail" | A própria pessoa | O link para confirmar o e-mail, que vale por 24 horas. |
+| Alguém cria uma conta, ou pede de novo em "Confirme seu e-mail". Só com a confirmação ligada, e hoje ela está desligada | A própria pessoa | O link para confirmar o e-mail, que vale por 24 horas. |
 | Alguém pede para entrar por link | O e-mail digitado, se tiver conta | O link para entrar, que vale por 15 minutos. |
 
 - **Os links de confirmar e de entrar** seguem as regras de [e-mail confirmado e links por e-mail](#e-mail-confirmado-e-links-por-e-mail).

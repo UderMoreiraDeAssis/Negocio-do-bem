@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 import { usarLinkDoEmail } from "@/acoes/conta";
 import { BotaoEnviar } from "@/components/BotaoEnviar";
-import { COOKIE_LINK, lerLink } from "@/lib/auth/links";
+import { CONFIRMACAO_DE_EMAIL_LIGADA, COOKIE_LINK, lerLink } from "@/lib/auth/links";
 import { caminhoSeguro, usuarioAtual } from "@/lib/auth/sessao";
 import { FORA_DA_BUSCA } from "@/lib/seo";
 
@@ -61,13 +61,15 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/link">, "searchParams
           <Link href="/entrar/link" className="botao w-full">
             Pedir um link para entrar
           </Link>
-          <p className="text-sm text-suave">
-            Para confirmar o e-mail, peça um link novo no{" "}
-            <Link href="/painel" className="link">
-              seu painel
-            </Link>
-            .
-          </p>
+          {CONFIRMACAO_DE_EMAIL_LIGADA && (
+            <p className="text-sm text-suave">
+              Para confirmar o e-mail, peça um link novo no{" "}
+              <Link href="/painel" className="link">
+                seu painel
+              </Link>
+              .
+            </p>
+          )}
         </div>
       </Moldura>
     );

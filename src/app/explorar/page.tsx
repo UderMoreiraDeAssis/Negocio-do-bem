@@ -24,7 +24,8 @@ import { metadadosDaPagina } from "@/lib/seo";
 import { OrdenarPor } from "./OrdenarPor";
 
 // Com filtros, o canônico continua sendo /explorar: as combinações de filtros
-// não viram páginas separadas na busca.
+// não viram páginas separadas na busca. Os links dos filtros levam nofollow, e o
+// robots.txt bloqueia /explorar?..., para os robôs não abrirem cada combinação.
 export const metadata: Metadata = metadadosDaPagina({
   titulo: "Explorar negócios",
   descricao:
@@ -124,7 +125,7 @@ async function Diretorio({ searchParams }: Pick<PageProps<"/explorar">, "searchP
                 <Link
                   key={ativo.rotulo}
                   href={ativo.href}
-                  scroll={false}
+                  scroll={false} rel="nofollow"
                   aria-label={`Tirar o filtro ${ativo.rotulo}`}
                   className="inline-flex items-center gap-2 rounded-full border border-tinta/60 bg-superficie py-1.5 pr-2.5 pl-3.5 text-sm font-medium transition hover:border-tinta"
                 >
@@ -182,7 +183,7 @@ function Filtros({ filtros, resultado }: { filtros: FiltrosDiretorio; resultado:
           Filtros
         </p>
         {temMarcados && (
-          <Link href={mudarFiltro(filtros, { tipos: [], causas: [], verificados: false })} scroll={false} className="link text-sm">
+          <Link href={mudarFiltro(filtros, { tipos: [], causas: [], verificados: false })} scroll={false} rel="nofollow" className="link text-sm">
             Limpar
           </Link>
         )}
@@ -228,7 +229,7 @@ function Filtros({ filtros, resultado }: { filtros: FiltrosDiretorio; resultado:
 
       <Link
         href={mudarFiltro(filtros, { verificados: !filtros.verificados })}
-        scroll={false}
+        scroll={false} rel="nofollow"
         aria-current={filtros.verificados ? "true" : undefined}
         className="cartao flex items-center justify-between gap-3 p-4 transition hover:border-tinta/30"
       >
@@ -265,7 +266,7 @@ function OpcaoFiltro({ href, ativo, total, children }: { href: string; ativo: bo
   return (
     <Link
       href={href}
-      scroll={false}
+      scroll={false} rel="nofollow"
       aria-current={ativo ? "true" : undefined}
       className={`flex items-center gap-2.5 rounded-xl px-2 py-1.5 text-sm transition hover:bg-papel ${total === 0 && !ativo ? "opacity-55" : ""}`}
     >
@@ -292,7 +293,7 @@ function BotaoVista({ href, ativo, rotulo, children }: { href: string; ativo: bo
   return (
     <Link
       href={href}
-      scroll={false}
+      scroll={false} rel="nofollow"
       aria-label={rotulo}
       aria-current={ativo ? "true" : undefined}
       className={`grid h-8 w-9 place-items-center rounded-full transition ${ativo ? "bg-tinta text-papel" : "text-suave hover:text-tinta"}`}

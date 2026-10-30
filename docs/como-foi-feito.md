@@ -86,7 +86,7 @@ O site precisa funcionar mesmo quando um serviço de fora falha ou ainda não fo
 | Consulta de CNPJ (BrasilAPI) | Funciona: a consulta é só um apoio para a moderação, nunca bloqueia a análise. |
 | Google Analytics | Funciona: sem o ID, ele simplesmente não carrega. |
 | Vercel Blob | Funciona. No computador de quem desenvolve, as fotos ficam numa pasta local. Em produção, só o envio de fotos mostra um erro. |
-| Envio de e-mails (Resend) | Funciona, com uma exceção: ninguém recebe os avisos nem os links. Quem tem senha continua entrando, mas uma conta nova não consegue confirmar o e-mail e, até o envio voltar, não indica, não escreve depoimentos e não reivindica. |
+| Envio de e-mails (Resend) | Funciona, com uma exceção: ninguém recebe os avisos nem os links. Quem tem senha continua entrando. Com a confirmação de e-mail ligada, uma conta nova não consegue confirmar o e-mail e, até o envio voltar, não indica, não escreve depoimentos e não reivindica. |
 
 ### Tudo em português
 
@@ -348,6 +348,22 @@ O cadastro aceitava qualquer e-mail. Uma conta com o e-mail de outra pessoa, ou 
 - **A senha continua.** O link por e-mail não é mais seguro que a senha: quem abre a caixa de e-mail entra na conta, o que a recuperação de senha também vai permitir. Ele tira a senha repetida e a força bruta do caminho de quem prefere não usar senha. O segundo fator para a moderação fica para a [#103](https://github.com/fabsreis/Negocio-do-bem/issues/103).
 - **Limite por conta, não por IP.** Cinco links por conta a cada hora impedem lotar a caixa de alguém e gastar a cota de 100 e-mails por dia do Resend com uma conta só. O limite por IP do login fica com a [#36](https://github.com/fabsreis/Negocio-do-bem/issues/36).
 
+### 30 de outubro: robôs fora dos filtros do /explorar ([#141](https://github.com/fabsreis/Negocio-do-bem/issues/141))
+
+Na manhã de 30 de outubro, a página inicial, o `/explorar`, o `/cidades` e o sitemap pararam de abrir em produção. O Neon tinha pausado o banco por estourar o plano grátis: 6,85 GB de transferência em um dia e meio, para um limite de 5 GB por mês.
+
+- **A causa foi um robô.** Em 24 horas o site recebeu 626 mil requisições, 162 mil delas do GPTBot, quase todas no `/explorar`. Cada filtro é um link, os filtros se combinam (tipo, causa, verificados, ordem, vista e página) e o robô abria cada combinação. Cada abertura faz seis consultas ao banco.
+- **O banco voltou com o plano Launch do Neon**, pago por uso. O compute de produção ficou fixo em 0,25 CU: no pior caso, ligado o mês inteiro, custa cerca de US$ 19. Ele continua desligando depois de 5 minutos sem uso.
+- **O `robots.txt` bloqueia `/explorar?...`, e os links dos filtros levam `nofollow`.** O `/explorar` sem filtros, as páginas de cidade, causa e tipo e o sitemap continuam abertos, e o diretório segue chegando à busca e aos assistentes. As combinações já tinham o `/explorar` como canônico e não entravam na busca.
+
+### 30 de outubro: confirmação de e-mail desligada por enquanto ([#148](https://github.com/fabsreis/Negocio-do-bem/issues/148))
+
+No mesmo dia, o site passou dos 100 e-mails por dia do plano grátis do Resend. Daí em diante o link de confirmação não chegava, e quem se cadastrava ficava sem poder indicar, escrever depoimentos ou reivindicar.
+
+- **Uma constante, não uma variável de ambiente.** `CONFIRMACAO_DE_EMAIL_LIGADA`, em `src/lib/auth/links.ts`, desliga a exigência. Trocar uma variável no Vercel pediria um redeploy fora do fluxo de merge, e a volta da confirmação deve vir no mesmo PR que trocar o envio de e-mails.
+- **Desligar num lugar só.** `usuarioAtual` devolve `emailConfirmado: true` para toda conta, e as travas, o "Confirme seu e-mail" e a rota do Instagram continuam olhando o mesmo campo. Nada delas saiu do código.
+- **O cadastro não manda o link.** Assim a cota fica para o "Entrar por link" e para os avisos. Quem já recebeu um link ainda pode usá-lo, e `emailConfirmadoEm` continua sendo gravado, então a ficha da moderação mostra quem de fato confirmou.
+
 ---
 
 ## 4. Arquitetura
@@ -495,6 +511,12 @@ No cliente, os formulários com `useActionState` usam `enviarSemLimpar` (`src/co
 
 - **Os dados do banco não usam `use cache`,** para estarem sempre atualizados.
 - `usuarioAtual()` usa o `cache` do React: a sessão é lida uma vez por requisição, mesmo que vários componentes perguntem.
+- **Quando algo falha no servidor**, como o banco fora do ar ([#141](https://github.com/fabsreis/Negocio-do-bem/issues/141)), três peças evitam a tela padrão do Next, em inglês:
+  - `src/app/error.tsx` fica no lugar da página, com "Tentar de novo" (o `retry()` do Next), um link para o início e o código do erro (o `digest`, que acha a mensagem nos logs do Vercel). O cabeçalho e o rodapé continuam na tela;
+  - o `error.tsx` não cobre o layout do mesmo nível, e o menu da conta, que lê a sessão no banco, fica no layout. Por isso o `MenuUsuario` vai dentro do `ProtecaoDoMenu` (`catchError` do Next), que mostra o "Entrar" se a leitura falhar;
+  - `src/app/global-error.tsx` é o último recurso, para uma falha no próprio layout. Ele substitui a página inteira e por isso traz o `<html>`, as fontes, o CSS e o script do tema.
+
+  Nenhuma das três consulta o banco. A página com erro continua respondendo com status 200: o erro aparece quando o navegador processa a página.
 
 ### Regras de negócio fora da interface
 
@@ -547,8 +569,8 @@ npm run typecheck
 | Peça | Onde | Observação |
 | --- | --- | --- |
 | Site | Vercel, funções em São Paulo (`gru1`) | Produção em https://negociodobem.vercel.app |
-| Banco de produção | Neon (PostgreSQL), São Paulo | Conectado ao Vercel só em Production. O Vercel cria `DATABASE_URL` e `DATABASE_URL_UNPOOLED`. |
-| Banco dos previews | Outro projeto Neon (`negocio-do-bem-preview`), São Paulo | Conectado só em Preview: serve à `stage` e aos PRs. Tem senha e cota de compute próprias e só guarda dados de teste. |
+| Banco de produção | Neon (PostgreSQL), São Paulo, plano Launch | Conectado ao Vercel só em Production. O Vercel cria `DATABASE_URL` e `DATABASE_URL_UNPOOLED`. O plano é pago por uso, e o compute fica fixo em 0,25 CU para limitar o custo ([#141](https://github.com/fabsreis/Negocio-do-bem/issues/141)). |
+| Banco dos previews | Outro projeto Neon (`negocio-do-bem-preview`), São Paulo | Conectado só em Preview: serve à `stage` e aos PRs. Tem senha própria e só guarda dados de teste. O plano do Neon vale para a integração inteira, então ele também é Launch. |
 | Fotos de produção | Vercel Blob, público, São Paulo | Conectado ao Vercel só em Production, que cria `BLOB_STORE_ID`. O site se autentica pelo OIDC do deploy, sem token. |
 | Fotos dos previews | Outro Vercel Blob, público, São Paulo | Conectado só em Preview, do mesmo jeito. As credenciais dele não alcançam o Blob de produção, e ele não guarda fotos reais. |
 | Medição | Google Analytics 4 | `NEXT_PUBLIC_GA_ID` só em Production. |
@@ -748,6 +770,8 @@ O PR só conflita se a `main` recebeu algo que não passou pela `stage`. Nesse c
   - toda `div` com mais de um filho precisa de `display: "flex"`. Texto com variáveis como `{a} · {b}` vira vários filhos: use uma template string;
   - o gerador não lê WebP, woff2 nem fonte variável. Por isso as fotos em WebP viram monograma na prévia, e as fontes ficam em TTF em `assets/fontes`.
 - **`BLOB_STORE_ID` sozinho no `.env`** faz o envio de fotos falhar: fora do Vercel não há OIDC. No seu computador, deixe as duas variáveis do Blob vazias ou use a `BLOB_READ_WRITE_TOKEN`.
+- **Filtros no endereço multiplicam as páginas para os robôs.** Uma página nova que monta links com filtros no endereço (`?tipo=...&causa=...`) precisa entrar no `disallow` do `src/app/robots.ts`, como o `/explorar?`. Sem isso, um robô abre cada combinação e cada uma consulta o banco ([#141](https://github.com/fabsreis/Negocio-do-bem/issues/141)).
+- **Status 200 não quer dizer que a página abriu.** Com o Cache Components, a página chega com status 200 e o erro do banco vem dentro do conteúdo. Para saber se o site está no ar, confira se a lista de negócios aparece, e não só o status.
 
 ---
 

@@ -16,6 +16,14 @@ import { ENDERECO_DO_SITE, NOME_DO_SITE } from "@/lib/seo";
 
 export type Finalidade = "confirmar" | "entrar";
 
+/**
+ * Pedir o e-mail confirmado para indicar, escrever e denunciar depoimentos e reivindicar.
+ * Desligado por enquanto: o plano grátis do Resend manda só 100 e-mails por dia, e quem
+ * se cadastrava depois disso ficava sem o link e travado. Desligado, toda conta vale
+ * como confirmada e o cadastro não manda o link. Ligue de novo junto com o novo envio.
+ */
+export const CONFIRMACAO_DE_EMAIL_LIGADA: boolean = false;
+
 /** Cookie onde /api/link guarda o token até o clique em /link. */
 export const COOKIE_LINK = "ndb_link";
 
