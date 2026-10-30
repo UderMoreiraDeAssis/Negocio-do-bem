@@ -1,5 +1,35 @@
 import { z, type ZodError } from "zod";
 import { conferirMunicipio } from "@/lib/municipios";
+import { REGIOES_DF } from "@/lib/regioes-df";
+import { normalizarTexto } from "@/lib/texto";
+
+const detalheOpcional = (maximo: number) => z.string().trim().max(maximo, `Use até ${maximo} caracteres.`).transform((v) => v || null);
+
+export const campoCep = z.string().trim()
+  .refine((v) => !v || /^\d{5}-?\d{3}$/.test(v), "Digite um CEP com 8 dígitos (ex.: 01001-000).")
+  .transform((v) => v.replace("-", "") || null);
+
+export const camposEndereco = {
+  regiaoAdministrativa: detalheOpcional(80).transform((valor, ctx) => {
+    if (!valor) return null;
+    const regiao = REGIOES_DF.find((r) => normalizarTexto(r) === normalizarTexto(valor));
+    if (regiao) return regiao;
+    ctx.addIssue({ code: "custom", message: "Escolha uma região administrativa do DF na lista." });
+    return z.NEVER;
+  }),
+  bairro: detalheOpcional(100),
+  localidade: detalheOpcional(100),
+  cep: campoCep,
+  logradouro: detalheOpcional(200),
+  numero: detalheOpcional(30),
+  complemento: detalheOpcional(200),
+};
+
+export function regiaoCompativel(dados: { municipio: { nome: string; uf: string }; regiaoAdministrativa: string | null }): boolean {
+  return !dados.regiaoAdministrativa || (dados.municipio.nome === "Brasília" && dados.municipio.uf === "DF");
+}
+
+export const erroRegiaoCompativel = { path: ["regiaoAdministrativa"], message: "A região administrativa só se aplica a Brasília, DF. Para outras cidades, use bairro ou distrito/localidade." };
 
 /** Cidade do campo de cidade ("Recife, PE"), conferida na lista do IBGE. Devolve o nome oficial e a UF. */
 export const campoMunicipio = z

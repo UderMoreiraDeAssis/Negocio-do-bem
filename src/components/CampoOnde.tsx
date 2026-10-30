@@ -1,20 +1,20 @@
 "use client";
 
 import { useId, useState, type KeyboardEvent } from "react";
-import { sugerirLocais, type CidadeComNegocios, type SugestaoLocal } from "@/lib/diretorio";
+import { sugerirLocais, type CidadeComNegocios, type LocalidadeComNegocios, type SugestaoLocal } from "@/lib/diretorio";
 
 /**
- * O "Onde?" da busca: sugere os estados e as cidades que já têm negócios e envia
- * o texto escolhido no campo `onde` ("Recife, PE" ou "Pernambuco (estado)"). Sem
+ * O "Onde?" da busca: sugere estados, cidades e subdivisões com negócios e envia
+ * o texto escolhido no campo `onde` (inclusive "Centro — Recife, PE"). Sem
  * JavaScript, é um campo de texto comum, e o servidor entende o que foi digitado.
  */
-export function CampoOnde({ cidades, valorInicial }: { cidades: CidadeComNegocios[]; valorInicial: string }) {
+export function CampoOnde({ cidades, localidades = [], valorInicial }: { cidades: CidadeComNegocios[]; localidades?: LocalidadeComNegocios[]; valorInicial: string }) {
   const [texto, setTexto] = useState(valorInicial);
   const [aberta, setAberta] = useState(false);
   const [ativa, setAtiva] = useState(0);
   const lista = useId();
 
-  const sugestoes = aberta ? sugerirLocais(texto, cidades) : [];
+  const sugestoes = aberta ? sugerirLocais(texto, cidades, 8, localidades) : [];
   const destacada = Math.min(ativa, sugestoes.length - 1);
   const nenhuma = aberta && texto.trim().length > 0 && sugestoes.length === 0;
 
@@ -81,7 +81,7 @@ export function CampoOnde({ cidades, valorInicial }: { cidades: CidadeComNegocio
       <ul
         id={lista}
         role="listbox"
-        aria-label={texto.trim() ? "Cidades e estados" : "Onde já temos negócios"}
+        aria-label={texto.trim() ? "Cidades, estados, regiões e bairros" : "Onde já temos negócios"}
         className={`absolute z-30 mt-2.5 max-h-96 w-full min-w-72 overflow-auto rounded-3xl border border-linha bg-superficie p-2 shadow-2xl shadow-tinta/15 ${sugestoes.length > 0 ? "" : "hidden"}`}
       >
         {!texto.trim() && (
@@ -104,7 +104,7 @@ export function CampoOnde({ cidades, valorInicial }: { cidades: CidadeComNegocio
             className={`flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-2.5 ${i === destacada ? "bg-coral-50" : ""}`}
           >
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-papel text-coral-700">
-              {sugestao.tipo === "cidade" ? <IconePino /> : <IconeMapa />}
+              {sugestao.tipo === "cidade" || sugestao.tipo === "localidade" ? <IconePino /> : <IconeMapa />}
             </span>
             <span className="min-w-0 flex-1 text-[15px]">
               <span className="font-semibold">{sugestao.nome}</span>{" "}

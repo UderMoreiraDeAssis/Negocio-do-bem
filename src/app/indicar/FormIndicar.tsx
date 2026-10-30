@@ -7,7 +7,7 @@ import { Aviso } from "@/components/Aviso";
 import { BotaoEnviar } from "@/components/BotaoEnviar";
 import { enviarSemLimpar } from "@/components/envio";
 import { Campo } from "@/components/Campo";
-import { CampoMunicipio } from "@/components/CampoMunicipio";
+import { CamposEndereco } from "@/components/CamposEndereco";
 import { SeletorCausas } from "@/components/SeletorCausas";
 import { CATEGORIAS } from "@/lib/dominio";
 
@@ -56,19 +56,18 @@ export function FormIndicar() {
         <input id="nome" name="nome" required maxLength={80} defaultValue={valor("nome")} className="campo" />
       </Campo>
 
-      <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
-        <Campo rotulo="Categoria" erro={erros.categoria} id="categoria">
-          <select id="categoria" name="categoria" required defaultValue={valor("categoria")} className="campo">
-            <option value="" disabled>
-              Escolha…
-            </option>
-            {CATEGORIAS.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-        </Campo>
-        <CampoMunicipio valorInicial={valor("municipio")} erro={erros.municipio} />
-      </div>
+      <Campo rotulo="Categoria" erro={erros.categoria} id="categoria">
+        <select id="categoria" name="categoria" required defaultValue={valor("categoria")} className="campo">
+          <option value="" disabled>
+            Escolha…
+          </option>
+          {CATEGORIAS.map((c) => (
+            <option key={c}>{c}</option>
+          ))}
+        </select>
+      </Campo>
+
+      <CamposEndereco valor={valor} erros={erros} />
 
       <Campo rotulo="Em uma frase, o que este negócio faz?" erro={erros.resumo} id="resumo" ajuda="Até 160 caracteres.">
         <input id="resumo" name="resumo" required maxLength={160} placeholder="Padaria artesanal que contrata gente do próprio bairro" defaultValue={valor("resumo")} className="campo" />

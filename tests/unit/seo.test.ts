@@ -52,6 +52,13 @@ describe("metadadosDaPagina", () => {
 describe("jsonLdDoNegocio", () => {
   const ficha = (dados: object) => jsonLdDoNegocio({ ...NEGOCIO, ...dados }, ["Liderado por mulheres"])["@graph"][0] as Record<string, unknown>;
 
+  it("só expõe o endereço postal nos metadados com autorização", () => {
+    const endereco = { cep: "01001000", logradouro: "Praça de Teste", numero: "12B", complemento: "Bloco A" };
+    expect(ficha(endereco).address).not.toHaveProperty("postalCode");
+    expect(ficha(endereco).address).not.toHaveProperty("streetAddress");
+    expect(ficha({ ...endereco, enderecoPublico: true }).address).toMatchObject({ postalCode: "01001000", streetAddress: "Praça de Teste, 12B, Bloco A" });
+  });
+
   it("leva só os contatos preenchidos", () => {
     const vazia = ficha({});
     expect(vazia).not.toHaveProperty("telephone");

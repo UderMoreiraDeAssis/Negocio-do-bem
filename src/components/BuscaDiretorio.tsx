@@ -1,6 +1,6 @@
 import Form from "next/form";
 import { CampoOnde } from "@/components/CampoOnde";
-import { SEM_FILTROS, slugCategoria, type CidadeComNegocios, type FiltrosDiretorio } from "@/lib/diretorio";
+import { SEM_FILTROS, slugCategoria, type CidadeComNegocios, type LocalidadeComNegocios, type FiltrosDiretorio } from "@/lib/diretorio";
 
 /**
  * A busca da página inicial e do diretório: "O que você procura?" + "Onde?". Leva
@@ -8,9 +8,11 @@ import { SEM_FILTROS, slugCategoria, type CidadeComNegocios, type FiltrosDiretor
  */
 export function BuscaDiretorio({
   cidades,
+  localidades = [],
   filtros = SEM_FILTROS,
 }: {
   cidades: CidadeComNegocios[];
+  localidades?: LocalidadeComNegocios[];
   filtros?: FiltrosDiretorio;
 }) {
   return (
@@ -47,7 +49,7 @@ export function BuscaDiretorio({
       </label>
 
       {/* A key recria o campo quando o "Onde?" muda pela URL (ao tirar o filtro, por exemplo). */}
-      <CampoOnde key={filtros.onde} cidades={cidades} valorInicial={filtros.onde} />
+      <CampoOnde key={filtros.onde} cidades={cidades} localidades={localidades} valorInicial={filtros.onde} />
 
       <button type="submit" className="botao-coral min-h-14 flex-[1_0_auto] rounded-2xl px-7 text-base sm:flex-[0_0_auto]">
         Buscar

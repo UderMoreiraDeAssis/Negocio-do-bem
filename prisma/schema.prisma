@@ -88,6 +88,17 @@ model Empresa {
   categoria         String
   cidade            String
   uf                String
+  // Subdivisões públicas; no DF o município continua sendo Brasília.
+  regiaoAdministrativa String?
+  bairro            String?
+  localidade        String?
+  // Endereço postal opcional, informado pela pessoa (nunca atualizado pela base de CEP).
+  cep               String?
+  logradouro        String?
+  numero            String?
+  complemento       String?
+  // Só o dono ou a moderação podem publicar os detalhes postais.
+  enderecoPublico   Boolean  @default(false)
   // Foto do perfil, enviada pelo dono ou pela moderação (ver src/lib/armazenamento.ts).
   fotoUrl           String?
   site              String?

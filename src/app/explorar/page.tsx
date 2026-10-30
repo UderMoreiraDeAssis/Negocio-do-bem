@@ -73,7 +73,7 @@ async function Diretorio({ searchParams }: Pick<PageProps<"/explorar">, "searchP
         {tituloDoDiretorio(filtros, resultado.local)}
       </h1>
       <div className="mt-5">
-        <BuscaDiretorio cidades={resultado.cidades} filtros={filtros} />
+        <BuscaDiretorio cidades={resultado.cidades} localidades={resultado.localidades} filtros={filtros} />
       </div>
 
       <div className="mt-8 flex flex-col gap-8 lg:flex-row lg:items-start">

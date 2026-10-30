@@ -9,11 +9,15 @@ import { AVISOS } from "@/lib/avisos";
 import { filtrarCausas } from "@/lib/causas";
 import { db } from "@/lib/db";
 import { CATEGORIAS } from "@/lib/dominio";
+import { CAMPOS_ENDERECO } from "@/lib/endereco";
 import {
   campoEmail,
   campoMunicipio,
   campoSite,
   campoWhatsapp,
+  camposEndereco,
+  erroRegiaoCompativel,
+  regiaoCompativel,
   errosPorCampo,
   texto,
   valoresDoFormulario,
@@ -29,6 +33,7 @@ function violouUnicidade(erro: unknown): boolean {
 }
 
 const camposComuns = {
+  ...camposEndereco,
   nome: z.string().trim().min(2, "Qual é o nome do negócio?").max(80, "Nome muito longo."),
   categoria: z.enum(CATEGORIAS, { error: "Escolha uma categoria." }),
   municipio: campoMunicipio,
@@ -43,6 +48,10 @@ const camposContato = {
 
 function lerContato(dados: FormData) {
   return { site: texto(dados, "site"), whatsapp: texto(dados, "whatsapp"), emailContato: texto(dados, "emailContato") };
+}
+
+function lerEndereco(dados: FormData) {
+  return Object.fromEntries(CAMPOS_ENDERECO.map((campo) => [campo, texto(dados, campo)]));
 }
 
 /** O banco guarda cidade e UF em colunas separadas; o formulário manda os dois juntos. */
@@ -62,7 +71,7 @@ const esquemaIndicacao = z.object({
     return username;
   }),
   motivo: z.string().trim().max(600, "Use até 600 caracteres.").optional(),
-});
+}).refine(regiaoCompativel, erroRegiaoCompativel);
 
 export async function indicarEmpresa(_estado: EstadoFormulario, dados: FormData): Promise<EstadoFormulario> {
   const usuario = await exigirUsuario("/indicar");
@@ -77,6 +86,7 @@ export async function indicarEmpresa(_estado: EstadoFormulario, dados: FormData)
     resumo: texto(dados, "resumo"),
     motivo: texto(dados, "motivo") || undefined,
     ...lerContato(dados),
+    ...lerEndereco(dados),
   });
   if (!resultado.success) return { erros: errosPorCampo(resultado.error), valores };
   const { instagram, motivo, ...campos } = comCidade(resultado.data);
@@ -144,7 +154,7 @@ const esquemaEdicao = z.object({
   ...camposComuns,
   ...camposContato,
   historia: z.string().max(20_000, "A história pode ter até 20 mil caracteres.").default(""),
-});
+}).refine(regiaoCompativel, erroRegiaoCompativel);
 
 async function exigirDono(empresaId: string, voltarPara: string) {
   const usuario = await exigirUsuario(voltarPara);
@@ -196,6 +206,7 @@ export async function salvarEmpresa(_estado: EstadoFormulario, dados: FormData):
     resumo: texto(dados, "resumo"),
     historia: texto(dados, "historia").replace(/\r\n/g, "\n"),
     ...lerContato(dados),
+    ...lerEndereco(dados),
   });
   if (!resultado.success) return { erros: errosPorCampo(resultado.error), valores };
   const campos = comCidade(resultado.data);
@@ -204,7 +215,7 @@ export async function salvarEmpresa(_estado: EstadoFormulario, dados: FormData):
   await db.$transaction([
     db.empresa.update({
       where: { id: empresa.id },
-      data: { ...campos, busca: textoDeBusca({ ...campos, instagramUsername: empresa.instagramUsername }) },
+      data: { ...campos, enderecoPublico: dados.get("enderecoPublico") === "sim", busca: textoDeBusca({ ...campos, instagramUsername: empresa.instagramUsername }) },
     }),
     db.empresaCausa.deleteMany({ where: { empresaId: empresa.id } }),
     db.empresaCausa.createMany({ data: causas.map((causa) => ({ empresaId: empresa.id, causa })) }),

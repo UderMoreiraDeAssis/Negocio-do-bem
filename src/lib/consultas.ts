@@ -2,9 +2,10 @@ import "server-only";
 import { cache } from "react";
 import type { UsuarioSessao } from "@/lib/auth/sessao";
 import { db, type Prisma } from "@/lib/db";
-import { interpretarLocal, slugCidade, type CidadeComNegocios, type FiltrosDiretorio, type Local, type Ordem } from "@/lib/diretorio";
+import { interpretarLocal, slugCidade, type CidadeComNegocios, type LocalidadeComNegocios, type FiltrosDiretorio, type Local, type Ordem } from "@/lib/diretorio";
 import { nomeOficial } from "@/lib/municipios";
 import { normalizarTexto } from "@/lib/texto";
+import { UFS } from "@/lib/dominio";
 
 export const POR_PAGINA = 18;
 
@@ -46,9 +47,45 @@ export const listarCidades = cache(async (): Promise<CidadeComNegocios[]> => {
   return [...cidades.values()].sort((a, b) => a.cidade.localeCompare(b.cidade, "pt-BR") || a.uf.localeCompare(b.uf));
 });
 
+const contarPorLocalidade = cache(async () => db.empresa.groupBy({
+  by: ["cidade", "uf", "regiaoAdministrativa", "bairro", "localidade"],
+  where: { ...NO_DIRETORIO, OR: [{ regiaoAdministrativa: { not: null } }, { bairro: { not: null } }, { localidade: { not: null } }] },
+  _count: { _all: true },
+}));
+
+/** Subdivisões têm contagem própria e nunca aumentam o número de municípios. */
+export const listarLocalidades = cache(async (): Promise<LocalidadeComNegocios[]> => {
+  const locais = new Map<string, LocalidadeComNegocios>();
+  for (const g of await contarPorLocalidade()) {
+    const cidade = nomeOficial(g.cidade, g.uf) ?? g.cidade;
+    const nomes = new Map([g.regiaoAdministrativa, g.bairro, g.localidade].filter((n): n is string => !!n).map((n) => [normalizarTexto(n), n]));
+    for (const [chaveNome, nome] of nomes) {
+      const chave = `${chaveNome}|${normalizarTexto(cidade)}|${g.uf}`;
+      const existente = locais.get(chave);
+      if (existente) existente.total += g._count._all;
+      else locais.set(chave, { nome, cidade, uf: g.uf, total: g._count._all });
+    }
+  }
+  return [...locais.values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR") || a.cidade.localeCompare(b.cidade, "pt-BR") || a.uf.localeCompare(b.uf));
+});
+
 /** Condição do banco para o lugar do "Onde?". A cidade vale em todas as grafias com que está no banco. */
 async function condicaoDoLocal(local: Local | null): Promise<Prisma.EmpresaWhereInput> {
   const uf = local?.uf ? { uf: local.uf } : {};
+  if (local?.localidade) {
+    const nome = normalizarTexto(local.localidade);
+    const grupos = (await contarPorLocalidade()).filter((g) =>
+      (!local.uf || g.uf === local.uf) &&
+      (!local.cidade || normalizarTexto(nomeOficial(g.cidade, g.uf) ?? g.cidade) === normalizarTexto(local.cidade)),
+    );
+    const OR: Prisma.EmpresaWhereInput[] = [];
+    for (const g of grupos) {
+      for (const campo of ["regiaoAdministrativa", "bairro", "localidade"] as const) {
+        if (g[campo] && normalizarTexto(g[campo]) === nome) OR.push({ cidade: g.cidade, uf: g.uf, [campo]: g[campo] });
+      }
+    }
+    return { OR };
+  }
   if (!local?.cidade) return uf;
   const nome = normalizarTexto(local.cidade);
   const grafias = (await contarPorGrafia())
@@ -107,13 +144,16 @@ export const resumoDoDiretorio = cache(async () => {
  * contar quantos negócios cada opção daquele grupo mostraria.
  */
 function condicao(filtros: FiltrosDiretorio, lugar: Prisma.EmpresaWhereInput, ignorar?: "tipos" | "verificados") {
-  const termos = normalizarTexto(filtros.q).split(" ").filter(Boolean).slice(0, 6);
+  const termos = normalizarTexto(filtros.q).split(/[\s,]+/).filter(Boolean).slice(0, 6);
+  const sufixo = /,\s*([a-z]{2})$/i.exec(filtros.q)?.[1]?.toUpperCase();
+  const ufDoTexto = UFS.find((uf) => uf === sufixo);
   return {
     ...NO_DIRETORIO,
     ...lugar,
     ...(ignorar !== "tipos" && filtros.tipos.length > 0 ? { categoria: { in: filtros.tipos } } : {}),
     ...(ignorar !== "verificados" && filtros.verificados ? { status: "verificada" } : {}),
     AND: [
+      ...(ufDoTexto ? [{ uf: ufDoTexto }] : []),
       ...termos.map((termo) => ({ busca: { contains: termo } })),
       ...filtros.causas.map((causa) => ({ causas: { some: { causa } } })),
     ],
@@ -122,8 +162,8 @@ function condicao(filtros: FiltrosDiretorio, lugar: Prisma.EmpresaWhereInput, ig
 
 /** Uma página do diretório, com as contagens que aparecem ao lado de cada filtro. */
 export async function buscarDiretorio(filtros: FiltrosDiretorio) {
-  const cidades = await listarCidades();
-  const local = interpretarLocal(filtros.onde, cidades);
+  const [cidades, localidades] = await Promise.all([listarCidades(), listarLocalidades()]);
+  const local = interpretarLocal(filtros.onde, cidades, localidades);
   const lugar = await condicaoDoLocal(local);
   const onde = condicao(filtros, lugar);
 
@@ -147,6 +187,7 @@ export async function buscarDiretorio(filtros: FiltrosDiretorio) {
 
   return {
     cidades,
+    localidades,
     local,
     total,
     itens,

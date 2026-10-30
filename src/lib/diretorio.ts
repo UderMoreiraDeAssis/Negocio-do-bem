@@ -6,6 +6,7 @@
 import { buscarCausa, filtrarCausas } from "@/lib/causas";
 import { CATEGORIAS, NOMES_UF, UFS, type Uf } from "@/lib/dominio";
 import { normalizarTexto } from "@/lib/texto";
+import { REGIOES_DF } from "@/lib/regioes-df";
 
 export const ORDENS = {
   verificados: "Verificados primeiro",
@@ -73,7 +74,7 @@ export function lerFiltros(params: Record<string, string | string[] | undefined>
   const pagina = Number.parseInt(primeiro("pagina") || "1", 10);
   return {
     q: primeiro("q").slice(0, 100),
-    onde: onde.slice(0, 80),
+    onde: onde.slice(0, 240),
     tipos: CATEGORIAS.filter((c) => tipos.has(c)),
     causas: filtrarCausas(lista(params.causa)),
     verificados: primeiro("verificados") === "sim",
@@ -146,8 +147,15 @@ export function tituloDoTipo(categoria: string): string {
 /** Uma cidade que tem negócios no diretório. */
 export type CidadeComNegocios = { cidade: string; uf: string; total: number };
 
-/** O lugar escolhido no "Onde?". Sem `uf`, vale a cidade com esse nome em qualquer estado. */
-export type Local = { cidade?: string; uf?: string; rotulo: string };
+export type LocalidadeComNegocios = CidadeComNegocios & { nome: string };
+
+/** O município acompanha o bairro/localidade para distinguir nomes como Centro. */
+export function rotuloLocalidade(local: Pick<LocalidadeComNegocios, "nome" | "cidade" | "uf">): string {
+  return `${local.nome} — ${local.cidade}, ${local.uf}`;
+}
+
+/** O lugar escolhido no "Onde?". `localidade` identifica região, bairro ou distrito; cidade/UF delimitam o nome. */
+export type Local = { cidade?: string; uf?: string; localidade?: string; rotulo: string };
 
 export function rotuloEstado(uf: Uf): string {
   return `${NOMES_UF[uf]} (estado)`;
@@ -157,19 +165,37 @@ const ESTADOS = UFS.map((uf) => ({ uf, nome: NOMES_UF[uf], busca: normalizarText
 
 /**
  * Entende o "Onde?": um estado ("PE", "Pernambuco" ou "Pernambuco (estado)"),
- * "Cidade, UF" ou só o nome da cidade. Um nome que é de estado e de cidade
+ * "Cidade, UF", região, bairro/localidade com município ou só o nome. Um nome que é de estado e de cidade
  * (São Paulo) vale como estado, que inclui a cidade. Um lugar sem negócios
  * volta como está, para o diretório dizer que ainda não há ninguém lá.
  */
-export function interpretarLocal(texto: string, cidades: CidadeComNegocios[]): Local | null {
+export function interpretarLocal(texto: string, cidades: CidadeComNegocios[], localidades: LocalidadeComNegocios[] = []): Local | null {
   const busca = normalizarTexto(texto).replace(/\s*\((todo o )?estado\)$/, "");
   if (!busca) return null;
 
   const estado = ESTADOS.find((e) => e.busca === busca || e.uf.toLowerCase() === busca);
   if (estado) return { uf: estado.uf, rotulo: estado.nome };
 
+  const detalhada = localidades.find((l) => normalizarTexto(rotuloLocalidade(l)) === busca);
+  if (detalhada) return { cidade: detalhada.cidade, uf: detalhada.uf, localidade: detalhada.nome, rotulo: rotuloLocalidade(detalhada) };
+
+  // Um nome municipal inteiro prevalece sobre um sufixo parecido com UF (Sento Sé).
+  const cidadeExata = cidades.find((c) => normalizarTexto(c.cidade) === busca);
+
   const partes = /^(.+?)\s*(?:,|\/|\s-|\s)\s*([a-z]{2})$/.exec(busca);
-  const uf = partes && UFS.find((u) => u.toLowerCase() === partes[2]);
+  const uf = !cidadeExata && partes ? UFS.find((u) => u.toLowerCase() === partes[2]) : undefined;
+  const nomeLocal = uf && partes ? partes[1] : busca;
+  const regiao = (!uf || uf === "DF") && REGIOES_DF.find((r) => normalizarTexto(r) === nomeLocal);
+  const cidadeComNome = cidades.some((c) => normalizarTexto(c.cidade) === nomeLocal && (!uf || c.uf === uf));
+  if (regiao && !cidadeComNome) {
+    return { cidade: "Brasília", uf: "DF", localidade: regiao, rotulo: `${regiao}, DF` };
+  }
+  const locais = localidades.filter((l) => normalizarTexto(l.nome) === nomeLocal && (!uf || l.uf === uf));
+  if (!cidadeComNome && locais.length > 0) {
+    const primeiro = locais[0]!;
+    if (locais.length === 1) return { cidade: primeiro.cidade, uf: primeiro.uf, localidade: primeiro.nome, rotulo: rotuloLocalidade(primeiro) };
+    return { localidade: primeiro.nome, ...(uf ? { uf } : {}), rotulo: uf ? `${primeiro.nome}, ${uf}` : primeiro.nome };
+  }
   if (partes && uf) {
     const cidade = cidades.find((c) => c.uf === uf && normalizarTexto(c.cidade) === partes[1]);
     if (cidade) return { cidade: cidade.cidade, uf, rotulo: `${cidade.cidade}, ${uf}` };
@@ -189,13 +215,13 @@ export function interpretarLocal(texto: string, cidades: CidadeComNegocios[]): L
 }
 
 /** Uma sugestão do "Onde?". `valor` é o que vai para o campo (vazio é "Todo o Brasil"). */
-export type SugestaoLocal = { valor: string; nome: string; detalhe: string; total: number; tipo: "brasil" | "estado" | "cidade" };
+export type SugestaoLocal = { valor: string; nome: string; detalhe: string; total: number; tipo: "brasil" | "estado" | "cidade" | "localidade" };
 
 /**
  * Sugestões do "Onde?": sem texto, "Todo o Brasil" e as cidades com mais negócios;
- * com texto, os estados e as cidades que batem, primeiro os que começam com ele.
+ * com texto, estados, cidades e subdivisões que batem, primeiro os que começam com ele.
  */
-export function sugerirLocais(texto: string, cidades: CidadeComNegocios[], limite = 8): SugestaoLocal[] {
+export function sugerirLocais(texto: string, cidades: CidadeComNegocios[], limite = 8, localidades: LocalidadeComNegocios[] = []): SugestaoLocal[] {
   const busca = normalizarTexto(texto);
   const porUf = new Map<string, number>();
   for (const c of cidades) porUf.set(c.uf, (porUf.get(c.uf) ?? 0) + c.total);
@@ -235,6 +261,16 @@ export function sugerirLocais(texto: string, cidades: CidadeComNegocios[], limit
     const n = nivel(normalizarTexto(c.cidade));
     if (n >= 0) achados.push({ nivel: n, sugestao: deCidade(c) });
   }
+  for (const l of localidades) {
+    const nome = normalizarTexto(l.nome);
+    const n = nivel(nome);
+    const comUf = normalizarTexto(`${l.nome}, ${l.uf}`).startsWith(busca);
+    const completo = normalizarTexto(rotuloLocalidade(l)).startsWith(busca);
+    if (n >= 0 || comUf || completo) achados.push({
+      nivel: n >= 0 ? n : 0,
+      sugestao: { valor: rotuloLocalidade(l), nome: l.nome, detalhe: `${l.cidade}, ${l.uf}`, total: l.total, tipo: "localidade" },
+    });
+  }
   return achados
     .sort(
       (a, b) =>
@@ -256,6 +292,6 @@ export function tituloDoDiretorio(filtros: FiltrosDiretorio, local: Local | null
   else if (filtros.tipos.length === 1) titulo = filtros.tipos[0]!;
   else if (filtros.causas.length === 1 && filtros.tipos.length === 0) titulo = buscarCausa(filtros.causas[0]!)?.nome ?? titulo;
   else if (filtros.tipos.length > 1 || filtros.causas.length > 0 || filtros.verificados) titulo = "Negócios do bem";
-  if (local) titulo += ` em ${local.cidade ?? local.rotulo}`;
+  if (local) titulo += ` em ${local.localidade ? local.rotulo : local.cidade ?? local.rotulo}`;
   return titulo;
 }

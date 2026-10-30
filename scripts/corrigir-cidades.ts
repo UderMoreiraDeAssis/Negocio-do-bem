@@ -56,7 +56,7 @@ async function main() {
   }
   const empresas = await db.empresa.findMany({
     where: { OR: trocas.map((t) => ({ cidade: t.cidade, uf: t.uf })) },
-    select: { id: true, nome: true, resumo: true, categoria: true, cidade: true, uf: true, instagramUsername: true },
+    select: { id: true, nome: true, resumo: true, categoria: true, cidade: true, uf: true, instagramUsername: true, regiaoAdministrativa: true, bairro: true, localidade: true },
   });
   // Direto no SQL para não mudar o atualizadoEm, que ordena o diretório. O campo busca é
   // refeito, porque um hífen ou a UF no fim da cidade ("Tubarão-SC") mudam o texto dele.

@@ -5,7 +5,7 @@ import { BuscaDiretorio } from "@/components/BuscaDiretorio";
 import { Contador } from "@/components/Contador";
 import { IconeCategoria } from "@/components/IconeCategoria";
 import { JsonLd } from "@/components/JsonLd";
-import { listarCidades, resumoDoDiretorio } from "@/lib/consultas";
+import { listarCidades, listarLocalidades, resumoDoDiretorio } from "@/lib/consultas";
 import { hrefCidade, hrefDiretorio } from "@/lib/diretorio";
 import { CATEGORIAS } from "@/lib/dominio";
 import { DESCRICAO_DO_SITE, jsonLdDoSite, metadadosDaPagina } from "@/lib/seo";
@@ -125,7 +125,8 @@ function NumerosCarregando() {
 }
 
 async function BuscaComCidades() {
-  return <BuscaDiretorio cidades={await listarCidades()} />;
+  const [cidades, localidades] = await Promise.all([listarCidades(), listarLocalidades()]);
+  return <BuscaDiretorio cidades={cidades} localidades={localidades} />;
 }
 
 async function TiposDeNegocio() {

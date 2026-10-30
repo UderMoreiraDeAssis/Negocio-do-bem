@@ -1,9 +1,10 @@
 import { FormFoto } from "@/components/FormFoto";
 import { fotoDe } from "@/components/FotoEmpresa";
 import { formatarWhatsapp } from "@/lib/texto";
+import type { Endereco } from "@/lib/endereco";
 import { FormEmpresa } from "./FormEmpresa";
 
-type Empresa = {
+type Empresa = Endereco & {
   id: string;
   nome: string;
   instagramUsername: string;
@@ -37,6 +38,14 @@ export function EdicaoEmpresa({ empresa, voltar }: { empresa: Empresa; voltar: s
           categoria: empresa.categoria,
           cidade: empresa.cidade,
           uf: empresa.uf,
+          regiaoAdministrativa: empresa.regiaoAdministrativa,
+          bairro: empresa.bairro,
+          localidade: empresa.localidade,
+          cep: empresa.cep,
+          logradouro: empresa.logradouro,
+          numero: empresa.numero,
+          complemento: empresa.complemento,
+          enderecoPublico: empresa.enderecoPublico,
           site: empresa.site ?? "",
           whatsapp: empresa.whatsapp ? formatarWhatsapp(empresa.whatsapp) : "",
           emailContato: empresa.emailContato ?? "",

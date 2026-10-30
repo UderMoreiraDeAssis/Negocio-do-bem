@@ -15,6 +15,7 @@ import { buscarCausa, filtrarCausas } from "@/lib/causas";
 import { buscarPerfil, ehDono, podeVerPerfil } from "@/lib/consultas";
 import { hrefCausa, hrefTipo, temPaginaDeTipo } from "@/lib/diretorio";
 import { MODERACAO_EMPRESA } from "@/lib/dominio";
+import { enderecoPostalPublico, formatarLocalizacao } from "@/lib/endereco";
 import { linkPerfil, normalizarUsername } from "@/lib/instagram";
 import { FORA_DA_BUSCA, jsonLdDoNegocio, metadadosDaPagina, paginaDaCidade } from "@/lib/seo";
 import { formatarData, formatarWhatsapp, tempoDeLeitura } from "@/lib/texto";
@@ -25,7 +26,7 @@ export async function generateMetadata(props: PageProps<"/empresas/[usuario]">):
   const empresa = username ? await buscarPerfil(username) : null;
   if (!empresa || empresa.moderacao !== "aprovada" || empresa.oculta) return { title: "Perfil", robots: FORA_DA_BUSCA };
   // "Café da Ana — Café e padaria em Salvador, BA": o que as pessoas buscam é o tipo e a cidade.
-  const onde = `${empresa.cidade}, ${empresa.uf}`;
+  const onde = formatarLocalizacao(empresa);
   return metadadosDaPagina({
     titulo: empresa.categoria === "Outros" ? `${empresa.nome} em ${onde}` : `${empresa.nome} — ${empresa.categoria} em ${onde}`,
     descricao: empresa.resumo,
@@ -103,6 +104,13 @@ async function Perfil({ params, searchParams }: Pick<PageProps<"/empresas/[usuar
           </div>
 
           <Contatos empresa={empresa} />
+
+          {(empresa.bairro || empresa.localidade || empresa.regiaoAdministrativa || enderecoPostalPublico(empresa)) && (
+            <address className="mt-6 text-sm break-words not-italic text-suave">
+              <p>{formatarLocalizacao(empresa)}</p>
+              {enderecoPostalPublico(empresa) && <p className="mt-1">{enderecoPostalPublico(empresa)}</p>}
+            </address>
+          )}
 
           <p className="mt-8 font-serif text-2xl leading-snug text-tinta/80 italic text-pretty">{empresa.resumo}</p>
 

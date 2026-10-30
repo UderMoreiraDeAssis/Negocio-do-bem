@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { EmpresaResumo } from "@/components/EmpresaCard";
 import { FotoEmpresa } from "@/components/FotoEmpresa";
+import { formatarLocalizacao } from "@/lib/endereco";
 
 /** O negócio numa linha, para o diretório em modo lista. */
 export function EmpresaLinha({ empresa }: { empresa: EmpresaResumo }) {
@@ -24,13 +25,13 @@ export function EmpresaLinha({ empresa }: { empresa: EmpresaResumo }) {
         </span>
         <span className="mt-0.5 block truncate text-sm text-tinta/85">{empresa.resumo}</span>
         <span className="mt-0.5 block truncate text-xs text-suave sm:hidden">
-          {empresa.categoria} · {empresa.cidade}, {empresa.uf}
+          {empresa.categoria} · {formatarLocalizacao(empresa)}
         </span>
       </span>
-      <span className="hidden shrink-0 text-right text-sm leading-snug text-suave sm:block">
+      <span className="hidden max-w-60 text-right text-sm leading-snug break-words text-suave sm:block">
         {empresa.categoria}
         <br />
-        {empresa.cidade}, {empresa.uf}
+        {formatarLocalizacao(empresa)}
       </span>
       <span aria-hidden="true" className="text-suave transition group-hover:translate-x-0.5 group-hover:text-coral-700">
         →

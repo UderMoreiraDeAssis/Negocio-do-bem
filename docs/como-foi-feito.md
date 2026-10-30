@@ -456,7 +456,8 @@ erDiagram
 Decisões do esquema:
 
 - **Status como texto, não `enum`,** para o esquema ser simples de evoluir. Os valores aceitos estão comentados no `schema.prisma` e os rótulos em `src/lib/dominio.ts`.
-- **Um campo `busca`** guarda nome, resumo, categoria, cidade, UF e @ em minúsculas e sem acento. Ele é atualizado a cada indicação e edição. Assim, a busca sem acento é um `contains` simples, sem extensão no Postgres.
+- **Um campo `busca`** guarda nome, resumo, categoria, cidade, UF, @, região administrativa, bairro e localidade em minúsculas e sem acento. Ele é atualizado a cada indicação e edição. Assim, a busca sem acento é um `contains` simples, sem extensão no Postgres. CEP, logradouro, número e complemento ficam fora desse índice.
+- **O endereço mantém município e subdivisões separados.** Brasília continua sendo o município do DF; suas regiões são uma lista própria, validada no servidor. `CamposEndereco` é compartilhado pela indicação e edição. Os detalhes postais começam privados e só dono/moderação autorizam sua publicação. As decisões, a migração e a consulta de CEP ainda pendente estão em [Endereço e localização](endereco.md).
 - **As causas ficam no código** (`src/lib/causas.ts`), e o banco guarda só o slug. Criar uma causa é mudar uma linha, sem migração.
 - **Unicidade garantida pelo banco:**
   - um @ por negócio;

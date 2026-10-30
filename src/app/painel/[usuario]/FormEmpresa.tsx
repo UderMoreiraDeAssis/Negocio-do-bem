@@ -6,14 +6,15 @@ import { Aviso } from "@/components/Aviso";
 import { BotaoEnviar } from "@/components/BotaoEnviar";
 import { enviarSemLimpar } from "@/components/envio";
 import { Campo } from "@/components/Campo";
-import { CampoMunicipio } from "@/components/CampoMunicipio";
+import { CamposEndereco } from "@/components/CamposEndereco";
 import { EditorHistoria } from "@/components/EditorHistoria";
 import { Historia } from "@/components/Historia";
 import { SeletorCausas } from "@/components/SeletorCausas";
 import { CATEGORIAS } from "@/lib/dominio";
+import type { CampoEndereco, Endereco } from "@/lib/endereco";
 import { formatarMunicipio } from "@/lib/texto";
 
-type DadosEmpresa = {
+type DadosEmpresa = Endereco & {
   id: string;
   nome: string;
   resumo: string;
@@ -39,6 +40,12 @@ export function FormEmpresa({ empresa, voltar }: { empresa: DadosEmpresa; voltar
   const causas = Array.isArray(valores?.causas) ? valores.causas : empresa.causas;
   const [historia, setHistoria] = useState(empresa.historia);
   const [aba, setAba] = useState<"escrever" | "ver">("escrever");
+  const valorEndereco = (campo: CampoEndereco) => {
+    const enviado = valores?.[campo];
+    if (typeof enviado === "string") return enviado;
+    if (campo === "municipio") return formatarMunicipio(empresa.cidade, empresa.uf);
+    return empresa[campo] ?? "";
+  };
 
   return (
     <form action={acao} onSubmit={enviarSemLimpar(acao)} className="space-y-8">
@@ -53,19 +60,17 @@ export function FormEmpresa({ empresa, voltar }: { empresa: DadosEmpresa; voltar
         <Campo id="resumo" rotulo="Em uma frase" erro={erros.resumo} ajuda="Aparece nos cards do diretório. Até 160 caracteres.">
           <input id="resumo" name="resumo" required maxLength={160} defaultValue={valor("resumo")} className="campo" />
         </Campo>
-        <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
-          <Campo id="categoria" rotulo="Categoria" erro={erros.categoria}>
-            <select id="categoria" name="categoria" defaultValue={valor("categoria")} className="campo">
-              {CATEGORIAS.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-          </Campo>
-          <CampoMunicipio
-            valorInicial={typeof valores?.municipio === "string" ? valores.municipio : formatarMunicipio(empresa.cidade, empresa.uf)}
-            erro={erros.municipio}
-          />
-        </div>
+        <Campo id="categoria" rotulo="Categoria" erro={erros.categoria}>
+          <select id="categoria" name="categoria" defaultValue={valor("categoria")} className="campo">
+            {CATEGORIAS.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+        </Campo>
+      </section>
+
+      <section className="cartao p-6 sm:p-8">
+        <CamposEndereco valor={valorEndereco} erros={erros} podePublicar publico={valores ? valores.enderecoPublico === "sim" : empresa.enderecoPublico} />
       </section>
 
       <section className="cartao space-y-5 p-6 sm:p-8">

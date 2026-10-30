@@ -3,8 +3,9 @@ import { CausaBadge } from "@/components/CausaBadge";
 import { FotoEmpresa } from "@/components/FotoEmpresa";
 import { SeloStatus } from "@/components/SeloStatus";
 import { filtrarCausas } from "@/lib/causas";
+import { formatarLocalizacao, type Endereco } from "@/lib/endereco";
 
-export type EmpresaResumo = {
+export type EmpresaResumo = Endereco & {
   instagramUsername: string;
   nome: string;
   fotoUrl: string | null;
@@ -37,8 +38,8 @@ export function EmpresaCard({ empresa }: { empresa: EmpresaResumo }) {
         </div>
       </div>
 
-      <p className="mt-3 text-xs font-medium tracking-wide text-suave uppercase">
-        {empresa.categoria} · {empresa.cidade}, {empresa.uf}
+      <p className="mt-3 text-xs font-medium tracking-wide break-words text-suave uppercase">
+        {empresa.categoria} · {formatarLocalizacao(empresa)}
       </p>
       <p className="mt-2 line-clamp-2 text-[15px] leading-relaxed text-tinta/85">{empresa.resumo}</p>
 
