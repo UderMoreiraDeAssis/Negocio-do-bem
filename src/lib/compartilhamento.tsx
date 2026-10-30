@@ -1,8 +1,7 @@
 // Peças das imagens de compartilhamento (opengraph-image.tsx): a prévia que
 // aparece quando alguém manda um link do site no WhatsApp, Instagram, LinkedIn etc.
 
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { INTER, NEWSREADER } from "@/lib/fontes-compartilhamento";
 import { CORES_DA_MARCA, ICONE, LOGO, svgDoIcone, svgDoLogo } from "@/lib/marca";
 
 export const TAMANHO = { width: 1200, height: 630 };
@@ -10,15 +9,11 @@ export const TAMANHO = { width: 1200, height: 630 };
 export const SUAVE = "#6e6357";
 
 // Instâncias estáticas das fontes variáveis do site (licença OFL, ver assets/fontes).
-// O ImageResponse não lê woff2 nem fontes variáveis.
-const [newsreader, inter] = await Promise.all([
-  readFile(join(process.cwd(), "assets/fontes/Newsreader-SemiBold.ttf")),
-  readFile(join(process.cwd(), "assets/fontes/Inter-Medium.ttf")),
-]);
-
+// O ImageResponse não lê woff2 nem fontes variáveis. Elas vêm embutidas num módulo,
+// e não de readFile: o Worker do Cloudflare não lê os arquivos do projeto.
 export const FONTES = [
-  { name: "Newsreader", data: newsreader, weight: 600 as const, style: "normal" as const },
-  { name: "Inter", data: inter, weight: 500 as const, style: "normal" as const },
+  { name: "Newsreader", data: Buffer.from(NEWSREADER, "base64"), weight: 600 as const, style: "normal" as const },
+  { name: "Inter", data: Buffer.from(INTER, "base64"), weight: 500 as const, style: "normal" as const },
 ];
 
 function dataUri(svg: string): string {

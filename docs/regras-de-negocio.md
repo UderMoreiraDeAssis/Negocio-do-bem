@@ -63,9 +63,9 @@ Código: `src/acoes/conta.ts`, `src/lib/auth/`.
   - Quando o e-mail não existe, a senha é conferida contra um hash falso, para a resposta levar o mesmo tempo e não revelar quais e-mails têm conta.
 - **Limite de tentativas** (`src/lib/auth/tentativas.ts`), conferido antes do scrypt, porque cada conferência de senha custa ~32 MB de memória:
   - **por IP:** 10 tentativas de login ou cadastro, somadas, a cada 15 minutos;
-  - **de onde vem o IP:** no Vercel, só do cabeçalho `x-vercel-forwarded-for`, que o Vercel escreve. Em outra hospedagem, de nenhum cabeçalho, a menos que quem cuida do site defina `AUTENTICACAO_PROXY_CONFIAVEL=1` (há um proxy seu na frente, que escreve o `x-forwarded-for`): então vale o último valor desse cabeçalho, se for um IP. Um cabeçalho que o visitante pode escrever nunca vale;
+  - **de onde vem o IP:** no Cloudflare, só do cabeçalho `cf-connecting-ip`, escrito pela rede, quando `CLOUDFLARE_DEPLOY=1`; no Vercel, só do cabeçalho `x-vercel-forwarded-for`, que o Vercel escreve. Em outra hospedagem, de nenhum cabeçalho, a menos que quem cuida do site defina `AUTENTICACAO_PROXY_CONFIAVEL=1` (há um proxy seu na frente, que escreve o `x-forwarded-for`): então vale o último valor desse cabeçalho, se for um IP. Um cabeçalho que o visitante pode escrever nunca vale;
   - **IPv6:** o IPv4 escrito como IPv6 (`::ffff:203.0.113.5`) conta como o IPv4. Os outros endereços IPv6 contam pelo prefixo /64, então todos os endereços da mesma rede dividem a cota;
-  - **sem IP conhecido** (fora do Vercel sem proxy declarado, ou cabeçalho ausente ou inválido), todas as tentativas dividem um contador só, de 10 a cada 15 minutos. É o lado seguro: o cadastro não tem limite por e-mail, e sem esse contador o scrypt ficaria sem freio. O custo é que, sem o proxy declarado, quem tenta entrar pode ficar recusado por causa dos outros visitantes;
+  - **sem IP conhecido** (fora do Vercel/Cloudflare sem proxy declarado, ou cabeçalho ausente ou inválido), todas as tentativas dividem um contador só, de 10 a cada 15 minutos. É o lado seguro: o cadastro não tem limite por e-mail, e sem esse contador o scrypt ficaria sem freio. O custo é que, sem o proxy declarado, quem tenta entrar pode ficar recusado por causa dos outros visitantes;
   - **por e-mail, em cada origem:** 5 tentativas de senha a cada 15 minutos para o mesmo e-mail, vindas do mesmo IP (ou do mesmo /64 no IPv6). Cada origem tem o próprio contador, então quem erra a senha de outra pessoa não a impede de entrar de outro lugar. Sem IP conhecido, as tentativas sem IP dividem um contador por e-mail. A tentativa é contada antes de a senha ser conferida, e não depois: assim, tentativas que chegam juntas não passam todas. A sexta já nem chega à conferência, mesmo com a senha certa. Um login certo zera a contagem daquele e-mail naquela origem;
   - no login, a recusa pelo limite mostra o mesmo "E-mail ou senha incorretos", para não revelar quais e-mails existem. No cadastro, aparece "Muitas tentativas seguidas. Espere alguns minutos e tente de novo";
   - o banco guarda só o hash (sha256) do IP e do e-mail, e as janelas vencidas são apagadas na tentativa seguinte.
@@ -124,7 +124,7 @@ Código: `src/lib/auth/links.ts`, `src/acoes/conta.ts`, `src/app/api/link/route.
   - Ao mandar de novo a confirmação, quem passou do limite vê "Você pediu muitos e-mails na última hora".
   - No "Entrar por link", a resposta continua a mesma, e o e-mail simplesmente não sai.
   - Os links vencidos há mais de uma hora são apagados quando a conta recebe outro.
-- **O endereço do link vem da configuração** (`ENDERECO_DO_SITE`, ou o endereço do próprio preview nos previews do Vercel), nunca do cabeçalho `Host` da requisição.
+- **O endereço do link vem da configuração** (`ENDERECO_DO_SITE`, ou o domínio canônico configurado por ambiente), nunca do cabeçalho `Host` da requisição.
 - **Sem o envio de e-mail configurado,** o link vai para o log do servidor no `npm run dev` e nos previews, para dar para testar. Na produção, ele não vai para o log.
 
 ### Papéis
@@ -204,8 +204,8 @@ O painel tem um menu com quatro grupos. No celular, ele vira uma linha que rola 
 
 **Sistema:**
 
-- **Ambiente:** o nome (`production`, `preview` ou `development`), o endereço público, se os buscadores podem indexar e, no Vercel, o branch, o commit e a região.
-- **Integrações:** só se cada uma está ligada (fotos no Vercel Blob, código por DM, Entrar com Instagram, confirmação automática da DM, rotina de fotos, Google Analytics e verificação nos buscadores), com o que falta para ligar. Os valores das variáveis nunca aparecem.
+- **Ambiente:** o nome (`production`, `preview` ou `development`), o endereço público e se os buscadores podem indexar; quando informados pelo host, também o branch e o commit.
+- **Integrações:** só se cada uma está ligada (fotos no Cloudflare R2, código por DM, Entrar com Instagram, confirmação automática da DM, rotina de fotos, Google Analytics e verificação nos buscadores), com o que falta para ligar. Os valores das variáveis nunca aparecem.
 - **Banco:** quantas linhas cada tabela tem e as migrações aplicadas, da mais nova para a mais antiga. Uma migração que começou e não terminou aparece em destaque, porque trava o próximo deploy.
 
 ---
@@ -575,7 +575,7 @@ Código: `src/app/sitemap.ts`, `src/app/robots.ts`, `src/lib/seo.ts` e `src/app/
 - **Prévia do link** (WhatsApp, Instagram, LinkedIn…): foto ou monograma, nome, categoria, cidade, até três causas e o selo "Verificado pelo dono". Uma foto em WebP vira monograma, porque o gerador da imagem não lê WebP.
 - **Perfil fora do diretório:** para quem pode vê-lo, a página leva `noindex`. A prévia do link é a geral do site, sem dados do negócio.
 - **Fora da busca:** login, cadastro, painel, reivindicação e moderação levam `noindex`. `/painel`, `/moderacao` e `/api/` também ficam bloqueados no `robots.txt`.
-- **Previews do Vercel** bloqueiam todos os robôs no `robots.txt`. Só a produção entra no índice.
+- **Previews** (`DEPLOY_ENV=preview`) bloqueiam todos os robôs no `robots.txt`. Só a produção entra no índice.
 
 ### Painel do dono
 
@@ -646,7 +646,7 @@ Código: `scripts/fotos-instagram.ts` (roda no computador de quem cuida do proje
 - **De onde vem a foto:**
   1. de um arquivo na pasta local `fotos-manuais/`, com o @ no nome (`<@>.jpg`, `.png` ou `.webp`), se existir;
   2. senão, da **API oficial da Meta** (Business Discovery), que devolve a foto de perfil de contas **comerciais ou de criador** em 1080×1080. Contas pessoais, privadas ou inexistentes não aparecem e o negócio continua sem foto.
-- **Preparo, no computador:** a foto é recortada no centro, em quadrado de 600×600, e convertida para WebP. O Vercel só recebe o arquivo pronto.
+- **Preparo, no computador:** a foto é recortada no centro, em quadrado de 600×600, e convertida para WebP. O Worker só recebe o arquivo pronto.
 - **Gravação, no site:** a rota `/api/fotos-instagram` exige o token `FOTOS_TOKEN` e confere a foto como qualquer outra. Ela **só grava se o negócio continuar sem foto**: a foto enviada pelo dono ou pela moderação nunca é trocada, nem se chegar no meio do envio.
 - **Sem `FOTOS_TOKEN` configurado,** a rota responde 404.
 - **Auditoria:** cada foto gravada registra `empresa.foto_do_instagram`, como "sistema".
@@ -661,16 +661,15 @@ Código: `scripts/fotos-instagram.ts` (roda no computador de quem cuida do proje
 
 **No servidor:**
 
-- Limite de **3 MB por foto**. O limite de envio das Server Actions é 4 MB (`next.config.ts`), e o do Vercel é 4,5 MB.
+- Limite de **3 MB por foto**. O limite de envio das Server Actions é 4 MB (`next.config.ts`).
 - O tipo é conferido **pelos primeiros bytes do arquivo** (JPEG, PNG ou WebP), não pelo que o navegador diz.
 - O nome do arquivo é aleatório, nas pastas `perfis/` ou `historias/`.
 - Onde a foto fica:
-  - em produção, no **Vercel Blob**, com acesso público. O site usa o Blob quando existe `BLOB_STORE_ID` (no Vercel, com o OIDC do deploy) ou `BLOB_READ_WRITE_TOKEN`;
-  - nos previews do Vercel, inclusive o da `stage`, em outro Vercel Blob, só deles;
-  - no computador de quem desenvolve, sem nenhuma das duas, em `public/enviados/`, fora do Git;
-  - em produção sem nenhuma das duas, a pessoa vê uma mensagem de erro em vez de o site quebrar.
+  - em produção e preview, no bucket **Cloudflare R2** ligado ao Worker; cada ambiente precisa do seu próprio bucket público de uploads;
+  - no computador de quem desenvolve, sem URL R2 configurada, em `public/enviados/`, fora do Git;
+  - em produção sem o binding ou a URL pública R2, a pessoa vê uma mensagem de erro em vez de o site quebrar.
 
-**O site só mostra fotos guardadas por ele mesmo** (`ehFotoDoSite`): endereços de qualquer store do Vercel Blob (o de produção ou o dos previews) ou da pasta `/enviados/`. Uma imagem de outro endereço avisaria aquele servidor a cada visita ao perfil, então ela simplesmente não aparece.
+**O site só mostra fotos guardadas por ele mesmo** (`ehFotoDoSite`): endereços do domínio do bucket R2 configurado, endereços antigos do Vercel Blob durante a transição, ou da pasta `/enviados/`. Uma imagem de outro endereço avisaria aquele servidor a cada visita ao perfil, então ela simplesmente não aparece.
 
 ---
 
@@ -907,7 +906,7 @@ O site manda poucos e-mails: só quando alguém precisa agir ou saber de uma dec
 - **Os avisos para a moderação não levam dados pessoais:** nada de nome, e-mail ou contato de quem pediu ou denunciou. Isso fica só nas filas.
 - **O e-mail sai depois da resposta,** pelo `after()` do Next. A pessoa não espera o envio, e uma falha fica só no log, sem desfazer a ação.
 - **Remetente e resposta:** o e-mail sai de `EMAIL_REMETENTE`, um endereço de domínio verificado no Resend, e as respostas vão para `EMAIL_RESPOSTA`.
-- **Ligado só com `RESEND_API_KEY` e `EMAIL_REMETENTE`.** Sem elas, ninguém recebe e-mail, e o resto funciona igual. Nos previews do Vercel o envio fica desligado mesmo com as variáveis, porque o banco dos previews só tem contas de teste. A aba "Sistema" da moderação mostra se o envio está ligado.
+- **Ligado só com `RESEND_API_KEY` e `EMAIL_REMETENTE`.** Sem elas, ninguém recebe e-mail, e o resto funciona igual. Nos previews do Cloudflare o envio fica desligado mesmo com as variáveis, porque o banco dos previews só tem contas de teste. A aba "Sistema" da moderação mostra se o envio está ligado.
 - **Fica de fora:**
   - o código por DM, desligado por padrão, não avisa a moderação;
   - quem indica um negócio, tem o negócio tirado do ar ou deixa de ser dono numa transferência não recebe e-mail.
@@ -941,7 +940,7 @@ O site manda poucos e-mails: só quando alguém precisa agir ou saber de uma dec
 
 ### Medição de visitas
 
-- O site usa o **Google Analytics 4**, só em produção: ele só carrega quando `NEXT_PUBLIC_GA_ID` está configurado, e essa variável só existe no ambiente Production do Vercel.
+- O site usa o **Google Analytics 4**, só em produção: ele só carrega quando `NEXT_PUBLIC_GA_ID` está configurado, e essa variável só existe no ambiente de produção do Cloudflare.
 - A "medição otimizada" está ligada. Ela conta:
   - páginas vistas;
   - rolagem;

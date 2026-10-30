@@ -1,17 +1,19 @@
 // Envio de e-mails pelo Resend (https://resend.com/docs/api-reference/emails/send-email).
 //
 // Opcional, como as outras integrações: sem RESEND_API_KEY e EMAIL_REMETENTE nada
-// é enviado e o site funciona igual. Nos previews do Vercel o envio fica desligado
-// mesmo com as variáveis, porque o banco dos previews só tem contas de teste.
+// é enviado e o site funciona igual. Nos previews o envio fica desligado mesmo
+// com as variáveis, porque o banco de previews só tem contas de teste.
 
 import "server-only";
+import { ambienteDeDeploy } from "@/lib/ambiente";
 
 const API_RESEND = "https://api.resend.com/emails";
 
 export type Email = { para: string; assunto: string; texto: string };
 
 function config(): { chave: string; remetente: string; resposta: string | null } | null {
-  if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== "production") return null;
+  const ambiente = ambienteDeDeploy();
+  if (ambiente && ambiente !== "production") return null;
   const chave = process.env.RESEND_API_KEY;
   const remetente = process.env.EMAIL_REMETENTE;
   if (!chave || !remetente) return null;

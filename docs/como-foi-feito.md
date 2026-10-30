@@ -85,7 +85,7 @@ O site precisa funcionar mesmo quando um serviço de fora falha ou ainda não fo
 | Integração com o Instagram | Funciona: a reivindicação pelos dados do negócio continua disponível. |
 | Consulta de CNPJ (BrasilAPI) | Funciona: a consulta é só um apoio para a moderação, nunca bloqueia a análise. |
 | Google Analytics | Funciona: sem o ID, ele simplesmente não carrega. |
-| Vercel Blob | Funciona. No computador de quem desenvolve, as fotos ficam numa pasta local. Em produção, só o envio de fotos mostra um erro. |
+| Cloudflare R2 | Funciona. No computador de quem desenvolve, as fotos ficam numa pasta local. Em produção, o binding R2 e o domínio público precisam estar configurados para aceitar uploads. |
 | Envio de e-mails (Resend) | Funciona, com uma exceção: ninguém recebe os avisos nem os links. Quem tem senha continua entrando. Com a confirmação de e-mail ligada, uma conta nova não consegue confirmar o e-mail e, até o envio voltar, não indica, não escreve depoimentos e não reivindica. |
 
 ### Tudo em português
@@ -285,7 +285,7 @@ O site ganhou o logo novo, com três pessoas formando um coração, e passou a s
 - **Um desenho só para tudo.** `src/lib/marca.ts` guarda o ícone e o texto do logo. Dele saem o `Logo` do cabeçalho e do rodapé, os ícones (`npm run marca:icones`) e as imagens de compartilhamento.
 - **O texto do logo foi vetorizado do PNG.** O SVG exportado do manual trazia o texto como fonte (Casko Luxury), sem curvas, e o "em" de "Bem" saía vazio. Quando chegar um SVG com o texto em curvas, basta trocar `TEXTO_DO_LOGO`.
 - **Cores da marca fixas.** `marca-laranja`, `marca-verde`, `marca-marrom` e `marca-creme` não mudam no modo escuro. No escuro, o logo troca o marrom pelo creme, como na versão do manual para fundo escuro. As cores do tema passaram a partir delas: o creme é o papel, e o marrom é a tinta.
-- **Prévia de link com a marca.** `opengraph-image.tsx` gera a imagem geral no build, e cada perfil tem a sua, com foto, nome, cidade e causas. As fontes ficam em `assets/fontes`, porque o gerador não lê woff2 nem fonte variável.
+- **Prévia de link com a marca.** `opengraph-image.tsx` gera a imagem geral no build, e cada perfil tem a sua, com foto, nome, cidade e causas. As fontes ficam em `assets/fontes`, porque o gerador não lê woff2 nem fonte variável. O `npm run marca:fontes` as embute em `src/lib/fontes-compartilhamento.ts`, porque o Worker não lê arquivos do projeto.
 - **SEO:**
   - `metadataBase`, canônico e Open Graph em cada página pública;
   - sitemap com os negócios do diretório e `robots.txt`;
@@ -379,7 +379,7 @@ No mesmo dia, o site passou dos 100 e-mails por dia do plano grátis do Resend. 
 | **Tailwind CSS** | 4 | Estilo com variáveis de tema (`@theme`), o que permite o modo escuro sem trocar classes. |
 | **Tiptap** | 3.31 | Editor visual da história, com leitura e gravação em Markdown. |
 | **react-markdown + remark-gfm** | 10 | Exibição da história sem executar HTML. |
-| **Vercel Blob** | 2.8 | Armazenamento das fotos em produção. |
+| **Cloudflare R2** | Cloudflare Workers binding | Armazenamento das fotos; OpenNext usa outro bucket R2 para o cache incremental. |
 | **Vitest** | 5 | Testes de unidade e de banco. |
 
 A autenticação é feita no próprio projeto (`src/lib/auth/`), com e-mail, senha (scrypt), link por e-mail e sessão em cookie. Isso evita depender de um serviço externo para algo simples.
@@ -415,7 +415,7 @@ flowchart LR
     A --> L
     R --> L
     L --> DB[(PostgreSQL<br>via Prisma)]
-    L --> B[(Vercel Blob<br>fotos)]
+    L --> B[(Cloudflare R2<br>fotos)]
     L -.-> BR[BrasilAPI<br>CNPJ]
     L -.-> IG[API do Instagram]
     L -.-> RS[Resend<br>e-mails]
@@ -566,50 +566,41 @@ npm run typecheck
 
 | Peça | Onde | Observação |
 | --- | --- | --- |
-| Site | Vercel, funções em São Paulo (`gru1`) | Produção em https://negociodobem.vercel.app |
-| Banco de produção | Neon (PostgreSQL), São Paulo, plano Launch | Conectado ao Vercel só em Production. O Vercel cria `DATABASE_URL` e `DATABASE_URL_UNPOOLED`. O plano é pago por uso, e o compute fica fixo em 0,25 CU para limitar o custo ([#141](https://github.com/fabsreis/Negocio-do-bem/issues/141)). |
-| Banco dos previews | Outro projeto Neon (`negocio-do-bem-preview`), São Paulo | Conectado só em Preview: serve à `stage` e aos PRs. Tem senha própria e só guarda dados de teste. O plano do Neon vale para a integração inteira, então ele também é Launch. |
-| Fotos de produção | Vercel Blob, público, São Paulo | Conectado ao Vercel só em Production, que cria `BLOB_STORE_ID`. O site se autentica pelo OIDC do deploy, sem token. |
-| Fotos dos previews | Outro Vercel Blob, público, São Paulo | Conectado só em Preview, do mesmo jeito. As credenciais dele não alcançam o Blob de produção, e ele não guarda fotos reais. |
+| Site | Cloudflare Workers, adaptador OpenNext | Produção na branch `main`; previews para `stage` e PRs. |
+| Banco de produção | Neon (PostgreSQL), São Paulo | `DATABASE_URL` para a aplicação e `DATABASE_URL_UNPOOLED` para migrações. |
+| Banco dos previews | Projeto Neon separado | Não compartilha credenciais de produção. Configure em Worker Previews. |
+| Fotos | Cloudflare R2 | Bucket privado para cache; bucket de uploads servido por domínio próprio em produção. Em POC, pode usar a Public Development URL (`r2.dev`), que expõe os objetos publicamente e tem limite de requisições. Configure buckets separados para produção e previews. |
 | Medição | Google Analytics 4 | `NEXT_PUBLIC_GA_ID` só em Production. |
-| Fotos do Instagram | Script local (launchd) + app "Negócio do Bem" na Meta | `FOTOS_TOKEN` no Vercel; o resto fica no `.env.fotos` do computador que roda a rotina. |
+| Fotos do Instagram | Script local (launchd) + app "Negócio do Bem" na Meta | `FOTOS_TOKEN` no Worker de produção; o resto fica no `.env.fotos` do computador que roda a rotina. |
 | Avisos por e-mail | Resend, com o domínio `negociodobem.com` | `RESEND_API_KEY` e `EMAIL_REMETENTE` só em Production. O DNS do domínio fica na Hostinger, e a caixa `ola@negociodobem.com`, que recebe as respostas, no Zoho Mail. |
 
 **Como um deploy acontece:**
 
-1. Cada PR para a `stage` ganha um **preview** do Vercel. O merge na `stage` atualiza o preview dela, que serve de homologação.
-   - **Os previews guardam as fotos num Blob próprio.** Uma foto enviada num preview, ou na `stage`, fica no Blob dos previews e aparece no próprio preview. O código de um PR, mesmo com bug, não grava nem apaga as fotos de produção.
-2. Um PR da `stage` para a `main` leva o que foi homologado para produção. O merge na `main` dispara o deploy de produção no Vercel. O passo a passo está na receita [Publicar em produção](#publicar-em-produção).
-   - O merge é sempre com **"Create a merge commit"**, a única opção que o ruleset da `main` aceita. Com ele, a ponta da `stage` passa a fazer parte da história da `main`. Por isso o PR de publicação mostra só os commits que ainda não estão em produção e não conflita com o que já foi publicado.
-3. O `scripts/vercel-build.sh` aplica as migrações pendentes (`prisma migrate deploy`) no banco daquele ambiente, usando a conexão direta do Neon. Nos previews, roda também o seed. Depois, roda o build.
+1. Workers Builds conectado ao repositório executa builds de produção na `main` e previews em branches não produtivas. Configure preview bindings e secrets com o banco e buckets de teste; eles não devem apontar para recursos de produção.
+2. O PR da `stage` para `main` leva o que foi homologado para produção. O merge na `main` publica a produção. O merge é sempre com **"Create a merge commit"**, a única opção que o ruleset da `main` aceita.
+3. `scripts/cloudflare-build.sh` aplica `prisma migrate deploy` antes do bundle, usando `DATABASE_URL_UNPOOLED` quando existe. Em preview, roda também o seed, que só preenche banco vazio.
+   - **O ambiente vem da branch, e não de uma variável.** As variáveis de build do Workers Builds são as mesmas para todas as branches. O script lê a `WORKERS_CI_BRANCH`: só a `main` é produção. As outras branches usam as variáveis `PREVIEW_*` e falham se faltar alguma. Assim, a migração de um PR ainda não aprovado nunca chega ao banco de produção.
 
-**O banco dos previews:**
+**Segurança dos previews:**
 
-- **Um preview nunca toca no banco de produção.** O ambiente Preview do Vercel só tem as credenciais do banco dos previews. Um PR, mesmo com bug, não lê nem altera os dados reais.
-- **Um PR que muda o banco já funciona no preview.** O build do preview aplica as migrações do PR no banco dos previews.
-- **A `stage` e todos os PRs dividem o mesmo banco.** A migração de um PR entra nele no primeiro deploy do PR, antes do merge. Se ela apaga ou renomeia uma coluna, a `stage` pode falhar até o PR entrar.
-- **Um PR fechado sem merge deixa a migração no banco.** O build não falha, porque o `prisma migrate deploy` ignora migrações que não estão no código, mas o banco fica diferente da `stage`. Para limpar, apague as tabelas pelo console do Neon (confira antes que é o projeto `negocio-do-bem-preview`) e faça um novo deploy da `stage`. O build recria as tabelas e o seed preenche de novo.
-- **O seed só preenche um banco vazio.** No Vercel, se o banco já tem algum usuário, ele não faz nada. Assim, um preview ligado por engano ao banco de produção não cria as contas de senha conhecida. Elas são as do [README](../README.md#rodando-localmente), e os previews exigem login no Vercel.
-
-**Por que um projeto Neon separado, e não um branch do Neon por preview:**
-
-- **Um branch copia os dados de produção**, com e-mails e senhas (em hash), para cada PR. Isso contraria a [privacidade por padrão](#privacidade-por-padrão).
-- **Os branches de um projeto dividem a cota de compute.** No plano Free, são 100 CU-horas por mês por projeto. Se os previews gastarem a cota, o compute é suspenso e a produção para. O branch também herda a senha do banco de produção.
-- **O plano Free tem 10 branches por projeto**, e a integração do Vercel só apaga o branch de um preview quando o deploy expira (6 meses, por padrão). Com a cota cheia, os builds falham.
-- **Um segundo projeto não custa nada.** O plano Free permite até 100 projetos, cada um com armazenamento e cota de compute próprios.
+- Configure o Worker Previews com `DATABASE_URL` e `DATABASE_URL_UNPOOLED` do projeto Neon de teste, e bindings R2 separados. Nunca deixe preview ler ou alterar dados e fotos de produção.
+- Os previews precisam de `DEPLOY_ENV=preview`, `CLOUDFLARE_DEPLOY=1` e `NEXT_PUBLIC_R2_PUBLIC_URL` do bucket de teste. Para POC sem domínio próprio, habilite Public Development URL no bucket de uploads de teste e use a URL `r2.dev`; os objetos ficam acessíveis publicamente, então não use arquivos privados. E-mail fica desligado fora de produção, e páginas de preview ficam fora dos buscadores.
+- A `stage` e PRs podem compartilhar os recursos de teste. Uma migração de PR que apaga ou renomeia coluna pode quebrar a homologação até o PR entrar. Um PR fechado sem merge pode deixar migração aplicada no banco de preview; recrie o banco de teste e publique `stage` para reconstruir os dados.
+- O seed só preenche banco vazio. Nunca o execute com credenciais de produção: cria contas de demonstração com senha conhecida.
 
 **Variáveis de ambiente:**
 
 | Variável | Obrigatória | Para quê |
 | --- | --- | --- |
-| `DATABASE_URL` | Sim | Conexão com o Postgres. No Vercel, Production e Preview apontam para bancos diferentes. |
+| `DATABASE_URL` | Sim | Conexão com o Postgres. Configure valores separados para Production e Preview. |
 | `DATABASE_URL_UNPOOLED` | No Neon | Conexão direta, usada pelas migrações. |
-| `APP_URL` | Sim | Endereço público do site, sem barra no final. Fora do Vercel, também é a base dos links absolutos (canônico, sitemap e prévias de link). |
-| `BLOB_STORE_ID` | Em produção, no Vercel | Fotos no Vercel Blob. Criada com a conexão do Blob. O `@vercel/blob` se autentica pelo OIDC do deploy com este id. Production e Preview apontam para Blobs diferentes. |
-| `BLOB_READ_WRITE_TOKEN` | Em produção, fora do Vercel | Fotos no Vercel Blob onde não há OIDC. No Vercel, o site não precisa dela. |
+| `APP_URL` | Sim, no build e no runtime | Endereço público canônico, sem barra no final. Entra no HTML pré-renderizado, então precisa estar no build. |
+| `DEPLOY_ENV` | No `wrangler.jsonc` | `production` ou `preview`; controla indexação, seed e envio de e-mails. No build do Workers Builds, o script define pela branch. Lida por `ambienteDeDeploy()` (`src/lib/ambiente.ts`). |
+| `PREVIEW_DATABASE_URL`, `PREVIEW_DATABASE_URL_UNPOOLED`, `PREVIEW_APP_URL`, `PREVIEW_R2_PUBLIC_URL` | No build dos previews | Variáveis de build que o `cloudflare-build.sh` usa nas branches que não são a `main`, no lugar das de produção. |
+| `NEXT_PUBLIC_R2_PUBLIC_URL` | Sim em deploy | Origem HTTPS pública do bucket de uploads R2 (domínio próprio em produção; `r2.dev` pode ser usado em POC/previews). Configure também durante o build. |
+| `CLOUDFLARE_DEPLOY` | No `wrangler.jsonc` | Com `1`, permite usar o cabeçalho `cf-connecting-ip`, inserido pelo Cloudflare, para limitar tentativas por IP. |
 | `NEXT_PUBLIC_GA_ID` | Não | Google Analytics. Configure só em Production. |
 | `GOOGLE_SITE_VERIFICATION`, `BING_SITE_VERIFICATION` | Não | Meta tags de verificação do Google Search Console e do Bing Webmaster Tools. Configure só em Production. |
-| `AUTENTICACAO_PROXY_CONFIAVEL` | Não | Defina `1` só se há um proxy seu na frente do site, que escreve o `x-forwarded-for` e é o único caminho até ele. Fora do Vercel, o limite de tentativas de login e cadastro usa então o último valor desse cabeçalho. Vazia, todos os visitantes dividem um limite só. |
 | `FOTOS_TOKEN` | Não | Liga a rota da rotina de fotos do Instagram. No mínimo 32 caracteres. |
 | `INSTAGRAM_PERFIL_OFICIAL` | Não | Liga o código por DM. |
 | `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`, `INSTAGRAM_GRAPH_VERSION` | Não | Ligam o "Entrar com Instagram". |
@@ -617,9 +608,9 @@ npm run typecheck
 | `RESEND_API_KEY`, `EMAIL_REMETENTE` | Não | Ligam os avisos por e-mail. Configure só em Production. |
 | `EMAIL_RESPOSTA` | Não | Para onde vão as respostas aos avisos. Vazia, elas vão para o remetente. |
 
-O `.env.example` explica cada uma, e o [README](../README.md#publicando) tem o passo a passo de publicação.
+O `.env.example` explica cada variável, e o [README](../README.md#publicando-no-cloudflare) traz o passo a passo de criação do Worker e dos buckets.
 
-**Nunca rode o seed em produção.** Ele cria contas com senha conhecida e se recusa a rodar quando `NODE_ENV=production` ou, no Vercel, quando `VERCEL_ENV=production`.
+**Nunca rode o seed em produção.** Ele cria contas com senha conhecida e se recusa a rodar quando `NODE_ENV=production`, `DEPLOY_ENV=production` ou `VERCEL_ENV=production`.
 
 ---
 
@@ -642,7 +633,7 @@ Para trocar o slug de uma causa existente, crie uma migração que atualize `Emp
 ### Cadastrar o site no Google e no Bing
 
 1. No [Google Search Console](https://search.google.com/search-console), adicione uma propriedade do tipo "Prefixo do URL" com o endereço de produção e escolha a verificação por **tag HTML**.
-2. Copie só o valor do `content` para a variável `GOOGLE_SITE_VERIFICATION`, só em Production no Vercel. Ela é lida no build, então entra no próximo deploy de produção.
+2. Copie só o valor do `content` para a variável `GOOGLE_SITE_VERIFICATION`, só em Production no Cloudflare. Ela é lida no build, então entra no próximo deploy de produção.
 3. Depois de verificar, envie o sitemap: `https://<domínio>/sitemap.xml`.
 4. No [Bing Webmaster Tools](https://www.bing.com/webmasters), importe a propriedade do Search Console ou use a meta tag, com o código em `BING_SITE_VERIFICATION`. O índice do Bing também alimenta a busca do ChatGPT e de outros assistentes.
 
@@ -739,7 +730,7 @@ Siga as seções "Ativando…" do [README](../README.md#ativando-o-código-por-d
 3. Espere a checagem "Lint, tipos e testes" e faça o merge com **"Create a merge commit"**.
    - A `main` exige 1 aprovação, e o GitHub não deixa aprovar o próprio PR. Quem administra marca **"Merge without waiting for requirements to be met (bypass rules)"** antes do merge.
    - Não use o auto-merge: ele espera a aprovação, que não vai chegar, e esconde a opção de bypass. Se ele estiver ligado, clique em **Disable auto-merge**.
-4. Acompanhe o deploy de produção no Vercel.
+4. Acompanhe o deploy de produção no Cloudflare Workers.
 
 O PR só conflita se a `main` recebeu algo que não passou pela `stage`. Nesse caso:
 
@@ -767,7 +758,10 @@ O PR só conflita se a `main` recebeu algo que não passou pela `stage`. Nesse c
 - **Imagens de compartilhamento (`ImageResponse`):**
   - toda `div` com mais de um filho precisa de `display: "flex"`. Texto com variáveis como `{a} · {b}` vira vários filhos: use uma template string;
   - o gerador não lê WebP, woff2 nem fonte variável. Por isso as fotos em WebP viram monograma na prévia, e as fontes ficam em TTF em `assets/fontes`.
-- **`BLOB_STORE_ID` sozinho no `.env`** faz o envio de fotos falhar: fora do Vercel não há OIDC. No seu computador, deixe as duas variáveis do Blob vazias ou use a `BLOB_READ_WRITE_TOKEN`.
+- **O Worker não lê arquivos do projeto.** Um `readFile` de algo fora de `public/` funciona no `npm run dev` e falha no Cloudflare com ENOENT. Se o arquivo é lido ao carregar o módulo, como as fontes eram, todas as páginas que importam o módulo respondem 500. Embuta o arquivo num módulo, como em `npm run marca:fontes`.
+- **Conexão com o banco no Worker.** Uma conexão aberta numa requisição não pode ser usada em outra. Por isso, o `db` (`src/lib/db.ts`) cria um cliente por requisição no Worker, e um só no Node.
+- **Senha (scrypt) no Worker.** Cada cálculo usa ~32 MB e ~100 ms de CPU. No Worker, o `scrypt` roda um de cada vez no isolate, mesmo com vários logins ao mesmo tempo, então a memória não soma: os logins esperam na fila. Medido no workerd local: 8 logins simultâneos terminam em ~0,8 s.
+- **Deploys de preview** precisam de bindings R2 e banco de teste próprios no Cloudflare Worker Previews; os padrões de `wrangler.jsonc` são para produção.
 - **Filtros no endereço multiplicam as páginas para os robôs.** Uma página nova que monta links com filtros no endereço (`?tipo=...&causa=...`) precisa entrar no `disallow` do `src/app/robots.ts`, como o `/explorar?`. Sem isso, um robô abre cada combinação e cada uma consulta o banco ([#141](https://github.com/fabsreis/Negocio-do-bem/issues/141)).
 - **Status 200 não quer dizer que a página abriu.** Com o Cache Components, a página chega com status 200 e o erro do banco vem dentro do conteúdo. Para saber se o site está no ar, confira se a lista de negócios aparece, e não só o status.
 
