@@ -1,6 +1,7 @@
 import "server-only";
 import { usaBlob } from "@/lib/armazenamento";
 import { db } from "@/lib/db";
+import { envioLigado } from "@/lib/email";
 import { tokenDasFotos } from "@/lib/fotos-instagram";
 import { configLogin, configWebhook, perfilOficial } from "@/lib/instagram";
 import { ENDERECO_DO_SITE, INDEXAVEL } from "@/lib/seo";
@@ -43,6 +44,12 @@ export function integracoes(): Integracao[] {
       desligadaTexto: "Sem FOTOS_TOKEN (de pelo menos 32 caracteres), a rota responde 404.",
     },
     {
+      nome: "Avisos por e-mail",
+      ligada: envioLigado(),
+      ligadaTexto: "Donos e moderação recebem os avisos por e-mail, enviados pelo Resend.",
+      desligadaTexto: "Sem RESEND_API_KEY e EMAIL_REMETENTE, ou fora da produção, ninguém recebe e-mail.",
+    },
+    {
       nome: "Google Analytics",
       ligada: Boolean(process.env.NEXT_PUBLIC_GA_ID),
       ligadaTexto: "As visitas são medidas pelo Google Analytics.",
@@ -81,7 +88,7 @@ export async function migracoesAplicadas(): Promise<Migracao[]> {
 
 /** Quantas linhas cada tabela tem. */
 export async function linhasPorTabela() {
-  const [contas, sessoes, negocios, causas, donos, reivindicacoes, depoimentos, auditoria] = await Promise.all([
+  const [contas, sessoes, negocios, causas, donos, reivindicacoes, depoimentos, auditoria, tentativas] = await Promise.all([
     db.usuario.count(),
     db.sessao.count(),
     db.empresa.count(),
@@ -90,6 +97,7 @@ export async function linhasPorTabela() {
     db.reivindicacao.count(),
     db.depoimento.count(),
     db.registroAuditoria.count(),
+    db.tentativaAcesso.count(),
   ]);
   return [
     { tabela: "Usuario", rotulo: "Contas", total: contas },
@@ -100,5 +108,6 @@ export async function linhasPorTabela() {
     { tabela: "Reivindicacao", rotulo: "Pedidos de reivindicação", total: reivindicacoes },
     { tabela: "Depoimento", rotulo: "Depoimentos", total: depoimentos },
     { tabela: "RegistroAuditoria", rotulo: "Registros da auditoria", total: auditoria },
+    { tabela: "TentativaAcesso", rotulo: "Contadores de tentativas de acesso", total: tentativas },
   ];
 }

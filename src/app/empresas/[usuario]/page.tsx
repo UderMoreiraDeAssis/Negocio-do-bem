@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { denunciarDepoimento } from "@/acoes/depoimentos";
 import { AvisoDaUrl } from "@/components/Avisos";
 import { CausaBadge } from "@/components/CausaBadge";
+import { ConfirmarEmail } from "@/components/ConfirmarEmail";
 import { Historia } from "@/components/Historia";
 import { JsonLd } from "@/components/JsonLd";
 import { FotoEmpresa } from "@/components/FotoEmpresa";
@@ -254,8 +255,14 @@ function Depoimentos({
 
       {publico && !dono && !jaEscreveu && (
         <div className="mt-8">
-          {usuario ? (
+          {usuario?.emailConfirmado ? (
             <FormDepoimento empresaId={empresa.id} nomeEmpresa={empresa.nome} />
+          ) : usuario ? (
+            <ConfirmarEmail
+              email={usuario.email}
+              para="deixar seu depoimento"
+              voltar={`/empresas/${empresa.instagramUsername}#depoimentos`}
+            />
           ) : (
             <p className="cartao p-5 text-sm text-suave">
               <Link href={`/entrar?voltar=${encodeURIComponent(`/empresas/${empresa.instagramUsername}#depoimentos`)}`} className="link">
