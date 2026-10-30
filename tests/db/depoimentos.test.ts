@@ -1,14 +1,15 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 
-// A Server Action roda fora do Next: o redirect vira um erro com o destino, e a
-// sessão devolve a conta que o teste escolher.
+// A Server Action roda fora do Next: o redirect vira um erro com o destino, a
+// sessão devolve a conta que o teste escolher, e o aviso por e-mail (after) não roda.
 const sessao = vi.hoisted(() => ({ usuario: { id: "", nome: "", email: "", moderador: false } }));
 vi.mock("next/navigation", () => ({
   redirect: (destino: string) => {
     throw new Error(`redirect:${destino}`);
   },
 }));
+vi.mock("next/server", () => ({ after: () => {} }));
 vi.mock("@/lib/auth/sessao", () => ({ exigirUsuario: async () => sessao.usuario }));
 
 const { denunciarDepoimento } = await import("@/acoes/depoimentos");
