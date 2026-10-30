@@ -1,0 +1,35 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "negocio-do-bem",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // Sem keep_vars, o deploy apaga as variáveis de texto cadastradas no painel
+  // (APP_URL, NEXT_PUBLIC_R2_PUBLIC_URL...). As fixas ficam aqui; os secrets
+  // nunca são apagados pelo deploy.
+  "keep_vars": true,
+  "vars": {
+    "DEPLOY_ENV": "production",
+    "CLOUDFLARE_DEPLOY": "1"
+  },
+  "r2_buckets": [
+    { "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "negocio-do-bem-cache" },
+    { "binding": "UPLOADS", "bucket_name": "negocio-do-bem-fotos" }
+  ],
+  "previews": {
+    "r2_buckets": [
+      { "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "negocio-do-bem-preview-cache" },
+      { "binding": "UPLOADS", "bucket_name": "negocio-do-bem-preview-fotos" }
+    ],
+    "vars": {
+      "DEPLOY_ENV": "preview",
+      "CLOUDFLARE_DEPLOY": "1",
+      "NEXT_PUBLIC_R2_PUBLIC_URL": "https://pub-cc632c3026aa4be198825fef23f9a388.r2.dev"
+    }
+  },
+  "observability": { "enabled": true }
+}

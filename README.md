@@ -64,7 +64,7 @@ A confirmação de e-mail está desligada por enquanto (`CONFIRMACAO_DE_EMAIL_LI
 
 Para a sua própria conta virar moderação, cadastre-se no site e rode `npm run moderacao -- dar seu@email.com`. O `npm run moderacao -- listar` mostra quem é moderação.
 
-As fotos enviadas no seu computador ficam em `public/enviados/` (fora do Git). No Vercel, elas vão para o Vercel Blob: um para a produção e outro para os previews.
+As fotos enviadas no seu computador ficam em `public/enviados/` (fora do Git). No Cloudflare, elas vão para o bucket R2 ligado ao Worker.
 
 ### Problemas comuns
 
@@ -135,7 +135,7 @@ Um script no seu computador preenche, todo dia, a foto de perfil dos negócios q
 3. No portfólio empresarial que tem a Página e o Instagram, conecte o app (Configurações → Contas → Apps) e crie um **usuário do sistema** (Usuários → Usuários do sistema).
 4. Atribua ao usuário do sistema o app, a Página e a conta do Instagram. Gere um token para ele com as quatro permissões e validade **Nunca**.
 
-**No Vercel:** configure `FOTOS_TOKEN` em Production com um valor de pelo menos 32 caracteres (`openssl rand -hex 32`). Sem ela, a rota `/api/fotos-instagram` responde 404.
+**No Cloudflare:** configure `FOTOS_TOKEN` em Production com um valor de pelo menos 32 caracteres (`openssl rand -hex 32`). Sem ela, a rota `/api/fotos-instagram` responde 404.
 
 **No seu computador:**
 
@@ -151,10 +151,10 @@ O site manda por e-mail o link para confirmar o e-mail e o link para entrar sem 
 
 1. Crie uma conta no Resend e adicione o domínio do site em **Domains**. Crie no DNS do domínio os registros que ele mostrar: o DKIM em `resend._domainkey` e, no subdomínio `send`, um MX e um SPF. Eles não mexem no MX nem no SPF da caixa de e-mail do domínio.
 2. Quando o domínio aparecer como verificado, crie uma chave em **API Keys**, com permissão só de envio (**Sending access**).
-3. No Vercel, só em **Production**, configure `RESEND_API_KEY` com a chave e `EMAIL_REMETENTE` com o remetente, como `Negócio do Bem <avisos@negociodobem.com>`. Opcional: `EMAIL_RESPOSTA`, para onde vão as respostas, como `ola@negociodobem.com`.
+3. No Cloudflare, só em **Production**, configure `RESEND_API_KEY` com a chave e `EMAIL_REMETENTE` com o remetente, como `Negócio do Bem <avisos@negociodobem.com>`. Opcional: `EMAIL_RESPOSTA`, para onde vão as respostas, como `ola@negociodobem.com`.
 4. Faça um redeploy. A aba "Sistema" da moderação mostra se os avisos estão ligados.
 
-Nos previews o envio fica desligado mesmo com as variáveis, porque o banco dos previews só tem contas de teste. Lá, os links de confirmar e de entrar aparecem no log da função no Vercel.
+Nos previews o envio fica desligado mesmo com as variáveis, porque o banco dos previews só tem contas de teste. Lá, os links de confirmar e de entrar aparecem no log do Worker.
 
 Com a confirmação de e-mail ligada e sem o envio ligado em produção, ninguém consegue confirmar o e-mail, e as contas novas não indicam, não escrevem depoimentos e não reivindicam. Por isso, e pelo limite de 100 e-mails por dia do plano grátis do Resend, a confirmação está desligada por enquanto.
 
@@ -168,33 +168,25 @@ npm run typecheck
 
 Os testes usam um banco separado (`negocio_do_bem_teste`, ou o de `TEST_DATABASE_URL`). Ele é criado na primeira execução e as tabelas são limpas entre os testes. Por segurança, a suíte só roda se o nome do banco tiver "test".
 
-## Publicando
+## Publicando no Cloudflare
 
-Funciona em qualquer hospedagem de Next.js com um PostgreSQL gerenciado.
+O site roda em Cloudflare Workers pelo adaptador OpenNext, com PostgreSQL gerenciado e fotos no R2. O bundle medido tem cerca de **15,7 MiB sem compressão**, abaixo do limite atual de 64 MiB ([limites dos Workers](https://developers.cloudflare.com/workers/platform/limits/)); o tamanho gzip exibido pelo Wrangler é apenas informativo. Os comandos `npm run preview:cloudflare` e `npm run deploy:cloudflare` constroem e executam no runtime de Workers; o build aplica as migrações em produção e nos previews, e roda o seed só nos previews.
 
-**No Vercel**
+1. Na conta Cloudflare, crie um Worker chamado `negocio-do-bem` e conecte o repositório Git. Configure produção pela branch `main`, habilite previews de branches/PRs, use `npm run cf:build` como build command, `opennextjs-cloudflare deploy` como deploy command e `npx wrangler preview` como preview command.
+2. Crie os buckets R2 `negocio-do-bem-cache` e `negocio-do-bem-fotos`, com bindings `NEXT_INC_CACHE_R2_BUCKET` e `UPLOADS`, respectivamente. O bucket de cache deve ser privado. Para uma POC sem domínio, habilite a **Public Development URL** (`r2.dev`) no bucket de fotos e use a URL gerada como `NEXT_PUBLIC_R2_PUBLIC_URL`; essa URL é limitada e deixa os objetos acessíveis publicamente, então não armazene arquivos privados nela. Para produção, conecte ao bucket de fotos um domínio próprio, por exemplo `fotos.negociodobem.com`. O domínio precisa estar adicionado como zona na mesma conta Cloudflare. Se o DNS ainda estiver na Hostinger, revise e recrie todos os registros — em especial MX, SPF e DKIM do Zoho/Resend — antes de trocar os nameservers.
+3. Use o plano **Workers Paid**. No grátis, cada requisição tem 10 ms de CPU, e só a conferência da senha (scrypt) passa disso.
+4. Configure **Build Variables and Secrets**. Elas valem para todas as branches, então o `scripts/cloudflare-build.sh` decide o ambiente pela branch (`WORKERS_CI_BRANCH`): só a `main` é produção. Cadastre:
+   - para a produção: `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `APP_URL` (o domínio canônico) e `NEXT_PUBLIC_R2_PUBLIC_URL`;
+   - para os previews: `PREVIEW_DATABASE_URL`, `PREVIEW_DATABASE_URL_UNPOOLED`, `PREVIEW_APP_URL` e `PREVIEW_R2_PUBLIC_URL`, com o banco e o bucket de teste. Sem elas, o build do preview falha, em vez de usar as de produção.
 
-1. Em **Storage**, crie um banco **Neon** e conecte ao projeto sem prefixo, só no ambiente **Production**, para as variáveis se chamarem `DATABASE_URL` e `DATABASE_URL_UNPOOLED`.
-2. Crie um **segundo banco Neon**, só para os previews, e conecte do mesmo jeito, só no ambiente **Preview**. Assim, o código de um PR nunca lê nem altera os dados de produção.
-3. Em **Environment Variables**, configure `APP_URL` (o domínio público, como `https://seu-projeto.vercel.app`). As do Instagram são opcionais.
-4. Em **Storage**, crie um **Blob** com acesso público e conecte ao projeto só no ambiente **Production**. É onde ficam as fotos dos perfis e das histórias. A conexão cria a `BLOB_STORE_ID`, e o site se autentica pelo OIDC do deploy, sem token.
-   - Crie o Blob pelo Storage da conta, e não pelo do projeto: criado dentro do projeto, ele já se conecta a Production e Preview.
-   - O site não precisa da `BLOB_READ_WRITE_TOKEN`. Se o painel recomendar revogar o token (na página **Projects** do Blob), faça um redeploy e revogue.
-5. Crie um **segundo Blob** público, só para os previews, e conecte do mesmo jeito, só no ambiente **Preview**. Assim, o código de um PR nunca grava nem apaga as fotos de produção.
-6. Opcional: em **Environment Variables**, só para **Production**, configure `NEXT_PUBLIC_GA_ID` com o ID de medição do Google Analytics (`G-…`). Sem ela, o Analytics não carrega.
-   - Para o Google Search Console e o Bing Webmaster Tools, configure também `GOOGLE_SITE_VERIFICATION` e `BING_SITE_VERIFICATION`, e depois envie o `sitemap.xml` nos dois painéis. O passo a passo está em [Como o projeto foi feito](docs/como-foi-feito.md#cadastrar-o-site-no-google-e-no-bing).
-7. A cada deploy, de produção ou de preview, o `scripts/vercel-build.sh` aplica as migrações pendentes no banco daquele ambiente antes do build. Nos previews, ele também roda o seed, que só preenche um banco vazio.
-8. Depois do primeiro deploy, cadastre a sua conta no site e dê a moderação a ela com a conexão direta do banco de produção: `DATABASE_URL="postgresql://..." npm run moderacao -- dar voce@exemplo.com`.
+   O build usa essas variáveis para aplicar as migrações e gravar no HTML pré-renderizado o endereço canônico (`APP_URL`), o domínio das fotos e a política de segurança (CSP). Por isso, elas precisam estar no build, e não só no runtime.
+5. Cadastre as variáveis de runtime em **Variables & Secrets**: `DATABASE_URL` (como secret), `APP_URL`, `NEXT_PUBLIC_R2_PUBLIC_URL` e as opcionais do Resend, do Instagram, do Analytics e da verificação nos buscadores. `DEPLOY_ENV=production` e `CLOUDFLARE_DEPLOY=1` já estão no `wrangler.jsonc`, e o `keep_vars` impede que o deploy apague as outras variáveis do painel. Em **Worker Previews**, os buckets e as variáveis dos previews ficam no bloco `previews` do `wrangler.jsonc`. Cadastre a `DATABASE_URL` do banco de teste como secret de preview (`npx wrangler preview secret put DATABASE_URL`). Nunca use recursos de produção nos previews.
+6. Opcional: configure `NEXT_PUBLIC_GA_ID`, `GOOGLE_SITE_VERIFICATION` e `BING_SITE_VERIFICATION` em produção. Envie o `sitemap.xml` aos painéis do Google e Bing conforme [Como o projeto foi feito](docs/como-foi-feito.md#cadastrar-o-site-no-google-e-no-bing).
+7. Depois do primeiro deploy, cadastre sua conta e dê a moderação com a conexão direta ao banco de produção: `DATABASE_URL="<conexão de produção>" npm run moderacao -- dar voce@exemplo.com`.
 
-**Em outra hospedagem**
+As fotos que já estão no Vercel Blob continuam sendo servidas pelos endereços gravados no banco. Novos uploads vão para o R2. Copie os objetos antigos antes de desativar o Blob; não apague o armazenamento antigo durante a migração. Enquanto isso, trocar ou remover uma foto antiga não a apaga do Blob: o arquivo continua público no endereço antigo até a cópia e a limpeza.
 
-1. Configure as variáveis de `.env.example` no painel da hospedagem. `APP_URL` precisa ser o domínio público. Para as fotos, use a `BLOB_READ_WRITE_TOKEN` de um Vercel Blob: fora do Vercel não há OIDC.
-2. Aplique as migrações no banco de produção com `npm run db:deploy`. Faça isso a cada mudança no `prisma/schema.prisma`.
-3. O `npm install` gera o cliente do Prisma, e o `npm run build` faz o resto.
-4. Diga ao site de onde vem o IP de cada visitante, que o limite de tentativas de login e cadastro usa. Sem isso, o site ignora os cabeçalhos de IP, porque qualquer visitante pode escrevê-los, e todos os visitantes dividem um limite só (10 tentativas a cada 15 minutos). Se há um proxy ou balanceador seu na frente do site, que escreve o `x-forwarded-for` e é o único caminho até o site, defina `AUTENTICACAO_PROXY_CONFIAVEL=1`. O site usa o último valor do `x-forwarded-for`, o que o proxy acrescentou. Se o proxy não é o único caminho, ou se não escreve esse cabeçalho, deixe a variável vazia.
-5. Cadastre a sua conta no site e dê a moderação a ela: `DATABASE_URL="<conexão de produção>" npm run moderacao -- dar voce@exemplo.com`.
-
-Nunca rode o seed em produção: ele cria contas com senha conhecida e se recusa a rodar quando `NODE_ENV=production` ou, no Vercel, quando `VERCEL_ENV=production`.
+Nunca rode o seed em produção: ele cria contas com senha conhecida e se recusa a rodar quando `NODE_ENV=production`, `DEPLOY_ENV=production` ou `VERCEL_ENV=production`.
 
 ## Estrutura
 
@@ -203,7 +195,7 @@ assets/fontes/       fontes das imagens de compartilhamento (licença OFL)
 docs/                regras de negócio, como o projeto foi feito e prints
 prisma/              esquema, migrações e dados de exemplo
 src/acoes/           Server Actions (formulários), sempre conferindo permissão no servidor
-scripts/             build do Vercel, ícones da marca e a rotina de fotos do Instagram (roda no seu computador)
+scripts/             build do Cloudflare, ícones da marca e a rotina de fotos do Instagram (roda no seu computador)
 src/app/             páginas e rotas (api/link, api/instagram, api/webhooks/instagram e api/fotos-instagram)
 src/components/      componentes de interface
 src/lib/             regras de negócio: reivindicacao.ts, instagram.ts, auth/, causas.ts, cnpj.ts…
