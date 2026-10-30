@@ -42,7 +42,12 @@ function useConsultaDeCep(aoEncontrar: (formulario: HTMLFormElement, resultado: 
   function aoMudar(campo: HTMLInputElement) {
     clearTimeout(espera.current);
     const cep = limparCep(campo.value);
-    if (!cep || cep === ultimo.current || !campo.form) return;
+    if (cep === ultimo.current) return;
+    // O CEP mudou ou foi apagado: a resposta de uma consulta anterior não vale mais.
+    consulta.current?.abort();
+    ultimo.current = null;
+    setAviso("");
+    if (!cep || !campo.form) return;
     const formulario = campo.form;
     espera.current = setTimeout(async () => {
       ultimo.current = cep;
@@ -80,6 +85,10 @@ export function CamposEndereco({
     const campoMunicipio = formulario.elements.namedItem("municipio");
     const cidadeAtual = campoMunicipio instanceof HTMLInputElement ? campoMunicipio.value.trim() : "";
     const cidadeDoCep = endereco.cidade ? formatarMunicipio(endereco.cidade, endereco.uf) : null;
+    // Bairro e logradouro de outra cidade deixariam o endereço misturado.
+    if (cidadeDoCep && cidadeAtual && normalizarTexto(cidadeAtual) !== normalizarTexto(cidadeDoCep)) {
+      return `O CEP é de ${cidadeDoCep}, mas a cidade informada é outra. Nada foi preenchido: confira o CEP ou a cidade.`;
+    }
     if (cidadeDoCep && !cidadeAtual) setMunicipio((atual) => ({ chave: atual.chave + 1, valor: cidadeDoCep }));
     const preenchidos = [
       preencherSeVazio(formulario, "logradouro", endereco.logradouro),
@@ -90,9 +99,6 @@ export function CamposEndereco({
       preenchidos ? "Preenchemos os campos vazios com o endereço do CEP." : "Os campos já estavam preenchidos; nada foi alterado.",
       "Confira e complete o número e o complemento.",
     ];
-    if (cidadeDoCep && cidadeAtual && normalizarTexto(cidadeAtual) !== normalizarTexto(cidadeDoCep)) {
-      partes.push(`Atenção: o CEP é de ${cidadeDoCep}, mas a cidade informada é outra.`);
-    }
     if (aConfirmar) partes.push("Os dados vêm de uma consulta anterior e podem estar desatualizados.");
     return partes.join(" ");
   });

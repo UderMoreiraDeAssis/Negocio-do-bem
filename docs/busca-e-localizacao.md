@@ -65,7 +65,7 @@ O CEP pode representar localidades, logradouros, unidades postais, organizaçõe
 
 1. Oferecer CEP opcional no início da localização, junto da alternativa manual. Consultar no servidor, respeitando cache, cotas e indisponibilidade; mostrar a origem e eventual desatualização da sugestão.
 2. Apresentar município e demais dados disponíveis para confirmação. Número, complemento pessoal e dados ausentes continuam a cargo da pessoa. Não exigir bairro/logradouro onde a fonte não os fornece.
-3. Se o município já preenchido divergir, pedir uma escolha antes de aplicar qualquer parte conflitante. Hoje o formulário avisa da diferença, mas ainda pode preencher bairro/logradouro vazios de outro município: essa consistência precisa ser corrigida e testada.
+3. Se o município já preenchido divergir, pedir uma escolha antes de aplicar qualquer parte conflitante. Hoje o formulário não preenche nada nesse caso e pede para conferir o CEP ou a cidade; falta oferecer a escolha.
 4. Vincular cada resposta ao CEP ainda presente no formulário, descartar respostas atrasadas e preservar edições manuais. Trocar ou apagar o CEP durante uma consulta deve fazer parte do teste de aceitação.
 5. Separar “O que procura?” da localização selecionada. A seleção de um município/localidade deve enviar seu identificador; texto livre ambíguo deve oferecer opções com município/UF. Ampliar para outras cidades deve ser uma escolha visível.
 6. Se houver localização salva na conta, propor seu uso como preferência editável, com opção “Todo o Brasil”. Não é necessário guardar endereço residencial completo para filtrar por cidade. Não aplicar silenciosamente a cidade de um negócio administrado pela pessoa como sua preferência pessoal.

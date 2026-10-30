@@ -52,11 +52,11 @@ Decisão registrada em 30/10/2026: usar o [ViaCEP](https://viacep.com.br/) como 
 
 A atualização postal não regrava os endereços dos negócios: sugere campos vazios no formulário. No DF, `montarEndereco` reconhece um nome da lista do GDF quando ele corresponde ao bairro inteiro ou ao trecho final entre parênteses. Não há correspondência por prefixo. O código ainda descarta o `ibge` retornado pelo provedor. Esses limites motivam a proposta nacional, sem ampliar heurísticas específicas de uma UF.
 
-**Limites conhecidos.** A unificação de consultas iguais vale dentro de cada instância; cache e cotas compartilhados não garantem uma única chamada simultânea entre instâncias. A documentação consultada do ViaCEP não estabelece autorização expressa de retenção, cotas numéricas ou SLA; essas condições continuam em aberto. Apagar a cópia postal não altera os cadastros. O formulário também precisa tratar de forma consistente município divergente e respostas atrasadas, conforme a [proposta nacional](busca-e-localizacao.md).
+**Limites conhecidos.** A unificação de consultas iguais vale dentro de cada instância; cache e cotas compartilhados não garantem uma única chamada simultânea entre instâncias. A documentação consultada do ViaCEP não estabelece autorização expressa de retenção, cotas numéricas ou SLA; essas condições continuam em aberto. Apagar a cópia postal não altera os cadastros.
 
 ## Coordenação e validação
 
-Pendências do rascunho em 30/10/2026: documentar `CEP_CONSULTA=` em `.env.example`; revisar visibilidade e condições de cache; validar concorrência entre instâncias e falha do armazenamento; corrigir os conflitos do formulário; obter liberação das checagens e do preview. Ativação depende de configuração e aplicação das migrações pelo fluxo de entrega do projeto. A #158 permanece em atendimento, sem declaração de conclusão.
+Pendências do rascunho em 30/10/2026: documentar `CEP_CONSULTA=` em `.env.example`; revisar visibilidade e condições de cache; validar concorrência entre instâncias e falha do armazenamento; obter liberação das checagens e do preview. Ativação depende de configuração e aplicação das migrações pelo fluxo de entrega do projeto. A #158 permanece em atendimento, sem declaração de conclusão.
 
 O PR #145 ainda estava aberto quando esta branch partiu de `stage`. Os campos ficam em `CamposEndereco` para que o cadastro por etapas possa reaproveitá-los; a integração atual é em `/indicar`. Se #145 entrar primeiro, resolver o encaixe na etapa de localização e manter os mesmos campos/validação no servidor.
 
