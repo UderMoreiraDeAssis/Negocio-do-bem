@@ -8,7 +8,7 @@ import { FormIndicar } from "./FormIndicar";
 
 export const metadata: Metadata = metadadosDaPagina({
   titulo: "Indicar um negócio",
-  descricao: "Conhece um negócio que faz o bem? Indique para o diretório: a moderação confere e publica, e o dono pode assumir o perfil depois.",
+  descricao: "Conhece um negócio que faz o bem? Indique para o diretório: a indicação entra no ar na hora, e o dono pode assumir o perfil depois.",
   caminho: "/indicar",
 });
 
