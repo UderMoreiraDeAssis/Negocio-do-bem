@@ -8,6 +8,7 @@ import { Suspense } from "react";
 import { AlternarTema } from "@/components/AlternarTema";
 import { Logo } from "@/components/Logo";
 import { MenuUsuario } from "@/components/MenuUsuario";
+import { ProtecaoDoMenu } from "@/components/ProtecaoDoMenu";
 import { REPOSITORIO } from "@/lib/dominio";
 import { CORES_DA_MARCA } from "@/lib/marca";
 import { DESCRICAO_DO_SITE, ENDERECO_DO_SITE, NOME_DO_SITE, TITULO_DO_SITE } from "@/lib/seo";
@@ -75,7 +76,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               </Link>
               <AlternarTema />
               <Suspense fallback={<div className="h-9 w-20 rounded-full bg-linha/60" />}>
-                <MenuUsuario />
+                <ProtecaoDoMenu>
+                  <MenuUsuario />
+                </ProtecaoDoMenu>
               </Suspense>
             </nav>
           </div>

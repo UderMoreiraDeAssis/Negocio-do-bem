@@ -125,6 +125,7 @@ export async function fichaDaConta(id: string) {
       nome: true,
       email: true,
       papel: true,
+      emailConfirmadoEm: true,
       criadoEm: true,
       sessoes: { orderBy: { criadoEm: "desc" }, select: { criadoEm: true, expiraEm: true } },
       empresas: {

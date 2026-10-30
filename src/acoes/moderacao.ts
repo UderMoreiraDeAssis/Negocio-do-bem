@@ -1,11 +1,13 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { exigirModerador } from "@/lib/auth/sessao";
 import { db } from "@/lib/db";
 import { texto } from "@/lib/formulario";
 import { comAviso, destinoNaModeracao } from "@/lib/moderacao/filtros";
+import { avisarDecisaoDaReivindicacao } from "@/lib/notificacoes";
 import { aprovar, aprovarPendentesSemDono, ErroReivindicacao, recusar, type ModoAprovacao } from "@/lib/reivindicacao";
 
 function voltar(aba: string, aviso: string): never {
@@ -15,7 +17,10 @@ function voltar(aba: string, aviso: string): never {
 /** Esvazia a fila antiga: aprova as reivindicações de negócios que ainda não têm dono. */
 export async function aprovarReivindicacoesSemDono(): Promise<void> {
   const moderador = await exigirModerador();
-  await aprovarPendentesSemDono(moderador.id);
+  const aprovadas = await aprovarPendentesSemDono(moderador.id);
+  after(async () => {
+    for (const id of aprovadas) await avisarDecisaoDaReivindicacao(id);
+  });
   voltar("reivindicacoes", "feito");
 }
 
@@ -42,24 +47,28 @@ export async function publicarIndicacoesPendentes(): Promise<void> {
 export async function aprovarReivindicacao(dados: FormData): Promise<void> {
   const moderador = await exigirModerador();
   const modo: ModoAprovacao = dados.get("modo") === "transferir" ? "transferir" : "adicionar";
+  const reivindicacaoId = texto(dados, "reivindicacaoId");
   try {
-    await aprovar({ reivindicacaoId: texto(dados, "reivindicacaoId"), revisorId: moderador.id, modo });
+    await aprovar({ reivindicacaoId, revisorId: moderador.id, modo });
   } catch (erro) {
     if (erro instanceof ErroReivindicacao) voltar("reivindicacoes", "ja_processada");
     throw erro;
   }
+  after(() => avisarDecisaoDaReivindicacao(reivindicacaoId));
   voltar("reivindicacoes", "feito");
 }
 
 export async function recusarReivindicacao(dados: FormData): Promise<void> {
   const moderador = await exigirModerador();
   const motivo = texto(dados, "motivo").trim().slice(0, 500) || "Não foi possível confirmar que você controla este negócio.";
+  const reivindicacaoId = texto(dados, "reivindicacaoId");
   try {
-    await recusar({ reivindicacaoId: texto(dados, "reivindicacaoId"), revisorId: moderador.id, motivo });
+    await recusar({ reivindicacaoId, revisorId: moderador.id, motivo });
   } catch (erro) {
     if (erro instanceof ErroReivindicacao) voltar("reivindicacoes", "ja_processada");
     throw erro;
   }
+  after(() => avisarDecisaoDaReivindicacao(reivindicacaoId));
   voltar("reivindicacoes", "feito");
 }
 
