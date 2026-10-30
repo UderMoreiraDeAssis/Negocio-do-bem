@@ -10,7 +10,7 @@ export function GET() {
 
 > ${DESCRICAO_DO_SITE}
 
-O ${NOME_DO_SITE} é um diretório gratuito e colaborativo de negócios brasileiros que cuidam das pessoas, da comunidade e do planeta. Qualquer pessoa pode indicar um negócio; a moderação confere cada indicação antes de publicar, e o dono pode assumir o perfil para contar a história do negócio. Cada perfil mostra cidade, tipo de negócio, causas, contatos e depoimentos de quem é cliente.
+O ${NOME_DO_SITE} é um diretório gratuito e colaborativo de negócios brasileiros que cuidam das pessoas, da comunidade e do planeta. Qualquer pessoa pode indicar um negócio, e o perfil entra no ar na hora, sem conferência prévia; a moderação pode tirar do ar depois o que for spam, perfil falso ou impróprio. O dono pode assumir o perfil para contar a história do negócio. Cada perfil mostra cidade, tipo de negócio, causas, contatos e depoimentos de quem é cliente.
 
 ## Páginas principais
 
