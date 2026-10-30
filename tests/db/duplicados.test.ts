@@ -2,10 +2,11 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vites
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 
-// As Server Actions rodam fora do Next: o redirect vira um erro com o destino, e a
-// sessão devolve a conta que o teste escolher.
+// As Server Actions rodam fora do Next: o redirect vira um erro com o destino, a
+// sessão devolve a conta que o teste escolher, os cabeçalhos vêm vazios e o
+// after (os avisos por e-mail) não roda.
 const sessao = vi.hoisted(() => ({
-  usuario: { id: "", nome: "", email: "", moderador: false },
+  usuario: { id: "", nome: "", email: "", moderador: false, emailConfirmado: true },
   criarSessao: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({
@@ -13,25 +14,21 @@ vi.mock("next/navigation", () => ({
     throw new Error(`redirect:${destino}`);
   },
 }));
+vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+vi.mock("next/server", () => ({ after: () => {} }));
 vi.mock("@/lib/auth/sessao", () => ({
   exigirUsuario: async () => sessao.usuario,
   criarSessao: sessao.criarSessao,
   encerrarSessao: vi.fn(),
   caminhoSeguro: (valor: unknown, padrao = "/") => (typeof valor === "string" && valor.startsWith("/") ? valor : padrao),
 }));
-vi.mock("@/lib/auditoria", async (original) => {
-  const modulo = await original<typeof import("@/lib/auditoria")>();
-  return { registrarAuditoria: vi.fn(modulo.registrarAuditoria) };
-});
 
 const { cadastrar } = await import("@/acoes/conta");
 const { publicarDepoimento } = await import("@/acoes/depoimentos");
-const { indicarEmpresa } = await import("@/acoes/empresas");
-const { registrarAuditoria } = await import("@/lib/auditoria");
 
 async function limparBanco() {
   await db.$executeRawUnsafe(
-    `TRUNCATE "RegistroAuditoria", "Depoimento", "Reivindicacao", "EmpresaMembro", "EmpresaCausa", "Empresa", "Sessao", "Usuario" CASCADE`,
+    `TRUNCATE "TentativaAcesso", "RegistroAuditoria", "Depoimento", "Reivindicacao", "EmpresaMembro", "EmpresaCausa", "Empresa", "Sessao", "Usuario" CASCADE`,
   );
 }
 
@@ -49,20 +46,12 @@ function consultaPreliminarNaoEncontra(delegate: { findUnique: unknown }) {
   vi.spyOn(delegate as { findUnique: () => Promise<null> }, "findUnique").mockResolvedValueOnce(null);
 }
 
-const indicacao = {
-  instagram: "@padaria.flor",
-  nome: "Padaria Flor",
-  categoria: "Café e padaria",
-  municipio: "Recife - PE",
-  resumo: "Pão de fermentação natural no bairro.",
-};
-
 let leitor: { id: string; nome: string; email: string };
 
 beforeEach(async () => {
   await limparBanco();
   leitor = await db.usuario.create({ data: { nome: "Lauro Leitor", email: "lauro@exemplo.com", senhaHash: "scrypt$segredo" } });
-  sessao.usuario = { ...leitor, moderador: false };
+  sessao.usuario = { ...leitor, moderador: false, emailConfirmado: true };
 });
 afterEach(() => {
   vi.clearAllMocks();
@@ -73,6 +62,7 @@ afterAll(async () => {
   await db.$disconnect();
 });
 
+// A indicação do mesmo @ ao mesmo tempo está em tests/db/indicacao.test.ts.
 describe("submissões duplicadas", () => {
   it("cadastro com e-mail criado por outro envio devolve o aviso do formulário, sem sessão", async () => {
     consultaPreliminarNaoEncontra(db.usuario);
@@ -82,19 +72,6 @@ describe("submissões duplicadas", () => {
     expect(estado?.erros?.email).toBe("Já existe uma conta com este e-mail. Que tal entrar?");
     expect(sessao.criarSessao).not.toHaveBeenCalled();
     expect(await db.usuario.count()).toBe(1);
-  });
-
-  it("indicação de @ criado por outro envio devolve o perfil existente, sem auditoria", async () => {
-    const primeiro = await indicarEmpresa(undefined, formulario(indicacao)).catch((erro: Error) => erro.message);
-    expect(primeiro).toBe("redirect:/empresas/padaria.flor?aviso=indicada");
-    vi.mocked(registrarAuditoria).mockClear();
-    consultaPreliminarNaoEncontra(db.empresa);
-
-    const estado = await indicarEmpresa(undefined, formulario(indicacao));
-
-    expect(estado).toMatchObject({ existente: "padaria.flor", erros: { instagram: "@padaria.flor já está no Negócio do Bem." } });
-    expect(registrarAuditoria).not.toHaveBeenCalled();
-    expect(await db.registroAuditoria.count()).toBe(1);
   });
 
   it("depoimento repetido por outro envio devolve a mensagem de sempre", async () => {
@@ -111,13 +88,6 @@ describe("submissões duplicadas", () => {
 
     expect(estado).toEqual({ erro: "Você já deixou um depoimento para este negócio. Obrigado!" });
     expect(await db.depoimento.count()).toBe(1);
-  });
-
-  it("falha da auditoria depois da criação não vira aviso de duplicado", async () => {
-    const duplicadoNaAuditoria = new Prisma.PrismaClientKnownRequestError("falha na auditoria", { code: "P2002", clientVersion: "teste" });
-    vi.mocked(registrarAuditoria).mockRejectedValueOnce(duplicadoNaAuditoria);
-
-    await expect(indicarEmpresa(undefined, formulario(indicacao))).rejects.toBe(duplicadoNaAuditoria);
   });
 
   it("outros erros do banco continuam subindo", async () => {

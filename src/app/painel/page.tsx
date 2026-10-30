@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { ConfirmarEmail } from "@/components/ConfirmarEmail";
 import { Monograma } from "@/components/Monograma";
 import { SeloStatus } from "@/components/SeloStatus";
 import { exigirUsuario } from "@/lib/auth/sessao";
@@ -59,6 +60,10 @@ async function Conteudo() {
   return (
     <div className="mt-2 space-y-12">
       <p className="text-suave">Olá, {usuario.nome.split(" ")[0]}! Aqui você cuida dos seus negócios e acompanha suas indicações.</p>
+
+      {!usuario.emailConfirmado && (
+        <ConfirmarEmail email={usuario.email} para="indicar, deixar depoimentos e assumir negócios" voltar="/painel" />
+      )}
 
       <section>
         <h2 className="font-serif text-2xl font-semibold">Meus negócios</h2>

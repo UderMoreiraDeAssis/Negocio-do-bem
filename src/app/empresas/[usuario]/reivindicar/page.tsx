@@ -6,6 +6,7 @@ import { cancelarReivindicacao } from "@/acoes/reivindicacoes";
 import { Aviso } from "@/components/Aviso";
 import { AvisoDaUrl } from "@/components/Avisos";
 import { BotaoEnviar } from "@/components/BotaoEnviar";
+import { ConfirmarEmail } from "@/components/ConfirmarEmail";
 import { usuarioAtual } from "@/lib/auth/sessao";
 import { db } from "@/lib/db";
 import { METODOS_REIVINDICACAO, STATUS_REIVINDICACAO } from "@/lib/dominio";
@@ -95,6 +96,15 @@ async function Reivindicar({
             Ir para o painel
           </Link>
         </Aviso>
+      </>
+    );
+  }
+
+  if (!usuario.emailConfirmado) {
+    return (
+      <>
+        {cabecalho}
+        <ConfirmarEmail email={usuario.email} para="assumir o perfil" voltar={caminho} />
       </>
     );
   }
