@@ -6,6 +6,7 @@ import { FotoEmpresa } from "@/components/FotoEmpresa";
 import { Paginacao } from "@/components/Paginacao";
 import { listarNegocios } from "@/lib/moderacao/consultas";
 import { hrefModeracao, SITUACOES_NEGOCIO, type FiltrosModeracao, type SituacaoNegocio } from "@/lib/moderacao/filtros";
+import { rotuloDoInstagram } from "@/lib/endereco";
 import { formatarData } from "@/lib/texto";
 import { Busca, contar, EtiquetasDoNegocio, Pilulas, Vazio } from "./Blocos";
 
@@ -47,7 +48,7 @@ export async function Negocios({ filtros }: { filtros: FiltrosModeracao }) {
                   <EtiquetasDoNegocio empresa={e} />
                 </div>
                 <p className="text-sm text-suave">
-                  @{e.instagramUsername} · {e.categoria} · {e.cidade}/{e.uf} · {contar(e._count.depoimentos, "depoimento", "depoimentos")}
+                  {rotuloDoInstagram(e.instagramUsername)} · {e.categoria} · {e.cidade}/{e.uf} · {contar(e._count.depoimentos, "depoimento", "depoimentos")}
                 </p>
                 <p className="text-sm text-suave">
                   {e.membros.length > 0 ? (

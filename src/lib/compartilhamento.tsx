@@ -3,6 +3,8 @@
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { INTER, NEWSREADER } from "@/lib/fontes-compartilhamento";
+import { ehFotoDoSite } from "@/lib/fotos";
 import { CORES_DA_MARCA, ICONE, LOGO, svgDoIcone, svgDoLogo } from "@/lib/marca";
 
 export const TAMANHO = { width: 1200, height: 630 };
@@ -10,15 +12,11 @@ export const TAMANHO = { width: 1200, height: 630 };
 export const SUAVE = "#6e6357";
 
 // Instâncias estáticas das fontes variáveis do site (licença OFL, ver assets/fontes).
-// O ImageResponse não lê woff2 nem fontes variáveis.
-const [newsreader, inter] = await Promise.all([
-  readFile(join(process.cwd(), "assets/fontes/Newsreader-SemiBold.ttf")),
-  readFile(join(process.cwd(), "assets/fontes/Inter-Medium.ttf")),
-]);
-
+// O ImageResponse não lê woff2 nem fontes variáveis. Elas vêm embutidas num módulo,
+// e não de readFile: o Worker do Cloudflare não lê os arquivos do projeto.
 export const FONTES = [
-  { name: "Newsreader", data: newsreader, weight: 600 as const, style: "normal" as const },
-  { name: "Inter", data: inter, weight: 500 as const, style: "normal" as const },
+  { name: "Newsreader", data: Buffer.from(NEWSREADER, "base64"), weight: 600 as const, style: "normal" as const },
+  { name: "Inter", data: Buffer.from(INTER, "base64"), weight: 500 as const, style: "normal" as const },
 ];
 
 function dataUri(svg: string): string {
@@ -63,4 +61,28 @@ export function ImagemDoSite() {
       </div>
     </div>
   );
+}
+
+/**
+ * Foto do perfil de um negócio ou de um embaixador, como data URI. O ImageResponse
+ * não lê WebP, e uma foto que não carrega derrubaria a imagem inteira: nesses
+ * casos fica o monograma.
+ */
+export async function fotoEmDataUri(url: string | null): Promise<string | null> {
+  if (!ehFotoDoSite(url)) return null;
+  const tipo = /\.png$/i.test(url) ? "image/png" : /\.jpe?g$/i.test(url) ? "image/jpeg" : null;
+  if (!tipo) return null;
+  try {
+    let dados: Buffer;
+    if (url.startsWith("/enviados/")) {
+      dados = await readFile(join(process.cwd(), "public", url));
+    } else {
+      const resposta = await fetch(url);
+      if (!resposta.ok) return null;
+      dados = Buffer.from(await resposta.arrayBuffer());
+    }
+    return `data:${tipo};base64,${dados.toString("base64")}`;
+  } catch {
+    return null;
+  }
 }

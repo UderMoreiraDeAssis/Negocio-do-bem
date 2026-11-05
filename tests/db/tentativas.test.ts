@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   JANELA_MS,
   LIMITE_POR_EMAIL,
@@ -19,6 +19,10 @@ async function vencerJanelas() {
 }
 
 beforeEach(limparBanco);
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+});
 afterAll(async () => {
   await limparBanco();
   await db.$disconnect();
@@ -46,11 +50,24 @@ describe("limite por IP", () => {
     expect(await db.tentativaAcesso.findFirst()).toMatchObject({ contagem: LIMITE_POR_IP + 5 });
   });
 
-  it("sem IP conhecido, todos dividem um contador só", async () => {
-    for (let i = 0; i < LIMITE_POR_IP; i++) expect(await tentativaDoIpLiberada(null)).toBe(true);
+  it("sem IP conhecido fora de produção, não há limite por IP e nada é guardado", async () => {
+    const erro = vi.spyOn(console, "error").mockImplementation(() => {});
+    for (let i = 0; i < LIMITE_POR_IP + 5; i++) expect(await tentativaDoIpLiberada(null)).toBe(true);
+    expect(await db.tentativaAcesso.count()).toBe(0);
+    expect(erro).not.toHaveBeenCalled();
+  });
+
+  it("sem IP conhecido em produção, recusa, avisa quem cuida do site e não guarda nada", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const erro = vi.spyOn(console, "error").mockImplementation(() => {});
     expect(await tentativaDoIpLiberada(null)).toBe(false);
     expect(await tentativaDoIpLiberada("200.0.0.1")).toBe(true);
-    expect(await db.tentativaAcesso.count()).toBe(2);
+    expect(erro).toHaveBeenCalledTimes(1);
+    expect(erro.mock.calls[0]![0]).toContain("AUTENTICACAO_PROXY_CONFIAVEL");
+    expect(erro.mock.calls[0]![0]).toContain("CLOUDFLARE_DEPLOY=1");
+    expect(erro.mock.calls[0]![0]).toContain("cf-connecting-ip");
+    expect(erro.mock.calls[0]![0]).toContain("README");
+    expect(await db.tentativaAcesso.count()).toBe(1);
   });
 
   it("guarda o hash do IP, e não o IP", async () => {

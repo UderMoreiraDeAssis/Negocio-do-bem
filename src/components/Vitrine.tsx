@@ -5,15 +5,21 @@ import { JsonLd } from "@/components/JsonLd";
 import type { Migalha } from "@/lib/seo";
 
 /**
- * Página fixa de uma cidade, causa ou tipo de negócio (src/app/cidades, causas e
- * tipos): título, introdução, os primeiros negócios e links para continuar no
- * diretório. Os filtros ficam no /explorar; aqui é a porta de entrada da busca.
+ * Página fixa de uma cidade, causa, tipo de negócio ou embaixador (src/app/cidades,
+ * causas, tipos e embaixadores): título, introdução, os primeiros negócios e links
+ * para continuar no diretório. Os filtros ficam no /explorar; aqui é a porta de
+ * entrada da busca. A `capa` (a foto da cidade, o perfil do embaixador) fica ao lado
+ * do título na tela larga e em cima dele no celular. O `destaque` (os embaixadores
+ * da cidade) vem logo abaixo da introdução, e o `tituloDaLista`, acima dos negócios.
  */
 export function Vitrine({
   migalhas,
   rotulo,
   titulo,
   introducao,
+  capa,
+  destaque,
+  tituloDaLista,
   total,
   itens,
   hrefNoDiretorio,
@@ -24,12 +30,24 @@ export function Vitrine({
   rotulo: ReactNode;
   titulo: string;
   introducao: ReactNode;
+  capa?: ReactNode;
+  destaque?: ReactNode;
+  tituloDaLista?: string;
   total: number;
   itens: EmpresaResumo[];
   hrefNoDiretorio: string;
   jsonLd: object;
   children?: ReactNode;
 }) {
+  const cabecalho = (
+    <div>
+      <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">{rotulo}</p>
+      <h1 className="mt-2 font-serif text-4xl leading-tight font-semibold tracking-tight text-balance sm:text-5xl">{titulo}</h1>
+      <div className="mt-4 max-w-2xl text-lg leading-relaxed text-pretty text-suave">{introducao}</div>
+      {destaque && <div className="mt-6 max-w-2xl">{destaque}</div>}
+    </div>
+  );
+
   return (
     <div className="mx-auto max-w-6xl px-4 pt-7 sm:px-6">
       <JsonLd dados={jsonLd} />
@@ -51,11 +69,17 @@ export function Vitrine({
         )}
       </nav>
 
-      <p className="mt-6 text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">{rotulo}</p>
-      <h1 className="mt-2 font-serif text-4xl leading-tight font-semibold tracking-tight text-balance sm:text-5xl">{titulo}</h1>
-      <div className="mt-4 max-w-2xl text-lg leading-relaxed text-pretty text-suave">{introducao}</div>
+      {capa ? (
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_30rem] lg:items-center lg:gap-12">
+          <div className="lg:order-2">{capa}</div>
+          {cabecalho}
+        </div>
+      ) : (
+        <div className="mt-6">{cabecalho}</div>
+      )}
 
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-b border-linha pb-3.5">
+      {tituloDaLista && <h2 className="mt-12 font-serif text-3xl font-semibold tracking-tight text-balance">{tituloDaLista}</h2>}
+      <div className={`${tituloDaLista ? "mt-3" : "mt-8"} flex flex-wrap items-center justify-between gap-3 border-b border-linha pb-3.5`}>
         <p className="text-suave">
           <strong className="font-serif text-2xl font-semibold text-tinta">{total.toLocaleString("pt-BR")}</strong>{" "}
           {total === 1 ? "negócio no diretório" : "negócios no diretório"}
@@ -77,7 +101,7 @@ export function Vitrine({
         <div className="cartao mt-5 px-6 py-14 text-center">
           <p className="font-serif text-2xl">Ainda não há negócios aqui no diretório.</p>
           <p className="mx-auto mt-2 max-w-md text-suave">Conhece algum? Indique e ajude a comunidade a encontrá-lo.</p>
-          <Link href="/indicar" className="botao-coral mt-6">
+          <Link href="/participar" className="botao-coral mt-6">
             Indicar um negócio
           </Link>
         </div>

@@ -34,10 +34,11 @@ export const campoSite = z
 
 // Só Google Maps e Apple Maps: o botão "Ver no mapa" não pode levar a outro site.
 function ehLinkDeMapa(url: URL): boolean {
+  if (url.username || url.password || url.port) return false;
   const host = url.hostname.toLowerCase().replace(/^www\./, "");
   if (["maps.app.goo.gl", "maps.apple.com", "maps.apple"].includes(host)) return true;
   if (/^maps\.google\.com(\.br)?$/.test(host)) return true;
-  return (/^google\.com(\.br)?$/.test(host) || host === "goo.gl") && url.pathname.startsWith("/maps");
+  return (/^google\.com(\.br)?$/.test(host) || host === "goo.gl") && (url.pathname === "/maps" || url.pathname.startsWith("/maps/"));
 }
 
 /** Link do mapa opcional: aceita links do Google Maps e do Apple Maps e guarda com https, ou null se vazio. */
@@ -51,7 +52,12 @@ export const campoMapa = z
       const url = new URL(/^https?:\/\//i.test(valor) ? valor : `https://${valor}`);
       if (ehLinkDeMapa(url)) {
         url.protocol = "https:";
-        return url.toString();
+        const normalizada = url.toString();
+        if (normalizada.length > 1000) {
+          ctx.addIssue({ code: "custom", message: "Link muito longo." });
+          return z.NEVER;
+        }
+        return normalizada;
       }
     } catch {
       // cai na mensagem abaixo
@@ -60,6 +66,14 @@ export const campoMapa = z
     return z.NEVER;
   });
 
+/** Número do Brasil com DDD: "(11) 99148-8052" ou "+55 11 99148-8052" vira "5511991488052". Null se não for um. */
+function numeroDoBrasil(valor: string): string | null {
+  let digitos = valor.replace(/\D/g, "").replace(/^0+/, "");
+  if (digitos.length === 10 || digitos.length === 11) digitos = `55${digitos}`;
+  // DDD sem zero, depois celular (9 + 8 dígitos) ou fixo (começa com 2 a 5).
+  return /^55[1-9]{2}(9\d{8}|[2-5]\d{7})$/.test(digitos) ? digitos : null;
+}
+
 /** WhatsApp opcional: aceita "(11) 99148-8052" ou "+55 11 99148-8052" e guarda só os dígitos, com o 55. */
 export const campoWhatsapp = z
   .string()
@@ -67,11 +81,29 @@ export const campoWhatsapp = z
   .max(30)
   .transform((valor, ctx) => {
     if (!valor) return null;
-    let digitos = valor.replace(/\D/g, "").replace(/^0+/, "");
-    if (digitos.length === 10 || digitos.length === 11) digitos = `55${digitos}`;
-    // DDD sem zero, depois celular (9 + 8 dígitos) ou fixo (começa com 2 a 5).
-    if (!/^55[1-9]{2}(9\d{8}|[2-5]\d{7})$/.test(digitos)) {
+    const digitos = numeroDoBrasil(valor);
+    if (!digitos) {
       ctx.addIssue({ code: "custom", message: "Digite o número com DDD (ex.: 11 99148-8052)." });
+      return z.NEVER;
+    }
+    return digitos;
+  });
+
+/** Telefone opcional, como o comercial do negócio: a mesma regra do WhatsApp. */
+export const campoTelefoneOpcional = campoWhatsapp;
+
+/** Telefone obrigatório da conta, guardado como o WhatsApp: só os dígitos, com o 55. */
+export const campoTelefone = z
+  .string()
+  .trim()
+  .max(30, "Telefone muito longo.")
+  .transform((valor, ctx) => {
+    const digitos = numeroDoBrasil(valor);
+    if (!digitos) {
+      ctx.addIssue({
+        code: "custom",
+        message: valor ? "Digite o telefone com DDD (ex.: 11 99148-8052)." : "Informe seu telefone com DDD.",
+      });
       return z.NEVER;
     }
     return digitos;

@@ -24,7 +24,7 @@ const NEGOCIO = {
   site: null,
   whatsapp: null,
   emailContato: null,
-  mapaUrl: null,
+  telefoneComercial: null,
 };
 
 describe("endereço do site", () => {
@@ -48,6 +48,22 @@ describe("metadadosDaPagina", () => {
     expect(m.alternates).toEqual({ canonical: "/explorar" });
     expect(m.openGraph).toMatchObject({ siteName: "Negócio do Bem", locale: "pt_BR", title: "Explorar negócios", url: "/explorar" });
   });
+
+  it("leva a imagem geral do site, que se perderia junto com o openGraph do layout", () => {
+    const m = metadadosDaPagina({ titulo: "Sobre", descricao: "Como funciona.", caminho: "/sobre" });
+    expect(m.openGraph?.images).toEqual([expect.objectContaining({ url: "/opengraph-image", width: 1200, height: 630 })]);
+  });
+
+  it("deixa a imagem para o opengraph-image.tsx da página que tem o seu", () => {
+    const m = metadadosDaPagina({ titulo: "Salvador", descricao: "Negócios.", caminho: "/cidades/salvador-ba", imagemPropria: true });
+    expect(m.openGraph).not.toHaveProperty("images");
+  });
+
+  it("usa a prévia pronta em JPEG no lugar da imagem do arquivo", () => {
+    const previa = { url: "/fotos/cidades/salvador-ba-previa-0cf27790.jpg", alt: "Farol da Barra" };
+    const m = metadadosDaPagina({ titulo: "Salvador", descricao: "Negócios.", caminho: "/cidades/salvador-ba", imagemPropria: true, previa });
+    expect(m.openGraph?.images).toEqual([{ ...previa, width: 1200, height: 630, type: "image/jpeg" }]);
+  });
 });
 
 describe("jsonLdDoNegocio", () => {
@@ -58,24 +74,33 @@ describe("jsonLdDoNegocio", () => {
     expect(vazia).not.toHaveProperty("telephone");
     expect(vazia).not.toHaveProperty("email");
     expect(vazia).not.toHaveProperty("image");
-    expect(vazia).not.toHaveProperty("hasMap");
     expect(vazia.sameAs).toEqual(["https://www.instagram.com/padaria.florescer/"]);
     expect(vazia.keywords).toBe("Café e padaria, Liderado por mulheres");
 
-    const completa = ficha({
-      whatsapp: "5581999990000",
-      emailContato: "oi@padaria.exemplo",
-      site: "https://padaria.exemplo",
-      mapaUrl: "https://maps.app.goo.gl/exemplo",
-    });
-    expect(completa).toMatchObject({ telephone: "+5581999990000", email: "oi@padaria.exemplo", hasMap: "https://maps.app.goo.gl/exemplo" });
+    const completa = ficha({ whatsapp: "5581999990000", emailContato: "oi@padaria.exemplo", site: "https://padaria.exemplo" });
+    expect(completa).toMatchObject({ telephone: "+5581999990000", email: "oi@padaria.exemplo" });
     expect(completa.sameAs).toContain("https://padaria.exemplo");
   });
 
+  it("prefere o telefone comercial ao WhatsApp", () => {
+    expect(ficha({ whatsapp: "5581999990000", telefoneComercial: "558133334444" }).telephone).toBe("+558133334444");
+  });
+
+  it("inclui o mapa somente quando preenchido", () => {
+    expect(ficha({})).not.toHaveProperty("hasMap");
+    expect(ficha({ mapaUrl: "https://maps.app.goo.gl/exemplo" }).hasMap).toBe("https://maps.app.goo.gl/exemplo");
+  });
+
+  it("negócio sem Instagram não aponta para o Instagram", () => {
+    expect(ficha({ instagramUsername: "padaria-florescer-recife" }).sameAs).toEqual([]);
+    expect(ficha({ instagramUsername: "padaria-florescer-recife", site: "https://padaria.exemplo" }).sameAs).toEqual([
+      "https://padaria.exemplo",
+    ]);
+  });
+
   it("só usa fotos guardadas pelo site", () => {
-    expect(ficha({ fotoUrl: "https://abc.public.blob.vercel-storage.com/perfis/x.jpg" }).image).toBe(
-      "https://abc.public.blob.vercel-storage.com/perfis/x.jpg",
-    );
+    vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_URL", "https://fotos.exemplo.com");
+    expect(ficha({ fotoUrl: "https://fotos.exemplo.com/perfis/x.jpg" }).image).toBe("https://fotos.exemplo.com/perfis/x.jpg");
     expect(ficha({ fotoUrl: "https://outro-site.exemplo/foto.jpg" })).not.toHaveProperty("image");
   });
 

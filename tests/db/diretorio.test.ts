@@ -139,7 +139,7 @@ describe("buscarDiretorio", () => {
     expect((await buscarDiretorio(filtros({ causas: ["sustentavel", "liderado-por-mulheres"] }))).total).toBe(1);
     const verificados = await buscarDiretorio(filtros({ verificados: true, tipos: ["Café e padaria"] }));
     expect(verificados.total).toBe(1);
-    // O número ao lado de "Só verificados" ignora esse próprio filtro.
+    // O número ao lado de "Só perfis assumidos" ignora esse próprio filtro.
     expect(verificados.verificados).toBe(1);
     expect((await buscarDiretorio(filtros({ q: "atelie" }))).itens.map((e) => e.instagramUsername)).toEqual(["atelie.raiz"]);
   });

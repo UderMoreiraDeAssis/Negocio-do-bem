@@ -15,10 +15,6 @@ export const AVISOS: Record<string, { tipo: TipoAviso; texto: string }> = {
     tipo: "info",
     texto: "Recebemos sua solicitação. A moderação vai analisar e o resultado aparece no seu painel.",
   },
-  codigo_gerado: {
-    tipo: "info",
-    texto: "Seu código está pronto. Agora é só mandar a DM seguindo os passos abaixo.",
-  },
   documento_enviado: {
     tipo: "info",
     texto: "Recebemos seus dados. Como este perfil já tem dono, a moderação decide e pode falar com você pelo contato informado.",
@@ -34,8 +30,30 @@ export const AVISOS: Record<string, { tipo: TipoAviso; texto: string }> = {
   },
   ig_indisponivel: {
     tipo: "erro",
-    texto: "O login com Instagram ainda não está disponível. Use o código por DM.",
+    texto: "O login com Instagram ainda não está disponível. Envie os dados do negócio.",
   },
+  google_cancelado: { tipo: "erro", texto: "O login com o Google foi cancelado." },
+  google_erro: {
+    tipo: "erro",
+    texto: "Não conseguimos entrar com o Google agora. Tente de novo ou entre com e-mail e senha.",
+  },
+  google_indisponivel: {
+    tipo: "erro",
+    texto: "O login com o Google ainda não está disponível. Entre com e-mail e senha.",
+  },
+  google_email_nao_verificado: {
+    tipo: "erro",
+    texto: "O Google ainda não confirmou o e-mail dessa conta. Confirme o e-mail no Google ou entre com e-mail e senha.",
+  },
+  google_outra_conta: {
+    tipo: "erro",
+    texto: "Este e-mail já está ligado a outra conta do Google. Entre com ela, com a senha ou com um link por e-mail.",
+  },
+  redefinicao_pedida: {
+    tipo: "info",
+    texto: "Se existe uma conta com esse e-mail, mandamos um link para criar uma senha nova. Ele vale por 1 hora.",
+  },
+  senha_trocada: { tipo: "sucesso", texto: "Senha trocada. Os outros aparelhos saíram da sua conta." },
   limite: {
     tipo: "erro",
     texto: "Você fez muitas solicitações nas últimas 24 horas. Tente de novo amanhã.",
@@ -55,6 +73,18 @@ export const AVISOS: Record<string, { tipo: TipoAviso; texto: string }> = {
   feito: { tipo: "sucesso", texto: "Feito." },
   ja_processada: { tipo: "erro", texto: "Esta solicitação já tinha sido decidida por outra pessoa da moderação." },
   cancelada: { tipo: "info", texto: "Solicitação cancelada." },
+  embaixador_salvo: { tipo: "sucesso", texto: "Embaixador salvo." },
+  embaixador_salvo_sem_instagram: {
+    tipo: "info",
+    texto:
+      "Embaixador salvo, mas o Instagram não mostrou esta conta. Confira o @. Se a conta for pessoal ou privada, marque os seguidores à mão.",
+  },
+  embaixador_atualizado: { tipo: "sucesso", texto: "Seguidores atualizados pelo Instagram." },
+  embaixador_sem_instagram: {
+    tipo: "erro",
+    texto: "O Instagram não mostrou esta conta agora. Ela pode ser pessoal ou privada, ou o @ mudou.",
+  },
+  embaixador_excluido: { tipo: "info", texto: "Embaixador excluído." },
 };
 
 export function avisoDe(codigo: unknown) {

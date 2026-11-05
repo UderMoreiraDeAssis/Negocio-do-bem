@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { gerarHashSenha, verificarSenha } from "@/lib/auth/senha";
 import { filtrarCausas } from "@/lib/causas";
 import { cnpjValido, formatarCnpj } from "@/lib/cnpj";
-import { campoEmail, campoMapa, campoSite, campoWhatsapp } from "@/lib/formulario";
-import { formatarWhatsapp, iniciais, normalizarTexto, tempoDeLeitura } from "@/lib/texto";
+import { campoEmail, campoMapa, campoSite, campoTelefone, campoWhatsapp } from "@/lib/formulario";
+import { formatarTelefone, iniciais, normalizarTexto, tempoDeLeitura } from "@/lib/texto";
 
 describe("cnpjValido", () => {
   it("aceita CNPJ numérico válido, com ou sem pontuação", () => {
@@ -92,8 +92,26 @@ describe("campoWhatsapp", () => {
   });
 
   it("formata para exibir", () => {
-    expect(formatarWhatsapp("5511991488052")).toBe("(11) 99148-8052");
-    expect(formatarWhatsapp("552134567890")).toBe("(21) 3456-7890");
+    expect(formatarTelefone("5511991488052")).toBe("(11) 99148-8052");
+    expect(formatarTelefone("552134567890")).toBe("(21) 3456-7890");
+  });
+});
+
+describe("campoTelefone", () => {
+  it("guarda como o WhatsApp: só os dígitos, com o 55 do Brasil", () => {
+    expect(campoTelefone.parse("(11) 99148-8052")).toBe("5511991488052");
+    expect(campoTelefone.parse(" +55 11 99148-8052 ")).toBe("5511991488052");
+    expect(campoTelefone.parse("(21) 3456-7890")).toBe("552134567890");
+  });
+
+  it("é obrigatório", () => {
+    const resultado = campoTelefone.safeParse("");
+    expect(resultado.success).toBe(false);
+    expect(resultado.error?.issues[0]?.message).toBe("Informe seu telefone com DDD.");
+  });
+
+  it.each(["99148-8052", "+1 415 555 0100", "(11) 1234-5678", "(01) 99148-8052", "1".repeat(31)])("recusa %j", (valor) => {
+    expect(campoTelefone.safeParse(valor).success).toBe(false);
   });
 });
 
@@ -108,7 +126,43 @@ describe("campoEmail", () => {
   });
 });
 
+describe("tempoDeLeitura", () => {
+  it("conta as palavras a 200 por minuto, sem a marcação do Markdown", () => {
+    const paragrafo = "palavra ".repeat(100);
+    expect(tempoDeLeitura(`## Título\n\n${paragrafo}\n\n**${paragrafo}**`)).toBe(1);
+    expect(tempoDeLeitura(paragrafo.repeat(7))).toBe(4);
+  });
+
+  it("não conta o endereço das fotos e dos links", () => {
+    const foto = "![legenda](https://fotos.exemplo.com/historias/x.jpg)";
+    expect(tempoDeLeitura(`${foto}\n\n[site](https://exemplo.com)`)).toBe(1);
+  });
+
+  it("nunca dá zero", () => {
+    expect(tempoDeLeitura("")).toBe(1);
+  });
+});
+
 describe("campoMapa", () => {
+  it("limita também a URL normalizada e permite editar de novo a URL aceita", () => {
+    expect(campoMapa.safeParse(`maps.google.com/?q=${"a".repeat(975)}`).success).toBe(false);
+    const prefixo = "https://maps.google.com/?q=";
+    const noLimite = `${prefixo}${"a".repeat(1000 - prefixo.length)}`;
+    expect(noLimite).toHaveLength(1000);
+    expect(campoMapa.parse(noLimite)).toBe(noLimite);
+    expect(campoMapa.parse(campoMapa.parse("maps.google.com/?q=padaria"))).toBe("https://maps.google.com/?q=padaria");
+  });
+
+  it.each(["google.com", "www.google.com.br", "goo.gl"])("aceita somente o segmento maps em %s", (host) => {
+    expect(campoMapa.safeParse(`https://${host}/mapsfoo`).success).toBe(false);
+    expect(campoMapa.safeParse(`https://${host}/maps?q=padaria`).success).toBe(true);
+    expect(campoMapa.safeParse(`https://${host}/maps/place/padaria`).success).toBe(true);
+  });
+
+  it("recusa credenciais e portas não padrão", () => {
+    expect(campoMapa.safeParse("https://usuario:senha@maps.google.com/maps").success).toBe(false);
+    expect(campoMapa.safeParse("https://maps.google.com:8080/maps").success).toBe(false);
+  });
   it("aceita vazio e links do Google Maps e do Apple Maps, sempre com https", () => {
     expect(campoMapa.parse("")).toBeNull();
     expect(campoMapa.parse(" https://maps.app.goo.gl/AbC123 ")).toBe("https://maps.app.goo.gl/AbC123");
@@ -130,22 +184,5 @@ describe("campoMapa", () => {
     expect(campoMapa.safeParse("https://meusite.com.br/maps").success).toBe(false);
     expect(campoMapa.safeParse("javascript:alert(1)").success).toBe(false);
     expect(campoMapa.safeParse("Rua das Flores, 10").success).toBe(false);
-  });
-});
-
-describe("tempoDeLeitura", () => {
-  it("conta as palavras a 200 por minuto, sem a marcação do Markdown", () => {
-    const paragrafo = "palavra ".repeat(100);
-    expect(tempoDeLeitura(`## Título\n\n${paragrafo}\n\n**${paragrafo}**`)).toBe(1);
-    expect(tempoDeLeitura(paragrafo.repeat(7))).toBe(4);
-  });
-
-  it("não conta o endereço das fotos e dos links", () => {
-    const foto = "![legenda](https://abc.public.blob.vercel-storage.com/historias/x.jpg)";
-    expect(tempoDeLeitura(`${foto}\n\n[site](https://exemplo.com)`)).toBe(1);
-  });
-
-  it("nunca dá zero", () => {
-    expect(tempoDeLeitura("")).toBe(1);
   });
 });

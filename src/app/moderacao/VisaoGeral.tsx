@@ -58,7 +58,7 @@ export async function VisaoGeral() {
             <Numero valor={negocios.noDiretorio} rotulo={`negócios no diretório, de ${contar(negocios.total, "cadastrado", "cadastrados")}`} href={negociosEm("diretorio")} />
             <Detalhes
               itens={[
-                { rotulo: "Verificados pelo dono", valor: negocios.verificados, href: negociosEm("verificados") },
+                { rotulo: "Perfis assumidos", valor: negocios.verificados, href: negociosEm("verificados") },
                 { rotulo: "Sem dono", valor: negocios.semDono, href: negociosEm("sem-dono") },
                 { rotulo: "Tirados do ar", valor: negocios.foraDoAr, href: negociosEm("fora-do-ar") },
                 { rotulo: "Ocultos pelo dono", valor: negocios.ocultos, href: negociosEm("ocultos") },

@@ -131,3 +131,22 @@ export async function avisarNovoDepoimento(depoimentoId: string): Promise<void> 
     });
   }
 }
+
+/**
+ * Para a dona da conta: a senha foi trocada, pelo painel ou pelo link de "Esqueci minha senha".
+ * Quem recebe e não foi quem trocou percebe a invasão.
+ */
+export async function avisarSenhaTrocada(conta: { nome: string; email: string }, como: "painel" | "link"): Promise<void> {
+  if (!envioLigado()) return;
+  await enviarEmail({
+    para: conta.email,
+    assunto: `A senha da sua conta no ${NOME_DO_SITE} foi trocada`,
+    texto: corpo(
+      `Olá, ${primeiroNome(conta.nome)}!`,
+      como === "painel"
+        ? "A senha da sua conta acabou de ser trocada no painel, e os outros aparelhos saíram da conta."
+        : "A senha da sua conta acabou de ser trocada pelo link de “Esqueci minha senha”, e os outros aparelhos saíram da conta.",
+      `Não foi você? Peça um link para criar uma senha nova e confira se só você tem acesso a este e-mail:\n${ENDERECO_DO_SITE}/esqueci-a-senha`,
+    ),
+  });
+}
