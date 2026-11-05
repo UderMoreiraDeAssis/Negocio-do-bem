@@ -13,7 +13,7 @@ export const POR_PAGINA = 18;
 export const NO_DIRETORIO = { moderacao: "aprovada", oculta: false } satisfies Prisma.EmpresaWhereInput;
 
 const ORDENACAO: Record<Ordem, Prisma.EmpresaOrderByWithRelationInput[]> = {
-  // Verificados primeiro, depois os atualizados mais recentemente.
+  // Perfis assumidos primeiro, depois os atualizados mais recentemente.
   verificados: [{ status: "desc" }, { atualizadoEm: "desc" }],
   recentes: [{ criadoEm: "desc" }],
   az: [{ nome: "asc" }],
@@ -213,6 +213,25 @@ export async function listarParaSitemap() {
     },
     orderBy: { atualizadoEm: "desc" },
   });
+}
+
+/**
+ * Outros negócios do diretório na mesma cidade, para o fim do perfil. Os do mesmo
+ * tipo vêm primeiro; dentro de cada grupo, a ordem do diretório (assumidos primeiro).
+ */
+export async function negociosParecidos(empresa: { id: string; cidade: string; uf: string; categoria: string }, limite = 4) {
+  const candidatos = await db.empresa.findMany({
+    where: { ...NO_DIRETORIO, cidade: empresa.cidade, uf: empresa.uf, id: { not: empresa.id } },
+    orderBy: ORDENACAO.verificados,
+    take: 24,
+    include: {
+      causas: { select: { causa: true } },
+      _count: { select: { depoimentos: { where: { status: "publicado" } } } },
+    },
+  });
+  const mesmoTipo = candidatos.filter((c) => c.categoria === empresa.categoria);
+  const outros = candidatos.filter((c) => c.categoria !== empresa.categoria);
+  return [...mesmoTipo, ...outros].slice(0, limite);
 }
 
 export async function buscarPerfil(username: string) {

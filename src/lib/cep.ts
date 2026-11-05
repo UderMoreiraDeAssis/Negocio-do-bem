@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
+import { UFS } from "@/lib/dominio";
 import { limparCep } from "@/lib/endereco";
 import { nomeOficial } from "@/lib/municipios";
 import { REGIOES_DF } from "@/lib/regioes-df";
@@ -47,7 +48,7 @@ export type EnderecoDoCep = {
   cidade: string | null;
   bairro: string | null;
   logradouro: string | null;
-  /** Só no DF, quando o bairro traz uma região da lista do GDF entre parênteses. */
+  /** Só no DF, quando o bairro inteiro ou seu trecho entre parênteses corresponde à lista do GDF. */
   regiaoAdministrativa: string | null;
 };
 
@@ -66,9 +67,9 @@ type RespostaDoProvedor =
 
 type DadosPostais = { uf: string; cidade: string | null; bairro: string | null; logradouro: string | null };
 
-/** A consulta só funciona com CEP_CONSULTA=viacep. Sem isso, o endereço é preenchido à mão. */
+/** A consulta exige provedor e autorização de armazenamento configurados; senão, o endereço é manual. */
 export function consultaDeCepLigada(): boolean {
-  return process.env.CEP_CONSULTA === PROVEDOR;
+  return process.env.CEP_CONSULTA === PROVEDOR && process.env.CEP_ARMAZENAMENTO_AUTORIZADO === "1";
 }
 
 function texto(valor: unknown, maximo: number): string | null {
@@ -84,8 +85,8 @@ export function interpretarViaCep(cep: string, corpo: unknown): RespostaDoProved
   if (!corpo || typeof corpo !== "object") return { tipo: "falha" };
   const dados = corpo as Record<string, unknown>;
   if (dados.erro === true || dados.erro === "true") return { tipo: "inexistente" };
-  const uf = texto(dados.uf, 2);
-  if (limparCep(String(dados.cep ?? "")) !== cep || !uf || !/^[A-Z]{2}$/.test(uf)) return { tipo: "falha" };
+  const uf = typeof dados.uf === "string" ? dados.uf : "";
+  if (limparCep(String(dados.cep ?? "")) !== cep || !(UFS as readonly string[]).includes(uf)) return { tipo: "falha" };
   return {
     tipo: "encontrado",
     dados: { uf, cidade: texto(dados.localidade, 120), bairro: texto(dados.bairro, 100), logradouro: texto(dados.logradouro, 200) },
@@ -183,7 +184,7 @@ async function registrarFalha(esperarMs?: number): Promise<void> {
 }
 
 async function registrarSucesso(): Promise<void> {
-  await db.pausaProvedorCep.deleteMany({ where: { provedor: PROVEDOR } });
+  await db.pausaProvedorCep.deleteMany({ where: { provedor: PROVEDOR, pausadoAte: { lte: new Date() } } });
 }
 
 /** Uma chamada, sem repetição: repetir só aumentaria a carga num serviço com problema. */
@@ -205,18 +206,6 @@ async function chamarViaCep(cep: string): Promise<RespostaDoProvedor> {
   }
 }
 
-// Consultas iguais ao mesmo tempo na mesma instância esperam a mesma chamada.
-const emAndamento = new Map<string, Promise<RespostaDoProvedor>>();
-
-function consultarProvedor(cep: string): Promise<RespostaDoProvedor> {
-  let consulta = emAndamento.get(cep);
-  if (!consulta) {
-    consulta = chamarViaCep(cep).finally(() => emAndamento.delete(cep));
-    emAndamento.set(cep, consulta);
-  }
-  return consulta;
-}
-
 type Copia = Awaited<ReturnType<typeof db.cepConsultado.findUnique>>;
 
 function enderecoDaCopia(copia: NonNullable<Copia>): EnderecoDoCep {
@@ -231,33 +220,34 @@ function usarCopiaVencida(copia: Copia): ResultadoCep {
   return { situacao: "indisponivel" };
 }
 
-/**
- * Consulta um CEP para ajudar a preencher o endereço. `origem` é o IP já conferido
- * (ver ipDoCabecalho), ou null quando não há como saber.
- */
-export async function consultarCep(valor: string, origem: string | null): Promise<ResultadoCep> {
-  const cep = limparCep(valor);
-  if (!cep) return { situacao: "invalido" };
-  if (!consultaDeCepLigada()) return { situacao: "desligada" };
-  if (!(await origemLiberada(origem))) return { situacao: "limite" };
+/** Remove no máximo 100 cópias fora da retenção, sem tocar em endereços de negócios. */
+export async function limparCopiasVencidas(): Promise<number> {
+  return db.$executeRaw`
+    DELETE FROM "CepConsultado" WHERE "cep" IN (
+      SELECT "cep" FROM "CepConsultado"
+      WHERE ("situacao" = 'encontrado' AND "consultadoEm" < ${new Date(Date.now() - IDADE_MAXIMA_MS)})
+         OR ("situacao" = 'inexistente' AND "consultadoEm" < ${new Date(Date.now() - INEXISTENTE_VALE_MS)})
+      ORDER BY "consultadoEm" LIMIT 100
+    )`;
+}
 
-  const copia = await db.cepConsultado.findUnique({ where: { cep } });
-  if (copia) {
-    const idade = Date.now() - copia.consultadoEm.getTime();
-    if (copia.situacao === "encontrado" && idade <= REVALIDAR_APOS_MS) {
-      return { situacao: "encontrado", endereco: enderecoDaCopia(copia), aConfirmar: false };
-    }
-    if (copia.situacao === "inexistente" && idade <= INEXISTENTE_VALE_MS) return { situacao: "inexistente" };
+function resultadoAtual(copia: Copia): ResultadoCep | null {
+  if (!copia) return null;
+  const idade = Date.now() - copia.consultadoEm.getTime();
+  if (copia.situacao === "encontrado" && idade <= REVALIDAR_APOS_MS) {
+    return { situacao: "encontrado", endereco: enderecoDaCopia(copia), aConfirmar: false };
   }
+  return copia.situacao === "inexistente" && idade <= INEXISTENTE_VALE_MS ? { situacao: "inexistente" } : null;
+}
 
+async function atualizarCopia(cep: string, copia: Copia): Promise<ResultadoCep> {
   if ((await provedorPausado()) || !(await cotaGeralLiberada())) return usarCopiaVencida(copia);
-
-  const resposta = await consultarProvedor(cep);
+  // A cota fica confirmada antes da chamada, mesmo se a gravação da resposta falhar.
+  const resposta = await chamarViaCep(cep);
   if (resposta.tipo === "falha") {
     await registrarFalha(resposta.esperarMs);
     return usarCopiaVencida(copia);
   }
-
   await registrarSucesso();
   const consultadoEm = new Date();
   if (resposta.tipo === "inexistente") {
@@ -268,4 +258,38 @@ export async function consultarCep(valor: string, origem: string | null): Promis
   const dados = { situacao: "encontrado", ...resposta.dados, fonte: PROVEDOR, consultadoEm };
   await db.cepConsultado.upsert({ where: { cep }, create: { cep, ...dados }, update: dados });
   return { situacao: "encontrado", endereco: montarEndereco(cep, resposta.dados), aConfirmar: false };
+}
+
+/** Consulta opcional; falha do armazenamento mantém o formulário manual disponível. */
+export async function consultarCep(valor: string, origem: string | null): Promise<ResultadoCep> {
+  const cep = limparCep(valor);
+  if (!cep) return { situacao: "invalido" };
+  if (!consultaDeCepLigada()) return { situacao: "desligada" };
+  let copia: Copia = null;
+  try {
+    if (!(await origemLiberada(origem))) return { situacao: "limite" };
+    await limparCopiasVencidas();
+    const ate = Date.now() + TEMPO_LIMITE_MS + 1000;
+    do {
+      copia = await db.cepConsultado.findUnique({ where: { cep } });
+      const atual = resultadoAtual(copia);
+      if (atual) return atual;
+      const resultado = await db.$transaction(async (tx) => {
+        // Uma chamada ao provedor por vez, compartilhada entre processos. A tentativa
+        // sem espera libera a conexão; quem aguardou relê a cópia antes de consultar.
+        const [trava] = await tx.$queryRaw<{ livre: boolean }[]>`
+          SELECT pg_try_advisory_xact_lock(hashtextextended('consulta-cep:viacep', 0)) AS livre`;
+        if (!trava!.livre) return null;
+        const recente = await db.cepConsultado.findUnique({ where: { cep } });
+        return resultadoAtual(recente) ?? atualizarCopia(cep, recente);
+      }, { maxWait: 1000, timeout: TEMPO_LIMITE_MS + 3000 });
+      if (resultado) return resultado;
+      await new Promise((resolver) => setTimeout(resolver, 100 + Math.random() * 100));
+    } while (Date.now() < ate);
+    return usarCopiaVencida(copia);
+  } catch {
+    // Não inclui CEP, IP, formulário, credenciais ou mensagens do banco no log.
+    console.error("Consulta de CEP indisponível: falha no armazenamento ou na coordenação.");
+    return usarCopiaVencida(copia);
+  }
 }

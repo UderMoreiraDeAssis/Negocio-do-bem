@@ -29,6 +29,8 @@ describe("resposta do ViaCEP", () => {
     expect(interpretarViaCep("72210000", "<html>")).toEqual({ tipo: "falha" });
     expect(interpretarViaCep("72210000", { ...encontrado, cep: "01001-000" })).toEqual({ tipo: "falha" });
     expect(interpretarViaCep("72210000", { ...encontrado, uf: "Distrito Federal" })).toEqual({ tipo: "falha" });
+    expect(interpretarViaCep("72210000", { ...encontrado, uf: "DF-extra" })).toEqual({ tipo: "falha" });
+    expect(interpretarViaCep("72210000", { ...encontrado, uf: "ZZ" })).toEqual({ tipo: "falha" });
   });
 
   it("lê os dados postais", () => {

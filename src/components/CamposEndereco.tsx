@@ -85,6 +85,7 @@ export function CamposEndereco({
     const campoMunicipio = formulario.elements.namedItem("municipio");
     const cidadeAtual = campoMunicipio instanceof HTMLInputElement ? campoMunicipio.value.trim() : "";
     const cidadeDoCep = endereco.cidade ? formatarMunicipio(endereco.cidade, endereco.uf) : null;
+    if (!cidadeDoCep) return "A consulta não identificou um município da nossa lista. Confira o CEP e preencha o endereço à mão; nada foi alterado.";
     // Bairro e logradouro de outra cidade deixariam o endereço misturado.
     if (cidadeDoCep && cidadeAtual && normalizarTexto(cidadeAtual) !== normalizarTexto(cidadeDoCep)) {
       return `O CEP é de ${cidadeDoCep}, mas a cidade informada é outra. Nada foi preenchido: confira o CEP ou a cidade.`;

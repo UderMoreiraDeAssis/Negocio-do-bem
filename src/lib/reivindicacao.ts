@@ -1,14 +1,14 @@
 // Regras para o dono reivindicar o perfil do seu negócio.
 //
-// Há três caminhos (ver README):
+// Há dois caminhos (ver README):
 //   - "documento": o caminho principal. A pessoa envia os dados do negócio (CNPJ,
 //     site, contato). Se o negócio ainda não tem dono, ela vira dona na hora; se já
 //     tem (disputa) ou foi tirado do ar, a moderação decide.
 //   - "instagram_login": login na conta profissional; aprovação instantânea.
 //     Desligado enquanto as variáveis do app da Meta estiverem vazias.
-//   - "codigo_dm": o dono manda um código por DM, a partir do @ do negócio, para o
-//     perfil oficial. A moderação confere (ou o webhook confere sozinho).
-//     Desligado enquanto INSTAGRAM_PERFIL_OFICIAL estiver vazio.
+//
+// Pedidos antigos podem ter o método "codigo_dm" (código mandado por DM), que não
+// é mais oferecido. Eles continuam no banco e a moderação ainda pode decidi-los.
 //
 // A aprovação automática só acontece quando não há nenhum conflito. Qualquer
 // situação estranha (negócio que já tem dono, @ que mudou de conta, mesma conta
@@ -16,11 +16,9 @@
 // moderação decidir.
 
 import { registrarAuditoria } from "@/lib/auditoria";
-import { gerarCodigo, extrairCodigo } from "@/lib/codigo";
 import { db, type Prisma } from "@/lib/db";
 import { formatarDataHora } from "@/lib/texto";
 
-export const VALIDADE_CODIGO_HORAS = 48;
 const VALIDADE_ANALISE_DIAS = 30;
 const LIMITE_SOLICITACOES_POR_DIA = 10;
 
@@ -32,10 +30,6 @@ function daquiA(ms: number): Date {
 }
 const HORA = 60 * 60 * 1000;
 const DIA = 24 * HORA;
-
-function violouUnicidade(erro: unknown): boolean {
-  return typeof erro === "object" && erro !== null && "code" in erro && erro.code === "P2002";
-}
 
 async function exigirQueNaoSejaDono(empresaId: string, usuarioId: string) {
   const membro = await db.empresaMembro.findUnique({
@@ -72,105 +66,6 @@ async function exigirLimiteDiario(tx: Prisma.TransactionClient, usuarioId: strin
   if (recentes >= LIMITE_SOLICITACOES_POR_DIA) {
     throw new ErroReivindicacao("Você fez muitas solicitações nas últimas 24 horas. Tente de novo amanhã.");
   }
-}
-
-// ---------------------------------------------------------------------------
-// Caminho 2: código por DM
-// ---------------------------------------------------------------------------
-
-/** Gera (ou reaproveita, se ainda valer) o código que o dono vai mandar por DM. */
-export async function iniciarPorCodigoDm(empresaId: string, usuarioId: string) {
-  await exigirQueNaoSejaDono(empresaId, usuarioId);
-
-  for (let tentativa = 0; tentativa < 5; tentativa++) {
-    try {
-      // Cota, expiração e criação na mesma transação. Se o código repetir, a
-      // transação inteira volta e a próxima tentativa recomeça do zero.
-      return await db.$transaction(async (tx) => {
-        await bloquearPessoa(tx, usuarioId);
-        const vigente = await tx.reivindicacao.findFirst({
-          where: { empresaId, usuarioId, metodo: "codigo_dm", status: "pendente", expiraEm: { gt: new Date() } },
-        });
-        if (vigente) return vigente;
-
-        await exigirLimiteDiario(tx, usuarioId);
-        await bloquearEmpresa(tx, empresaId);
-        await tx.reivindicacao.updateMany({
-          where: { empresaId, usuarioId, metodo: "codigo_dm", status: "pendente", expiraEm: { lte: new Date() } },
-          data: { status: "expirada" },
-        });
-        return await tx.reivindicacao.create({
-          data: {
-            empresaId,
-            usuarioId,
-            metodo: "codigo_dm",
-            codigo: gerarCodigo(),
-            expiraEm: daquiA(VALIDADE_CODIGO_HORAS * HORA),
-          },
-        });
-      });
-    } catch (erro) {
-      if (!violouUnicidade(erro)) throw erro;
-    }
-  }
-  throw new Error("Não foi possível gerar um código único.");
-}
-
-/**
- * Processa uma DM recebida pelo perfil oficial (webhook).
- * `buscarUsername` descobre o @ de quem enviou a partir do IGSID.
- */
-export async function processarDm(params: {
-  remetenteId: string;
-  texto: string;
-  buscarUsername: (igsid: string) => Promise<string | null>;
-}): Promise<"aprovada" | "em_analise" | "ignorada"> {
-  const codigo = extrairCodigo(params.texto);
-  if (!codigo) return "ignorada";
-
-  const reivindicacao = await db.reivindicacao.findUnique({
-    where: { codigo },
-    include: { empresa: { include: { membros: true } } },
-  });
-  if (!reivindicacao || reivindicacao.metodo !== "codigo_dm" || reivindicacao.status !== "pendente") {
-    return "ignorada";
-  }
-  const { empresa } = reivindicacao;
-
-  if (reivindicacao.expiraEm <= new Date()) {
-    await anotar(reivindicacao.id, "Código recebido por DM depois de expirar.");
-    return "em_analise";
-  }
-
-  const username = await params.buscarUsername(params.remetenteId);
-  if (!username) {
-    await anotar(
-      reivindicacao.id,
-      "Código recebido por DM, mas não deu para confirmar o @ automaticamente. Confira no Instagram.",
-    );
-    return "em_analise";
-  }
-  if (username !== empresa.instagramUsername) {
-    await anotar(reivindicacao.id, `Código recebido por DM de @${username}, que não é o @ deste negócio.`);
-    return "em_analise";
-  }
-
-  const conflitos = await conflitosDeVerificacao({
-    empresa,
-    usuarioId: reivindicacao.usuarioId,
-    instagramIgsid: params.remetenteId,
-  });
-  if (conflitos.length > 0) {
-    await db.reivindicacao.update({
-      where: { id: reivindicacao.id },
-      data: { instagramIgsid: params.remetenteId },
-    });
-    await anotar(reivindicacao.id, `Código recebido por DM de @${username}. ${conflitos.join(" ")}`);
-    return "em_analise";
-  }
-
-  await aprovar({ reivindicacaoId: reivindicacao.id, revisorId: null, instagramIgsid: params.remetenteId });
-  return "aprovada";
 }
 
 // ---------------------------------------------------------------------------
@@ -228,7 +123,7 @@ export async function processarLoginInstagram(params: {
 }
 
 // ---------------------------------------------------------------------------
-// Caminho 3: documento
+// Caminho 2: documento
 // ---------------------------------------------------------------------------
 
 /** Negócio sem dono e no ar: a reivindicação pelos dados do negócio é aprovada sozinha. */
@@ -316,31 +211,21 @@ export async function aprovarPendentesSemDono(revisorId: string): Promise<string
  * "pode aprovar sozinho".
  */
 async function conflitosDeVerificacao(params: {
-  empresa: { id: string; instagramUserId: string | null; instagramIgsid: string | null; membros: { usuarioId: string }[] };
+  empresa: { id: string; instagramUserId: string | null; membros: { usuarioId: string }[] };
   usuarioId: string;
-  instagramUserId?: string;
-  instagramIgsid?: string;
+  instagramUserId: string;
 }): Promise<string[]> {
-  const { empresa, usuarioId, instagramUserId, instagramIgsid } = params;
+  const { empresa, usuarioId, instagramUserId } = params;
   const conflitos: string[] = [];
 
   if (empresa.membros.some((m) => m.usuarioId !== usuarioId)) {
-    conflitos.push("O negócio já tem dono verificado: decida entre adicionar como co-dono ou transferir.");
+    conflitos.push("O negócio já tem dono: decida entre adicionar como co-dono ou transferir.");
   }
-  if (
-    (instagramUserId && empresa.instagramUserId && empresa.instagramUserId !== instagramUserId) ||
-    (instagramIgsid && empresa.instagramIgsid && empresa.instagramIgsid !== instagramIgsid)
-  ) {
+  if (empresa.instagramUserId && empresa.instagramUserId !== instagramUserId) {
     conflitos.push("A conta do Instagram é diferente da registrada antes: o @ pode ter mudado de dono.");
   }
   const outra = await db.empresa.findFirst({
-    where: {
-      id: { not: empresa.id },
-      OR: [
-        ...(instagramUserId ? [{ instagramUserId }] : []),
-        ...(instagramIgsid ? [{ instagramIgsid }] : []),
-      ],
-    },
+    where: { id: { not: empresa.id }, instagramUserId },
     select: { instagramUsername: true },
   });
   if (outra) {
@@ -352,7 +237,7 @@ async function conflitosDeVerificacao(params: {
 export type ModoAprovacao = "adicionar" | "transferir";
 
 /**
- * Aprova a reivindicação: a pessoa vira dona e o negócio fica verificado.
+ * Aprova a reivindicação: a pessoa vira dona e o perfil fica marcado como assumido.
  * `revisorId` null significa aprovação automática.
  * `transferir` remove os donos anteriores (usado em disputas).
  */
@@ -361,7 +246,6 @@ export async function aprovar(params: {
   revisorId: string | null;
   modo?: ModoAprovacao;
   instagramUserId?: string;
-  instagramIgsid?: string;
 }): Promise<void> {
   const { reivindicacaoId, revisorId, modo = "adicionar" } = params;
 
@@ -370,9 +254,9 @@ export async function aprovar(params: {
     if (!reivindicacao || reivindicacao.status !== "pendente") {
       throw new ErroReivindicacao("Esta solicitação não está mais pendente.");
     }
-    const { empresaId, usuarioId } = reivindicacao;
+    // Só pedidos antigos por código de DM trazem o IGSID de quem mandou a DM.
+    const { empresaId, usuarioId, instagramIgsid } = reivindicacao;
     const instagramUserId = params.instagramUserId ?? reivindicacao.instagramUserId;
-    const instagramIgsid = params.instagramIgsid ?? reivindicacao.instagramIgsid;
 
     if (modo === "transferir") {
       await tx.empresaMembro.deleteMany({ where: { empresaId, usuarioId: { not: usuarioId } } });
@@ -414,7 +298,6 @@ export async function aprovar(params: {
         revisadoPorId: revisorId,
         revisadoEm: new Date(),
         instagramUserId,
-        instagramIgsid,
       },
     });
     await tx.reivindicacao.updateMany({
@@ -466,10 +349,4 @@ export async function cancelar(reivindicacaoId: string, usuarioId: string): Prom
 
 function linhaDeNota(texto: string): string {
   return `[${formatarDataHora(new Date())}] ${texto}`;
-}
-
-async function anotar(reivindicacaoId: string, texto: string) {
-  const atual = await db.reivindicacao.findUnique({ where: { id: reivindicacaoId }, select: { notas: true } });
-  const notas = [atual?.notas, linhaDeNota(texto)].filter(Boolean).join("\n");
-  await db.reivindicacao.update({ where: { id: reivindicacaoId }, data: { notas } });
 }

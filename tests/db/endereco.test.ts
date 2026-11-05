@@ -12,6 +12,8 @@ vi.mock("@/lib/auth/sessao", () => ({
   exigirUsuario: async () => sessao.usuario,
   caminhoSeguro: (_valor: unknown, padrao: string) => padrao,
 }));
+vi.mock("next/server", () => ({ after: vi.fn() }));
+vi.mock("@/lib/medicao-servidor", () => ({ medir: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: (destino: string) => { throw new Redirecionou(destino); } }));
 
 const { indicarEmpresa, salvarEmpresa } = await import("@/acoes/empresas");
@@ -46,7 +48,7 @@ async function negocio(username: string, extras: Record<string, string | boolean
 
 describe("endereço nas ações de indicação e edição", () => {
   it("guarda os campos e o CEP com zero inicial, mas uma indicação não autoriza sua publicação", async () => {
-    const dados = formulario({ regiaoAdministrativa: "ceilandia", bairro: "Setor Norte", localidade: "Área comercial", cep: "01001-000", logradouro: "QNN 1, conjunto A", numero: "12B", complemento: "Bloco C, lote 4", enderecoPublico: "sim", souDono: "sim" });
+    const dados = formulario({ regiaoAdministrativa: "ceilandia", bairro: "Setor Norte", localidade: "Área comercial", cep: "01001-000", logradouro: "QNN 1, conjunto A", numero: "12B", complemento: "Bloco C, lote 4", enderecoPublico: "sim", souDono: "sim", telefoneComercial: "11999998888", telefoneDoDono: "11999998888", emailDoDono: "dona@exemplo.test" });
     await expect(indicarEmpresa(undefined, dados)).rejects.toThrow(Redirecionou);
     expect(await db.empresa.findUniqueOrThrow({ where: { instagramUsername: "negocio.endereco" } })).toMatchObject({
       cidade: "Brasília", uf: "DF", regiaoAdministrativa: "Ceilândia", bairro: "Setor Norte", localidade: "Área comercial", cep: "01001000", logradouro: "QNN 1, conjunto A", numero: "12B", complemento: "Bloco C, lote 4", enderecoPublico: false,

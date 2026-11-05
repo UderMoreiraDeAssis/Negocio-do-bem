@@ -1,6 +1,6 @@
 # Localização nacional e evolução da busca
 
-Proposta para discussão, atualizada em **30/10/2026**, relacionada às issues [#158 — endereço](https://github.com/fabsreis/Negocio-do-bem/issues/158), [#139 — arquitetura](https://github.com/fabsreis/Negocio-do-bem/issues/139) e [#40 — profissionais e serviços](https://github.com/fabsreis/Negocio-do-bem/issues/40). A implementação parcial está no [PR #168, em rascunho](https://github.com/fabsreis/Negocio-do-bem/pull/168). Este documento propõe próximos passos; não declara esses recursos entregues.
+Proposta para discussão, atualizada em **05/11/2026**, relacionada às issues [#158 — endereço](https://github.com/fabsreis/Negocio-do-bem/issues/158), [#139 — arquitetura](https://github.com/fabsreis/Negocio-do-bem/issues/139) e [#40 — profissionais e serviços](https://github.com/fabsreis/Negocio-do-bem/issues/40). A entrega de endereço está no [PR #168](https://github.com/fabsreis/Negocio-do-bem/pull/168). Este documento distingue essa entrega das propostas para evoluir a busca; não declara essas propostas entregues.
 
 ## Direção proposta
 
@@ -22,12 +22,12 @@ Há três informações diferentes: endereço do negócio, preferência de local
 
 ## O que existe e o que falta
 
-Leitura do código do PR até o commit `e46f4d7`, em 30/10/2026; isso não significa que esteja publicado na `stage` ou em produção.
+Estado do PR em 05/11/2026, integrado ao cadastro por etapas da `stage`; isso não significa que esteja publicado na `stage` ou em produção.
 
-| Parte | Implementado no rascunho | Ainda pendente |
+| Parte | Implementado no PR | Próximos passos propostos |
 | --- | --- | --- |
 | Cadastro | Município/UF, bairro, localidade, região do DF e detalhes postais opcionais | Identidade territorial nacional; revisão dos rótulos e do fluxo começando pelo CEP |
-| Consulta postal | ViaCEP opcional, cópia persistente, cotas e pausa compartilhadas | Aproveitar código IBGE, tratar conflitos entre município e sugestões como um conjunto, validar respostas atrasadas |
+| Consulta postal | ViaCEP opcional, cópia com retenção limitada, cotas, pausa e coordenação entre processos; município desconhecido/divergente e resposta de CEP alterado não preenchem campos | Confirmar permissão de armazenamento antes de ativar; aproveitar código IBGE em evolução futura |
 | Lugares | Municípios por nome/UF; bairros/localidades livres; lista específica do DF | Identificadores e fontes para subdivisões, aliases e migração gradual |
 | Busca | Campo `Empresa.busca` normalizado, consultado com `contains`; filtros e sugestões por nomes | Índices de texto/similaridade, relevância medida e filtros por identificadores |
 | Privacidade | Detalhes postais fora da busca; publicação no perfil exige autorização | Revisão da política e manutenção das mesmas garantias em qualquer novo índice |

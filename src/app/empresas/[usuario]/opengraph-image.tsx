@@ -1,12 +1,9 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import type { ReactNode } from "react";
 import { buscarCausa, filtrarCausas } from "@/lib/causas";
-import { FONTES, ImagemDoSite, LogoNaImagem, SUAVE, TAMANHO } from "@/lib/compartilhamento";
+import { FONTES, fotoEmDataUri, ImagemDoSite, LogoNaImagem, SUAVE, TAMANHO } from "@/lib/compartilhamento";
 import { buscarPerfil } from "@/lib/consultas";
-import { ehFotoDoSite } from "@/lib/fotos";
-import { normalizarUsername } from "@/lib/instagram";
+import { normalizarEndereco } from "@/lib/instagram";
 import { CORES_DA_MARCA } from "@/lib/marca";
 import { iniciais } from "@/lib/texto";
 
@@ -17,7 +14,7 @@ export const size = TAMANHO;
 export const contentType = "image/png";
 
 export default async function Imagem({ params }: { params: Promise<{ usuario: string }> }) {
-  const username = normalizarUsername((await params).usuario);
+  const username = normalizarEndereco((await params).usuario);
   const empresa = username ? await buscarPerfil(username) : null;
   if (!empresa || empresa.moderacao !== "aprovada" || empresa.oculta) {
     return new ImageResponse(<ImagemDoSite />, { ...TAMANHO, fonts: FONTES });
@@ -46,7 +43,7 @@ export default async function Imagem({ params }: { params: Promise<{ usuario: st
           <LogoNaImagem largura={290} />
           {empresa.status === "verificada" && (
             <Etiqueta fundo="#e8f3ec" cor={CORES_DA_MARCA.verde}>
-              Verificado pelo dono
+              Perfil assumido
             </Etiqueta>
           )}
         </div>
@@ -126,27 +123,4 @@ function Etiqueta({ fundo, cor, children }: { fundo: string; cor: string; childr
       {children}
     </div>
   );
-}
-
-/**
- * Foto do perfil como data URI. O ImageResponse não lê WebP, e uma foto que não
- * carrega derrubaria a imagem inteira: nesses casos fica o monograma.
- */
-async function fotoEmDataUri(url: string | null): Promise<string | null> {
-  if (!ehFotoDoSite(url)) return null;
-  const tipo = /\.png$/i.test(url) ? "image/png" : /\.jpe?g$/i.test(url) ? "image/jpeg" : null;
-  if (!tipo) return null;
-  try {
-    let dados: Buffer;
-    if (url.startsWith("/enviados/")) {
-      dados = await readFile(join(process.cwd(), "public", url));
-    } else {
-      const resposta = await fetch(url);
-      if (!resposta.ok) return null;
-      dados = Buffer.from(await resposta.arrayBuffer());
-    }
-    return `data:${tipo};base64,${dados.toString("base64")}`;
-  } catch {
-    return null;
-  }
 }

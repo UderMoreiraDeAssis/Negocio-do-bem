@@ -1,10 +1,13 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import {
   COTA_GERAL_POR_MINUTO,
   COTA_POR_ORIGEM,
   consultarCep,
   IDADE_MAXIMA_MS,
   INEXISTENTE_VALE_MS,
+  limparCopiasVencidas,
   PAUSA_INICIAL_MS,
   REVALIDAR_APOS_MS,
 } from "@/lib/cep";
@@ -36,9 +39,11 @@ beforeEach(async () => {
   chamadas.mockReset();
   vi.stubGlobal("fetch", (url: string) => chamadas(url));
   vi.stubEnv("CEP_CONSULTA", "viacep");
+  vi.stubEnv("CEP_ARMAZENAMENTO_AUTORIZADO", "1");
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });
@@ -53,6 +58,13 @@ describe("consulta de CEP", () => {
     vi.stubEnv("CEP_CONSULTA", "");
     expect(await consultarCep("01001-000", ORIGEM)).toEqual({ situacao: "desligada" });
     expect(chamadas).not.toHaveBeenCalled();
+  });
+
+  it("exige a configuração de armazenamento autorizado antes de consultar", async () => {
+    vi.stubEnv("CEP_ARMAZENAMENTO_AUTORIZADO", "");
+    expect(await consultarCep("01001000", ORIGEM)).toEqual({ situacao: "desligada" });
+    expect(chamadas).not.toHaveBeenCalled();
+    expect(await db.cotaCep.count()).toBe(0);
   });
 
   it("recusa formato inválido sem consultar nem contar", async () => {
@@ -175,5 +187,70 @@ describe("consulta de CEP", () => {
     const resultados = await Promise.all(consultas);
     expect(resultados.every((r) => r.situacao === "encontrado")).toBe(true);
     expect(chamadas).toHaveBeenCalledTimes(1);
+  });
+
+  it("unifica consultas de processos separados usando a trava do PostgreSQL", async () => {
+    const executar = promisify(execFile);
+    const codigo = `
+      const { consultarCep } = require('./src/lib/cep.ts');
+      const { db } = require('./src/lib/db.ts');
+      global.fetch = async () => {
+        console.log('CHAMADA_EXTERNA');
+        await new Promise(r => setTimeout(r, 300));
+        return new Response(JSON.stringify(${JSON.stringify(PRACA_DA_SE)}));
+      };
+      consultarCep('01001000', process.env.ORIGEM_TESTE)
+        .then(r => console.log(JSON.stringify(r)))
+        .finally(() => db.$disconnect());
+    `;
+    const resultados = await Promise.all(["198.51.100.31", "198.51.100.32"].map((origem) => executar(
+      process.execPath, ["--conditions=react-server", "--import", "tsx", "--eval", codigo],
+      { env: { ...process.env, ORIGEM_TESTE: origem } },
+    )));
+    expect(resultados.every((r) => r.stdout.includes('"situacao":"encontrado"'))).toBe(true);
+    expect(resultados.flatMap((r) => r.stdout.match(/CHAMADA_EXTERNA/g) ?? [])).toHaveLength(1);
+  }, 15_000);
+
+  it("falha de leitura permite preenchimento manual sem consultar o provedor", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(db.cepConsultado, "findUnique").mockRejectedValueOnce(new Error("armazenamento fora do ar"));
+    expect(await consultarCep("01001000", ORIGEM)).toEqual({ situacao: "indisponivel" });
+    expect(chamadas).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith("Consulta de CEP indisponível: falha no armazenamento ou na coordenação.");
+  });
+
+  it("falha de gravação preserva a última cópia, a cota e permite retomar", async () => {
+    responderCom(PRACA_DA_SE);
+    await consultarCep("01001000", ORIGEM);
+    await envelhecerCopia("01001000", REVALIDAR_APOS_MS + 1000);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(db.cepConsultado, "upsert").mockRejectedValueOnce(new Error("gravação interrompida"));
+    responderCom({ ...PRACA_DA_SE, logradouro: "Logradouro atualizado" });
+    expect(await consultarCep("01001000", ORIGEM)).toMatchObject({ aConfirmar: true, endereco: { logradouro: "Praça da Sé" } });
+    expect((await db.cepConsultado.findUniqueOrThrow({ where: { cep: "01001000" } })).logradouro).toBe("Praça da Sé");
+    expect((await db.cotaCep.findMany()).every((c) => c.contagem === 2)).toBe(true);
+    expect(await consultarCep("01001000", ORIGEM)).toMatchObject({ aConfirmar: false, endereco: { logradouro: "Logradouro atualizado" } });
+  });
+
+  it("resposta inválida e timeout mantêm a última cópia íntegra", async () => {
+    responderCom(PRACA_DA_SE);
+    await consultarCep("01001000", ORIGEM);
+    await envelhecerCopia("01001000", REVALIDAR_APOS_MS + 1000);
+    responderCom({ ...PRACA_DA_SE, uf: "SP-invalida" });
+    expect(await consultarCep("01001000", ORIGEM)).toMatchObject({ aConfirmar: true });
+    await encerrarPausa();
+    chamadas.mockRejectedValue(new DOMException("demorou", "TimeoutError"));
+    expect(await consultarCep("01001000", ORIGEM)).toMatchObject({ aConfirmar: true });
+    expect((await db.cepConsultado.findUniqueOrThrow({ where: { cep: "01001000" } })).logradouro).toBe("Praça da Sé");
+  });
+
+  it("exclui cópias vencidas em lotes limitados sem apagar a cópia ainda utilizável", async () => {
+    await db.cepConsultado.createMany({ data: Array.from({ length: 101 }, (_, i) => ({
+      cep: String(i).padStart(8, "0"), situacao: "encontrado", fonte: "viacep", consultadoEm: new Date(Date.now() - IDADE_MAXIMA_MS - 10_000),
+    })) });
+    await db.cepConsultado.create({ data: { cep: "01001000", situacao: "encontrado", fonte: "viacep", consultadoEm: new Date() } });
+    expect(await limparCopiasVencidas()).toBe(100);
+    expect(await limparCopiasVencidas()).toBe(1);
+    expect(await db.cepConsultado.count()).toBe(1);
   });
 });

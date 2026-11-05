@@ -16,6 +16,14 @@ vi.mock("next/navigation", () => ({
     throw new Redirecionou(destino);
   },
 }));
+// O after() roda na hora, e a foto do Instagram só fica registrada (a Meta não é chamada).
+vi.mock("next/server", () => ({ after: (tarefa: () => unknown) => tarefa() }));
+const fotos = vi.hoisted(() => ({ pedidas: [] as [string, string][] }));
+vi.mock("@/lib/fotos-instagram", () => ({
+  gravarFotoDaPrevia: async (empresaId: string, username: string) => {
+    fotos.pedidas.push([empresaId, username]);
+  },
+}));
 
 const { indicarEmpresa } = await import("@/acoes/empresas");
 
@@ -79,7 +87,10 @@ async function indicar(instagram: string) {
 
 const publicadas = (resultados: Awaited<ReturnType<typeof indicar>>[]) => resultados.filter((r) => r.publicada).length;
 
-beforeEach(limparBanco);
+beforeEach(async () => {
+  fotos.pedidas = [];
+  await limparBanco();
+});
 afterAll(async () => {
   await limparBanco();
   await db.$disconnect();
@@ -192,5 +203,136 @@ describe("indicação do mesmo username ao mesmo tempo", () => {
       if (!r.publicada) expect(r.estado.erros?.instagram).toMatch(/já está no Negócio do Bem/);
     }
     expect(await db.empresa.count({ where: { instagramUsername: "mesmo.username" } })).toBe(1);
+  });
+});
+
+/** Envia um formulário montado à mão e diz para onde a pessoa foi, ou o estado devolvido. */
+async function enviar(dados: FormData) {
+  try {
+    return { estado: (await indicarEmpresa({}, dados)) ?? {}, destino: null };
+  } catch (erro) {
+    if (erro instanceof Redirecionou) return { estado: null, destino: erro.message };
+    throw erro;
+  }
+}
+
+function contatosCompletos(dados: FormData) {
+  dados.set("telefoneComercial", "(81) 3333-4444");
+  dados.set("whatsapp", "(81) 98888-7777");
+  dados.set("site", "padaria.com.br");
+  dados.set("emailContato", "ola@padaria.com.br");
+  dados.set("emailDoDono", "Ana@Exemplo.com");
+  dados.set("telefoneDoDono", "81 99999-0000");
+  return dados;
+}
+
+describe("cadastro do próprio negócio", () => {
+  it("pede o telefone comercial e o e-mail e o telefone de contato do dono", async () => {
+    await criarUsuarioLogado();
+    const dados = formulario("dono.sem.contato");
+    dados.set("souDono", "sim");
+
+    const { estado } = await enviar(dados);
+
+    expect(estado?.erros).toMatchObject({
+      telefoneComercial: expect.any(String),
+      emailDoDono: expect.any(String),
+      telefoneDoDono: expect.any(String),
+    });
+    expect(await db.empresa.count()).toBe(0);
+  });
+
+  it("grava os contatos do negócio e do dono, e leva para a confirmação", async () => {
+    await criarUsuarioLogado();
+    const dados = contatosCompletos(formulario("dono.completo"));
+    dados.set("souDono", "sim");
+
+    const { destino } = await enviar(dados);
+
+    expect(destino).toBe("/empresas/dono.completo/reivindicar");
+    expect(await db.empresa.findUnique({ where: { instagramUsername: "dono.completo" } })).toMatchObject({
+      telefoneComercial: "558133334444",
+      whatsapp: "5581988887777",
+      site: "https://padaria.com.br/",
+      emailContato: "ola@padaria.com.br",
+      emailDoDono: "ana@exemplo.com",
+      telefoneDoDono: "5581999990000",
+    });
+  });
+
+  it("quem indica não grava contatos, mesmo que mande", async () => {
+    await criarUsuarioLogado();
+
+    const { destino } = await enviar(contatosCompletos(formulario("indicada.com.contato")));
+
+    expect(destino).toBe("/empresas/indicada.com.contato?aviso=indicada");
+    expect(await db.empresa.findUnique({ where: { instagramUsername: "indicada.com.contato" } })).toMatchObject({
+      telefoneComercial: null,
+      whatsapp: null,
+      site: null,
+      emailContato: null,
+      emailDoDono: null,
+      telefoneDoDono: null,
+    });
+  });
+});
+
+describe("foto do Instagram no cadastro", () => {
+  it("pede a foto da prévia do @ depois de criar o negócio", async () => {
+    await criarUsuarioLogado();
+
+    await enviar(formulario("com.foto"));
+
+    const empresa = await db.empresa.findUniqueOrThrow({ where: { instagramUsername: "com.foto" } });
+    expect(fotos.pedidas).toEqual([[empresa.id, "com.foto"]]);
+  });
+});
+
+describe("cadastro sem Instagram", () => {
+  function semInstagram(nome: string) {
+    const dados = formulario("");
+    dados.set("semInstagram", "sim");
+    dados.set("nome", nome);
+    return dados;
+  }
+
+  it("cria o negócio com o endereço feito do nome e da cidade", async () => {
+    await criarUsuarioLogado();
+
+    const { destino } = await enviar(semInstagram("Padaria do Bairro"));
+
+    expect(destino).toBe("/empresas/padaria-do-bairro-recife?aviso=indicada");
+    expect(await db.empresa.findUnique({ where: { instagramUsername: "padaria-do-bairro-recife" } })).toMatchObject({
+      nome: "Padaria do Bairro",
+      cidade: "Recife",
+    });
+    expect(fotos.pedidas).toEqual([]);
+  });
+
+  it("não repete o endereço de outro negócio", async () => {
+    await criarUsuarioLogado();
+
+    await enviar(semInstagram("Padaria do Bairro"));
+    const { destino } = await enviar(semInstagram("Padaria do Bairro"));
+
+    expect(destino).toBe("/empresas/padaria-do-bairro-recife-2?aviso=indicada");
+  });
+
+  it("o dono sem Instagram também informa os contatos", async () => {
+    await criarUsuarioLogado();
+    const dados = contatosCompletos(semInstagram("Ateliê da Ana"));
+    dados.set("souDono", "sim");
+
+    const { destino } = await enviar(dados);
+
+    expect(destino).toBe("/empresas/atelie-da-ana-recife/reivindicar");
+  });
+
+  it("sem marcar \"sem Instagram\", o @ continua obrigatório", async () => {
+    await criarUsuarioLogado();
+
+    const { estado } = await enviar(formulario(""));
+
+    expect(estado?.erros?.instagram).toMatch(/Digite o @/);
   });
 });

@@ -9,7 +9,7 @@ import { normalizarTexto } from "@/lib/texto";
 import { REGIOES_DF } from "@/lib/regioes-df";
 
 export const ORDENS = {
-  verificados: "Verificados primeiro",
+  verificados: "Assumidos primeiro",
   recentes: "Mais recentes",
   az: "Nome (A–Z)",
 } as const;
@@ -180,10 +180,10 @@ export function interpretarLocal(texto: string, cidades: CidadeComNegocios[], lo
   if (detalhada) return { cidade: detalhada.cidade, uf: detalhada.uf, localidade: detalhada.nome, rotulo: rotuloLocalidade(detalhada) };
 
   // Um nome municipal inteiro prevalece sobre um sufixo parecido com UF (Sento Sé).
-  const cidadeExata = cidades.find((c) => normalizarTexto(c.cidade) === busca);
+  const mesmoNome = cidades.filter((c) => normalizarTexto(c.cidade) === busca);
 
   const partes = /^(.+?)\s*(?:,|\/|\s-|\s)\s*([a-z]{2})$/.exec(busca);
-  const uf = !cidadeExata && partes ? UFS.find((u) => u.toLowerCase() === partes[2]) : undefined;
+  const uf = mesmoNome.length === 0 && partes ? UFS.find((u) => u.toLowerCase() === partes[2]) : undefined;
   const nomeLocal = uf && partes ? partes[1] : busca;
   const regiao = (!uf || uf === "DF") && REGIOES_DF.find((r) => normalizarTexto(r) === nomeLocal);
   const cidadeComNome = cidades.some((c) => normalizarTexto(c.cidade) === nomeLocal && (!uf || c.uf === uf));
@@ -203,7 +203,6 @@ export function interpretarLocal(texto: string, cidades: CidadeComNegocios[], lo
     return { cidade: nome, uf, rotulo: `${nome}, ${uf}` };
   }
 
-  const mesmoNome = cidades.filter((c) => normalizarTexto(c.cidade) === busca);
   if (mesmoNome.length === 1) {
     const [cidade] = mesmoNome;
     return { cidade: cidade!.cidade, uf: cidade!.uf, rotulo: `${cidade!.cidade}, ${cidade!.uf}` };

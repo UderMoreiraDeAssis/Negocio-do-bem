@@ -1,14 +1,17 @@
 #!/bin/sh
 # Deploy Cloudflare: migra o banco do ambiente antes do build do Worker.
 #
-# No Workers Builds, as variáveis de build são as mesmas para todas as branches.
-# Por isso o ambiente vem da branch (WORKERS_CI_BRANCH), e não do DEPLOY_ENV:
-# só a main é produção. As outras usam as variáveis PREVIEW_*, e o build falha
-# se faltar alguma, em vez de cair nas de produção. Assim, a migração de um PR
-# ainda não aprovado nunca chega ao banco de produção.
+# No Workers Builds, as variáveis de build de produção e as dos previews ficam em
+# abas diferentes do painel, e um engano ali levaria a migração de um PR ao banco
+# de produção. Por isso o ambiente vem da branch (WORKERS_CI_BRANCH), e não do
+# DEPLOY_ENV: só a main é produção. As outras usam as variáveis PREVIEW_*, e o
+# build falha se faltar alguma, em vez de cair nas de produção. Assim, a migração
+# de um PR ainda não aprovado nunca chega ao banco de produção.
 # Fora do Workers Builds (npm run preview:cloudflare ou deploy:cloudflare), vale
 # o DEPLOY_ENV.
 set -e
+
+node scripts/corrigir-opennext.mjs
 
 if [ -n "$WORKERS_CI_BRANCH" ]; then
   if [ "$WORKERS_CI_BRANCH" = "main" ]; then
@@ -55,4 +58,4 @@ sed 's|^\( *output *= .*\)$|\1\n  runtime  = "cloudflare"|' prisma/schema.prisma
 trap 'rm -f prisma/schema.cloudflare.prisma; npx prisma generate > /dev/null' EXIT
 npx prisma generate --schema prisma/schema.cloudflare.prisma
 
-npx opennextjs-cloudflare build
+npx opennextjs-cloudflare build "$@"

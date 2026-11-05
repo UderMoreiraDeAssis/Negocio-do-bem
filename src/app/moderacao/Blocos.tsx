@@ -28,14 +28,14 @@ export function Etiqueta({ tom = "neutro", children }: { tom?: Tom; children: Re
   return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ${TONS[tom]}`}>{children}</span>;
 }
 
-/** A situação de um negócio em etiquetas: se está no ar, se o dono escondeu e se é verificado. */
+/** A situação de um negócio em etiquetas: se está no ar, se o dono escondeu e se o perfil foi assumido. */
 export function EtiquetasDoNegocio({ empresa }: { empresa: { moderacao: string; oculta: boolean; status: string } }) {
   return (
     <span className="inline-flex flex-wrap gap-1.5">
       {empresa.moderacao === "rejeitada" && <Etiqueta tom="alerta">Fora do ar</Etiqueta>}
       {empresa.moderacao === "pendente" && <Etiqueta tom="atencao">Aguardando moderação</Etiqueta>}
       {empresa.moderacao === "aprovada" && (empresa.oculta ? <Etiqueta>Oculto pelo dono</Etiqueta> : <Etiqueta tom="bom">No diretório</Etiqueta>)}
-      {empresa.status === "verificada" && <Etiqueta tom="info">Verificado</Etiqueta>}
+      {empresa.status === "verificada" && <Etiqueta tom="info">Perfil assumido</Etiqueta>}
     </span>
   );
 }

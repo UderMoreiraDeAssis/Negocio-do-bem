@@ -7,7 +7,7 @@ import { ORDENS, type Ordem } from "@/lib/diretorio";
 export function OrdenarPor({ atual, links }: { atual: Ordem; links: Record<Ordem, string> }) {
   const router = useRouter();
   return (
-    // No celular, a opção já diz a ordem ("Verificados primeiro") e o rótulo some,
+    // No celular, a opção já diz a ordem ("Assumidos primeiro") e o rótulo some,
     // para o seletor caber na linha ao lado da grade/lista com a letra de 16px.
     <label className="inline-flex items-center gap-2 text-sm text-suave">
       <span className="max-sm:sr-only">Ordenar</span>

@@ -1,67 +1,64 @@
 # Endereço e localização (#158)
 
-Este documento descreve a implementação parcial no [PR #168, em rascunho](https://github.com/fabsreis/Negocio-do-bem/pull/168), até o commit `e46f4d7`: preenchimento manual, persistência, apresentação, busca por nomes de subdivisões e consulta opcional de CEP. Não significa que essas mudanças estejam publicadas.
+O endereço é opcional e nacional: município/UF continuam sendo a referência municipal do IBGE; bairro, distrito/localidade e região administrativa ficam separados. O DF é um dos casos cobertos, sem transformar suas regiões em municípios. A entrega do [PR #168](https://github.com/fabs-reis/Negocio-do-bem/pull/168) inclui cadastro, edição, perfil, busca e consulta postal opcional.
 
-O objetivo é atender ao Brasil inteiro. A lista do DF resolve um caso específico, mas ainda não constitui uma identificação nacional de localidades. A [proposta de localização nacional e evolução da busca](busca-e-localizacao.md) discute código IBGE, confirmação dos dados postais, preferência de cidade e comparação entre PostgreSQL e Apache Solr, separando implementação de próximos passos.
+## Cadastro e privacidade
 
-## Modelo e apresentação
+`CamposEndereco` é usado na etapa de localização de `/participar` e na edição pelo dono ou moderação. O cadastro por etapas da `stage` veio do #192, que substituiu o #145. Os campos ficam no rascunho durante o login e os erros do servidor voltam à etapa de localização.
 
-- `cidade` e `uf` continuam vindo da lista municipal do IBGE. No DF são Brasília/DF; `regiaoAdministrativa` guarda separadamente uma região da lista do GDF. `bairro` e `localidade` são campos opcionais, também para o restante do Brasil.
-- `cep`, `logradouro`, `numero` e `complemento` são opcionais. O CEP é texto para preservar zeros iniciais. Número aceita letras e `s/n`; quadra, conjunto, bloco, setor, trecho e lote cabem em logradouro/complemento. Endereço rural sem logradouro ou CEP continua válido.
-- Os detalhes postais começam com `enderecoPublico=false`. A indicação não pode alterar essa regra, mesmo enviando o campo à mão ou marcando que é do dono. Somente a ação de edição, após conferir o vínculo de dono ou papel de moderação, permite publicar. É uma proposta conservadora para o ponto de privacidade aberto na issue, a ser revisada no PR.
-- Bairro, região e localidade são públicos e pesquisáveis. O texto de busca não contém detalhes postais. Perfil e JSON-LD só expõem detalhes postais autorizados. A prévia em imagem continua mostrando município/UF.
-- `CamposEndereco` usa os componentes e tokens existentes, e o envio segue `enviarSemLimpar`. Os campos são controles HTML comuns e não dependem de uma API postal.
+- Só município/UF são obrigatórios. Bairro, localidade, região, CEP, logradouro, número e complemento são opcionais. Número aceita letras e `s/n`; quadra, lote, conjunto e referências cabem nos campos livres. Endereço rural sem CEP permanece válido.
+- CEP é texto com oito dígitos, preservando zeros iniciais; a entrada aceita hífen. Município e região são validados no servidor, assim como tamanho e formato dos outros campos.
+- Bairro, localidade e região são públicos e pesquisáveis. CEP, logradouro, número e complemento começam privados. Uma indicação não autoriza sua publicação, mesmo quando a pessoa marca que é dona.
+- Só dono ou moderação podem marcar `enderecoPublico` na edição. O perfil e o JSON-LD respeitam essa escolha. Detalhes postais nunca entram no texto de busca.
+- Cadastros antigos continuam com cidade/UF, sem inferir detalhes desconhecidos. As migrações são aditivas; a busca é recalculada a cada edição. A rotina de corrigir cidades preserva as subdivisões.
 
-## Regiões administrativas
+## Regiões e busca
 
-Lista em `src/lib/regioes-df.ts`, conferida em 30/10/2026. Referências:
+A lista `src/lib/regioes-df.ts` contém 37 regiões, conferidas em 30/10/2026 nas [administrações regionais do GDF](https://segov.df.gov.br/category/administracoes-regionais/) e nos atos de criação de [Ponte Alta](https://www.sinj.df.gov.br/sinj/DetalhesDeNorma.aspx?id_norma=c47f63aae6cd4a15afab43209ccef723) e [26 de Setembro](https://www.gdfsaude.df.gov.br/web/guest/w/celina-sanciona-leis-que-criam-as-ras-da-26-de-setembro-e-de-ponte-alta). A atualização deve conferir os atos oficiais e preservar valores gravados. Não alterar `municipios.json` para incluir subdivisões.
 
-- [Administrações regionais — Segov/GDF](https://segov.df.gov.br/category/administracoes-regionais/).
-- [Documento orientador da Sema/GDF, com a relação das 35 regiões anteriores](https://www.sema.df.gov.br/documents/6196895/38822454/Documento-Orientador.pdf).
-- [GDF: sanção das regiões 26 de Setembro e Ponte Alta em 2026](https://www.gdfsaude.df.gov.br/web/guest/w/celina-sanciona-leis-que-criam-as-ras-da-26-de-setembro-e-de-ponte-alta).
-- [Lei 7.917/2026, Ponte Alta — SINJ/GDF](https://www.sinj.df.gov.br/sinj/DetalhesDeNorma.aspx?id_norma=c47f63aae6cd4a15afab43209ccef723).
+O campo Onde aceita sugestões como `Centro — Recife, PE` e `Taguatinga, DF`. A comparação ignora acentos e maiúsculas; município/UF qualificam homônimos. Uma consulta sem qualificação pode abranger vários lugares. Municípios têm preferência sobre subdivisões de mesmo nome. Páginas e contagens municipais continuam agrupando apenas cidade/UF; subdivisões contam somente negócios publicados, uma vez por nome em cada negócio.
 
-A lista contém 37 regiões, incluindo as duas criadas em 2026. Ao atualizar, conferir os atos oficiais, preservar valores já gravados e testar a validação. Não acrescentar regiões a `municipios.json`. Não inferir região de um CEP ou do nome Brasília.
+## Consulta opcional de CEP
 
-## Busca e compatibilidade
+Fonte: [ViaCEP](https://viacep.com.br/), documentação consultada em 05/11/2026. É um serviço gratuito de consulta nacional que distingue formato inválido de CEP não encontrado; não é apresentado como API oficial dos Correios. A fonte adverte contra uso massivo para validar bases locais e não publica cotas numéricas, SLA ou autorização expressa para esta retenção.
 
-O campo `Onde?` aceita nomes de regiões e sugestões `Bairro — Município, UF`. A consulta compara grafias sem acentos e maiúsculas, mas restringe município e UF quando informados. Uma pesquisa sem qualificação pode abranger homônimos; as sugestões permitem escolher o lugar exato. Municípios têm preferência sobre subdivisões de mesmo nome quando a pessoa não especifica a UF.
+Por isso a integração permanece desligada por padrão. Para ativá-la, a manutenção precisa confirmar as condições de armazenamento com a fonte e definir **ambas** as variáveis:
 
-As contagens municipais e páginas `/cidades` continuam agrupando só cidade/UF. As contagens das subdivisões usam apenas negócios publicados e contam uma vez um nome repetido em mais de um campo do mesmo negócio. Os demais filtros e suas contagens usam a mesma condição de localização.
+```dotenv
+CEP_CONSULTA=viacep
+CEP_ARMAZENAMENTO_AUTORIZADO=1
+```
 
-A migração `20261030181540_endereco_completo` só adiciona colunas opcionais e o booleano com padrão falso. Não renomeia nem remove colunas, não muda endereços existentes e não atribui detalhes desconhecidos. O `busca` anterior continua correto porque todos os detalhes novos começam nulos; cada indicação/edição calcula o texto completo. Portanto, não há atualização em massa nesta migração.
+A segunda variável registra a decisão operacional; não concede direitos sobre a fonte. Sem qualquer uma delas, a rota responde `desligada`, sem consultar ou armazenar dados do provedor. O cadastro manual funciona normalmente. A aplicação das migrações e a configuração seguem o fluxo de PR/merge; não há deploy manual.
 
-## Consulta de CEP
+### Preenchimento
 
-Decisão registrada em 30/10/2026: usar o [ViaCEP](https://viacep.com.br/) como fonte da integração opcional. A regra completa está em [Regras de negócio](regras-de-negocio.md) (seção 3); o código, em `src/lib/cep.ts` e `src/app/api/cep/route.ts`. Liga com `CEP_CONSULTA=viacep`; sem a variável, permanece desligada.
+A consulta começa meio segundo depois de completar o CEP. Trocar ou apagar o CEP cancela a consulta anterior. Só campos vazios recebem sugestões; número, complemento e correções manuais ficam intactos. Cidade divergente ou município que não foi reconhecido na lista impedem o preenchimento dos demais campos, com aviso para conferir à mão.
 
-**Por que o ViaCEP.** A fonte documenta consulta gratuita nacional e distingue CEP não encontrado por `erro`. A implementação aceita tanto `true` quanto `"true"`; falhas técnicas não são gravadas como inexistência. Isso não torna a integração uma API oficial dos Correios nem garante cobertura completa ou disponibilidade. A alternativa contratual dos Correios e os critérios de evolução estão na [proposta nacional](busca-e-localizacao.md).
+No DF, a região é sugerida somente quando o bairro inteiro ou o trecho final entre parênteses corresponde à lista. Não há dedução por prefixo nem a partir de Brasília. Uma resposta incompleta continua permitindo o cadastro manual.
 
-**Cuidados com o ViaCEP.** A página do serviço avisa que uso massivo para validar bases locais pode bloquear o acesso por tempo indeterminado. Por isso:
+### Cópia, retenção e recuperação
 
-- não há atualização em lote nem varredura de CEPs: uma cópia só é revalidada quando alguém usa aquele CEP, depois de 90 dias;
-- cotas definidas pelo projeto e no banco, valendo para todas as instâncias: 20 chamadas por minuto e 1.000 por dia ao ViaCEP, e 20 consultas por origem a cada 10 minutos na nossa rota. Esses valores não são cotas publicadas ou contratadas com o provedor;
-- uma chamada por consulta, com 4 segundos de limite e sem nova tentativa; consultas iguais ao mesmo tempo podem compartilhar a chamada dentro da mesma instância;
-- depois de falha, pausa compartilhada de 1 minuto, dobrando até 1 hora, ou o `Retry-After` (até 24 horas), com até 20% a mais ao acaso;
-- a consulta só começa com o CEP completo e meio segundo depois da última tecla;
-- identificação própria no `User-Agent`, como na consulta de CNPJ.
+`CepConsultado` guarda somente CEP, situação, UF, município, bairro, logradouro, fonte e data da consulta bem-sucedida. Não guarda número/complemento do estabelecimento, dados pessoais do formulário ou credenciais. A fonte não fornece versão de registro; a data local identifica a consulta.
 
-**Integração direta.** O código usa `fetch` no servidor, sem biblioteca de consulta postal. Cache, cotas e pausa pertencem ao aplicativo. Uma eventual troca de biblioteca ou provedor exige nova avaliação; ela não resolve por si só identidade territorial e qualidade da busca.
+- Encontrado: revalidar após 90 dias, apenas no uso. Durante falha externa, uma cópia de até 365 dias pode ser sugerida como **a confirmar**.
+- Não encontrado: válido por sete dias. Erros de rede, timeout, `429`, autenticação, `5xx` ou respostas inválidas nunca viram inexistência.
+- Cópias encontradas com mais de 365 dias e negativas vencidas são excluídas em lotes de até 100, em cada consulta habilitada. É limpeza sob demanda: com a integração desligada, a manutenção deve limpar a tabela se encerrar o uso da fonte. Excluir a cópia não altera endereços de negócios.
+- Respostas válidas substituem a cópia atomicamente. Falha de gravação, resposta inválida ou interrupção preservam a última versão íntegra; uma consulta seguinte pode retomar a atualização.
+- A consulta nunca regrava dados de negócios. O formulário sugere campos vazios para a pessoa conferir.
 
-**Cópia local.** `CepConsultado` guarda o CEP, a situação da consulta e os dados disponíveis do ViaCEP (UF, cidade, bairro, logradouro), a fonte e a data, nunca número, complemento ou dado de negócio. Falhas não apagam a cópia anterior. Um resultado encontrado vale 90 dias; na indisponibilidade externa, pode ser usado até 365 dias, marcado como informação a confirmar. Resultado inexistente vale 7 dias. Esses são prazos de uso/revalidação: não há rotina de exclusão automática dos registros nem política de retenção concluída.
+### Limites e concorrência
 
-A atualização postal não regrava os endereços dos negócios: sugere campos vazios no formulário. No DF, `montarEndereco` reconhece um nome da lista do GDF quando ele corresponde ao bairro inteiro ou ao trecho final entre parênteses. Não há correspondência por prefixo. O código ainda descarta o `ibge` retornado pelo provedor. Esses limites motivam a proposta nacional, sem ampliar heurísticas específicas de uma UF.
+Os limites são escolhas conservadoras do projeto, não cotas garantidas pelo ViaCEP: 20 pedidos por origem em dez minutos e, para o provedor, 20 por minuto e 1.000 por dia. Os contadores ficam no PostgreSQL, compartilhados entre instâncias. Sem IP confiável, as origens dividem a mesma cota. A cota externa é confirmada antes da chamada, mesmo se a gravação da resposta falhar.
 
-**Limites conhecidos.** A unificação de consultas iguais vale dentro de cada instância; cache e cotas compartilhados não garantem uma única chamada simultânea entre instâncias. A documentação consultada do ViaCEP não estabelece autorização expressa de retenção, cotas numéricas ou SLA; essas condições continuam em aberto. Apagar a cópia postal não altera os cadastros.
+Uma trava transacional do PostgreSQL permite somente **uma consulta externa por vez** entre instâncias. Quem não obtém a trava libera a conexão, espera brevemente e relê a cópia antes de tentar a trava de novo, por até cinco segundos. Assim duas consultas ao mesmo CEP reutilizam a resposta. Encerramento ou falha da transação libera a trava; não há trava permanente para recuperar manualmente. A cópia utilizável ou o preenchimento manual atendem quem não puder esperar.
 
-## Coordenação e validação
+Cada chamada externa tem timeout de quatro segundos e nenhuma repetição automática. Falhas pausam o provedor por um minuto, dobrando até uma hora; `Retry-After` é aceito até 24 horas, com variação adicional de até 20%. Cache válido continua atendendo durante a pausa. Não há atualização em massa, varredura de CEPs ou rotina que pressione a fonte.
 
-Pendências do rascunho em 30/10/2026: revisar visibilidade e condições de cache; validar concorrência entre instâncias e falha do armazenamento; obter liberação das checagens e do preview. Ativação depende de configuração e aplicação das migrações pelo fluxo de entrega do projeto. A #158 permanece em atendimento, sem declaração de conclusão.
+Falha do armazenamento ou da coordenação retorna indisponibilidade (ou uma cópia já lida ainda utilizável) e registra uma mensagem operacional sem CEP, IP, conteúdo do formulário ou erro bruto do banco.
 
-O PR #145 ainda estava aberto quando esta branch partiu de `stage`. Os campos ficam em `CamposEndereco` para que o cadastro por etapas possa reaproveitá-los; a integração atual é em `/indicar`. Se #145 entrar primeiro, resolver o encaixe na etapa de localização e manter os mesmos campos/validação no servidor.
+## Validação e evolução
 
-[Captura do formulário no celular, com dados fictícios](prints/endereco-celular.png).
+Os testes de unidade e PostgreSQL cobrem DF/TO, bairros homônimos, endereços rurais, cadastros antigos, privacidade, permissões, cota, retenção limitada, indisponibilidade, `429`, timeout, recuperação de gravação e concorrência em processos Node separados. O navegador valida o cadastro por etapas e as respostas atrasadas da consulta com dados fictícios.
 
-Os testes de unidade e PostgreSQL cobrem formato, limites, DF/TO, endereços rurais, autorização para editar/publicar, preservação após erros, busca sem acentos, contagens, cadastros antigos e não exposição de detalhes privados na busca e no JSON-LD. Os testes da consulta de CEP (`tests/unit/cep.test.ts` e `tests/db/cep.test.ts`) simulam o ViaCEP: cópia válida e vencida, idade máxima, inexistente com prazo curto, erro 500, resposta inválida, rede fora do ar, `429` com `Retry-After`, pausa progressiva, cotas por origem e geral e consultas simultâneas.
-
-No teste exploratório com JavaScript desabilitado, o Next manteve o conteúdo transmitido por streaming em um contêiner oculto, tanto em `/indicar` quanto em `/entrar` (rota não alterada). Não foi possível validar o envio sem JavaScript pela interface; este PR não modifica a estratégia de renderização do aplicativo.
+Código IBGE persistido, preferência pessoal de localização e motor especializado de busca continuam propostas separadas em [Busca e localização nacional](busca-e-localizacao.md), relacionadas à #139 e à #40. A entrega atual usa nomes municipais validados e busca normalizada no PostgreSQL.

@@ -6,16 +6,21 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { AlternarTema } from "@/components/AlternarTema";
+import { AvisoSemConexao } from "@/components/AvisoSemConexao";
+import { EventosAnalytics } from "@/components/EventosAnalytics";
+import { InstalarApp } from "@/components/InstalarApp";
 import { Logo } from "@/components/Logo";
 import { MenuUsuario } from "@/components/MenuUsuario";
 import { ProtecaoDoMenu } from "@/components/ProtecaoDoMenu";
+import { RegistrarServiceWorker } from "@/components/RegistrarServiceWorker";
 import { REPOSITORIO } from "@/lib/dominio";
 import { CORES_DA_MARCA } from "@/lib/marca";
 import { DESCRICAO_DO_SITE, ENDERECO_DO_SITE, NOME_DO_SITE, TITULO_DO_SITE } from "@/lib/seo";
 import { SCRIPT_TEMA } from "@/lib/tema";
 
 // A imagem de compartilhamento vem de opengraph-image.tsx (o perfil de cada
-// negócio tem a sua), e os ícones de icon.svg, favicon.ico e apple-icon.png.
+// negócio e cada cidade têm a sua; ver metadadosDaPagina, em src/lib/seo.ts),
+// e os ícones de icon.svg, favicon.ico e apple-icon.png.
 export const metadata: Metadata = {
   metadataBase: new URL(ENDERECO_DO_SITE),
   title: {
@@ -24,6 +29,8 @@ export const metadata: Metadata = {
   },
   description: DESCRICAO_DO_SITE,
   applicationName: NOME_DO_SITE,
+  // No iPhone, o site adicionado à tela de início abre sem a barra do Safari.
+  appleWebApp: { capable: true, title: NOME_DO_SITE, statusBarStyle: "default" },
   openGraph: {
     type: "website",
     locale: "pt_BR",
@@ -46,8 +53,9 @@ export const viewport: Viewport = {
   ],
 };
 
-// Só a produção do Vercel define o ID; no seu computador e em cópias do projeto
-// o Analytics não carrega.
+// O ID vem das variáveis de build da produção no Cloudflare: o Next põe o valor
+// no código durante o build. No seu computador, nos previews e em cópias do
+// projeto o Analytics não carrega.
 const ID_ANALYTICS = process.env.NEXT_PUBLIC_GA_ID;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -71,8 +79,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <Link href="/sobre" className="hidden rounded-full px-3 py-2 text-suave transition hover:text-tinta sm:block">
                 Como funciona
               </Link>
-              <Link href="/indicar" className="rounded-full px-2 py-2 text-suave transition hover:text-tinta sm:px-3">
-                Indicar
+              <Link href="/participar" className="rounded-full px-2 py-2 text-suave transition hover:text-tinta sm:px-3">
+                Cadastrar
               </Link>
               <AlternarTema />
               <Suspense fallback={<div className="h-9 w-20 rounded-full bg-linha/60" />}>
@@ -94,6 +102,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 Um movimento independente para fortalecer negócios que cuidam das pessoas, da comunidade e do planeta.
                 Feito pela comunidade, para a comunidade.
               </p>
+              <InstalarApp />
               <a href={REPOSITORIO} target="_blank" rel="noopener noreferrer" className="link inline-block">
                 Código aberto no GitHub ↗
               </a>
@@ -102,7 +111,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <p className="font-semibold text-tinta">Comunidade</p>
               <Link href="/explorar" className="block hover:text-tinta">Explorar negócios</Link>
               <Link href="/cidades" className="block hover:text-tinta">Negócios por cidade</Link>
-              <Link href="/indicar" className="block hover:text-tinta">Indicar um negócio</Link>
+              <Link href="/embaixadores" className="block hover:text-tinta">Embaixadores do bem</Link>
+              <Link href="/participar" className="block hover:text-tinta">Cadastrar um negócio</Link>
             </div>
             <div className="space-y-2">
               <p className="font-semibold text-tinta">Para negócios</p>
@@ -111,6 +121,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </div>
           </div>
         </footer>
+        <AvisoSemConexao />
+        <RegistrarServiceWorker />
+        {ID_ANALYTICS && <EventosAnalytics />}
       </body>
       {ID_ANALYTICS && <GoogleAnalytics gaId={ID_ANALYTICS} />}
     </html>

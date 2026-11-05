@@ -1,6 +1,6 @@
 import { FormFoto } from "@/components/FormFoto";
 import { fotoDe } from "@/components/FotoEmpresa";
-import { formatarWhatsapp } from "@/lib/texto";
+import { formatarTelefone } from "@/lib/texto";
 import type { Endereco } from "@/lib/endereco";
 import { FormEmpresa } from "./FormEmpresa";
 
@@ -16,6 +16,9 @@ type Empresa = Endereco & {
   site: string | null;
   whatsapp: string | null;
   emailContato: string | null;
+  telefoneComercial: string | null;
+  emailDoDono: string | null;
+  telefoneDoDono: string | null;
   historia: string;
   causas: { causa: string }[];
 };
@@ -47,8 +50,11 @@ export function EdicaoEmpresa({ empresa, voltar }: { empresa: Empresa; voltar: s
           complemento: empresa.complemento,
           enderecoPublico: empresa.enderecoPublico,
           site: empresa.site ?? "",
-          whatsapp: empresa.whatsapp ? formatarWhatsapp(empresa.whatsapp) : "",
+          whatsapp: empresa.whatsapp ? formatarTelefone(empresa.whatsapp) : "",
           emailContato: empresa.emailContato ?? "",
+          telefoneComercial: empresa.telefoneComercial ? formatarTelefone(empresa.telefoneComercial) : "",
+          emailDoDono: empresa.emailDoDono ?? "",
+          telefoneDoDono: empresa.telefoneDoDono ? formatarTelefone(empresa.telefoneDoDono) : "",
           historia: empresa.historia,
           causas: empresa.causas.map((c) => c.causa),
         }}
