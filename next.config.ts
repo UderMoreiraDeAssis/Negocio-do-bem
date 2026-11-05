@@ -11,7 +11,7 @@ const politicaDeConteudo = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline' https://*.googletagmanager.com${desenvolvimento ? " 'unsafe-eval'" : ""}${preview ? ` ${VERCEL_LIVE}` : ""}`,
   `style-src 'self' 'unsafe-inline'${preview ? ` ${VERCEL_LIVE}` : ""}`,
-  `img-src 'self' data: blob: https://*.public.blob.vercel-storage.com${dominioFotos} ${ANALYTICS}${preview ? ` ${VERCEL_LIVE} https://vercel.com` : ""}`,
+  `img-src 'self' data: blob:${dominioFotos} ${ANALYTICS}${preview ? ` ${VERCEL_LIVE} https://vercel.com` : ""}`,
   `font-src 'self' data:${preview ? ` ${VERCEL_LIVE} https://assets.vercel.com` : ""}`,
   `connect-src 'self' ${ANALYTICS}${desenvolvimento ? " ws:" : ""}${preview ? ` ${VERCEL_LIVE} wss://ws-us3.pusher.com` : ""}`,
   `frame-src 'self'${preview ? ` ${VERCEL_LIVE}` : ""}`,
@@ -40,12 +40,19 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:caminho*", headers: cabecalhosDeSeguranca }];
   },
+  async redirects() {
+    // O cadastro tem uma entrada só (/participar). A busca vai junto: ?instagram=<@>&dono=sim.
+    return [{ source: "/indicar", destination: "/participar", permanent: false }];
+  },
   /* config options here */
   cacheComponents: true,
   experimental: {
     // Fotos chegam reduzidas pelo navegador, mas o padrão de 1 MB é apertado.
     // O Vercel aceita até 4,5 MB por requisição.
     serverActions: { bodySizeLimit: "4mb" },
+    // Sem conexão, navegações e Server Actions esperam a internet voltar em
+    // vez de dar erro; o AvisoSemConexao avisa enquanto isso.
+    useOffline: true,
   },
   partialPrefetching: true,
   turbopack: {

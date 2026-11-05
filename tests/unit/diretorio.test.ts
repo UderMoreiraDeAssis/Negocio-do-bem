@@ -112,6 +112,14 @@ describe("interpretarLocal", () => {
     expect(interpretarLocal("São Paulo, SP", CIDADES)).toEqual({ cidade: "São Paulo", uf: "SP", rotulo: "São Paulo, SP" });
   });
 
+  it("um nome de cidade que termina com uma sigla de UF vale como cidade", () => {
+    const cidades = [...CIDADES, { cidade: "Sento Sé", uf: "BA", total: 1 }];
+    const sentoSe = { cidade: "Sento Sé", uf: "BA", rotulo: "Sento Sé, BA" };
+    expect(interpretarLocal("Sento Sé", cidades)).toEqual(sentoSe);
+    expect(interpretarLocal("sento se", cidades)).toEqual(sentoSe);
+    expect(interpretarLocal("Sento Sé, BA", cidades)).toEqual(sentoSe);
+  });
+
   it("acha a cidade só pelo nome, com o nome escrito como no cadastro", () => {
     expect(interpretarLocal("RECIFE", CIDADES)).toEqual({ cidade: "Recife", uf: "PE", rotulo: "Recife, PE" });
   });

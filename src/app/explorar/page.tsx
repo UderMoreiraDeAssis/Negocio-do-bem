@@ -234,9 +234,9 @@ function Filtros({ filtros, resultado }: { filtros: FiltrosDiretorio; resultado:
         className="cartao flex items-center justify-between gap-3 p-4 transition hover:border-tinta/30"
       >
         <span>
-          <span className="block text-sm font-semibold">Só verificados pelo dono</span>
+          <span className="block text-sm font-semibold">Só perfis assumidos</span>
           <span className="mt-0.5 block text-xs text-suave">
-            {resultado.verificados} {resultado.verificados === 1 ? "negócio confirmado" : "negócios confirmados"} pelo dono
+            {resultado.verificados} {resultado.verificados === 1 ? "perfil assumido" : "perfis assumidos"}
           </span>
         </span>
         <span
@@ -330,7 +330,7 @@ function Vazio({ filtros, resultado }: { filtros: FiltrosDiretorio; resultado: R
         <Link href="/explorar" className="botao-claro">
           Limpar a busca
         </Link>
-        <Link href="/indicar" className="botao-coral">
+        <Link href="/participar" className="botao-coral">
           Indicar um negócio
         </Link>
       </div>
@@ -347,7 +347,7 @@ function filtrosAtivos(filtros: FiltrosDiretorio, local: Local | null) {
   for (const causa of filtros.causas) {
     ativos.push({ rotulo: buscarCausa(causa)?.nome ?? causa, href: mudarFiltro(filtros, { causas: alternar(filtros.causas, causa) }) });
   }
-  if (filtros.verificados) ativos.push({ rotulo: "Só verificados", href: mudarFiltro(filtros, { verificados: false }) });
+  if (filtros.verificados) ativos.push({ rotulo: "Só perfis assumidos", href: mudarFiltro(filtros, { verificados: false }) });
   return ativos;
 }
 

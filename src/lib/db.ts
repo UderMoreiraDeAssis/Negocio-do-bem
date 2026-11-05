@@ -8,8 +8,8 @@ export type { Prisma } from "@/generated/prisma/client";
 // cliente no globalThis evita abrir um pool de conexões novo a cada recarga.
 const cache = globalThis as unknown as { prisma?: PrismaClient };
 
-function criarCliente() {
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+function criarCliente(connectionString = process.env.DATABASE_URL) {
+  const adapter = new PrismaPg({ connectionString });
   return new PrismaClient({ adapter });
 }
 
@@ -20,12 +20,17 @@ function criarCliente() {
 const CONTEXTO_CLOUDFLARE = Symbol.for("__cloudflare-context__");
 const clientesPorRequisicao = new WeakMap<object, PrismaClient>();
 
+type ContextoCloudflare = { ctx?: object; env?: { HYPERDRIVE?: { connectionString: string } } };
+
 function clienteDaRequisicao(): PrismaClient | undefined {
-  const contexto = (globalThis as unknown as Record<symbol, { ctx?: object } | undefined>)[CONTEXTO_CLOUDFLARE];
+  const contexto = (globalThis as unknown as Record<symbol, ContextoCloudflare | undefined>)[CONTEXTO_CLOUDFLARE];
   if (!contexto?.ctx) return undefined;
   let cliente = clientesPorRequisicao.get(contexto.ctx);
   if (!cliente) {
-    cliente = criarCliente();
+    // Com o binding HYPERDRIVE, a conexão de cada requisição vai até o Hyperdrive,
+    // que mantém as conexões com o banco abertas. Ele só existe na produção (os
+    // previews não herdam bindings); nos previews vale a DATABASE_URL.
+    cliente = criarCliente(contexto.env?.HYPERDRIVE?.connectionString);
     clientesPorRequisicao.set(contexto.ctx, cliente);
   }
   return cliente;

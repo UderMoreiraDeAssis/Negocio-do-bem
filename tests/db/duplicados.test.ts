@@ -1,6 +1,8 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { after } from "next/server";
+import { medir } from "@/lib/medicao-servidor";
 
 // As Server Actions rodam fora do Next: o redirect vira um erro com o destino, a
 // sessão devolve a conta que o teste escolher, os cabeçalhos vêm vazios e o
@@ -15,7 +17,8 @@ vi.mock("next/navigation", () => ({
   },
 }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
-vi.mock("next/server", () => ({ after: () => {} }));
+vi.mock("next/server", () => ({ after: vi.fn() }));
+vi.mock("@/lib/medicao-servidor", () => ({ medir: vi.fn() }));
 vi.mock("@/lib/auth/sessao", () => ({
   exigirUsuario: async () => sessao.usuario,
   criarSessao: sessao.criarSessao,
@@ -67,10 +70,12 @@ describe("submissões duplicadas", () => {
   it("cadastro com e-mail criado por outro envio devolve o aviso do formulário, sem sessão", async () => {
     consultaPreliminarNaoEncontra(db.usuario);
 
-    const estado = await cadastrar(undefined, formulario({ nome: "Outro Lauro", email: "lauro@exemplo.com", senha: "senha-segura-1" }));
+    const estado = await cadastrar(undefined, formulario({ nome: "Outro Lauro", email: "lauro@exemplo.com", telefone: "11999998888", senha: "senha-segura-1" }));
 
     expect(estado?.erros?.email).toBe("Já existe uma conta com este e-mail. Que tal entrar?");
     expect(sessao.criarSessao).not.toHaveBeenCalled();
+    expect(after).not.toHaveBeenCalled();
+    expect(medir).not.toHaveBeenCalled();
     expect(await db.usuario.count()).toBe(1);
   });
 
@@ -88,15 +93,24 @@ describe("submissões duplicadas", () => {
 
     expect(estado).toEqual({ erro: "Você já deixou um depoimento para este negócio. Obrigado!" });
     expect(await db.depoimento.count()).toBe(1);
+    expect(after).not.toHaveBeenCalled();
+    expect(medir).not.toHaveBeenCalled();
   });
 
   it("outros erros do banco continuam subindo", async () => {
     const outroErro = new Prisma.PrismaClientKnownRequestError("sem conexão", { code: "P1001", clientVersion: "teste" });
     vi.spyOn(db.usuario, "create").mockRejectedValueOnce(outroErro);
 
-    await expect(cadastrar(undefined, formulario({ nome: "Nova Pessoa", email: "nova@exemplo.com", senha: "senha-segura-1" }))).rejects.toBe(
+    await expect(cadastrar(undefined, formulario({ nome: "Nova Pessoa", email: "nova@exemplo.com", telefone: "11999998888", senha: "senha-segura-1" }))).rejects.toBe(
       outroErro,
     );
     expect(sessao.criarSessao).not.toHaveBeenCalled();
+  });
+
+  it("preserva o telefone no cadastro que conclui", async () => {
+    await expect(cadastrar(undefined, formulario({ nome: "Nova Pessoa", email: "nova@exemplo.com", telefone: "11999998888", senha: "senha-segura-1" }))).rejects.toThrow("redirect:/");
+    const pessoa = await db.usuario.findUniqueOrThrow({ where: { email: "nova@exemplo.com" } });
+    expect(pessoa.telefone).toBe("5511999998888");
+    expect(sessao.criarSessao).toHaveBeenCalledWith(pessoa.id);
   });
 });

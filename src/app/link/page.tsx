@@ -4,13 +4,14 @@ import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 import { usarLinkDoEmail } from "@/acoes/conta";
 import { BotaoEnviar } from "@/components/BotaoEnviar";
+import { FormSenhaNova } from "@/components/FormulariosConta";
 import { CONFIRMACAO_DE_EMAIL_LIGADA, COOKIE_LINK, lerLink } from "@/lib/auth/links";
 import { caminhoSeguro, usuarioAtual } from "@/lib/auth/sessao";
 import { FORA_DA_BUSCA } from "@/lib/seo";
 
 export const metadata: Metadata = { title: "Link por e-mail", robots: FORA_DA_BUSCA };
 
-/** Aonde leva o link do e-mail, depois de /api/link: um clique confirma o e-mail ou entra. */
+/** Aonde leva o link do e-mail, depois de /api/link: um clique confirma o e-mail ou entra, ou a pessoa cria uma senha nova. */
 export default function PaginaLink(props: PageProps<"/link">) {
   return (
     <div className="mx-auto max-w-md px-4 pt-16 sm:px-6">
@@ -55,11 +56,14 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/link">, "searchParams
     return (
       <Moldura
         titulo="Este link não vale mais"
-        texto="Ele venceu ou já foi usado. Cada link vale uma vez só: o de entrar, por 15 minutos, e o de confirmar o e-mail, por 24 horas."
+        texto="Ele venceu ou já foi usado. Cada link vale uma vez só: o de entrar, por 15 minutos, o de senha nova, por 1 hora, e o de confirmar o e-mail, por 24 horas."
       >
         <div className="space-y-3 text-center">
           <Link href="/entrar/link" className="botao w-full">
             Pedir um link para entrar
+          </Link>
+          <Link href="/esqueci-a-senha" className="link block text-sm">
+            Pedir um link de senha nova
           </Link>
           {CONFIRMACAO_DE_EMAIL_LIGADA && (
             <p className="text-sm text-suave">
@@ -76,6 +80,24 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/link">, "searchParams
   }
 
   const { usuario } = link;
+  // Quem está logado também vê o formulário: quem desconfia de invasão abre o link na conta
+  // aberta e precisa chegar à senha nova.
+  if (link.finalidade === "redefinir") {
+    return (
+      <Moldura
+        titulo="Crie uma senha nova"
+        texto={
+          <>
+            Para a conta de <strong className="font-semibold text-tinta">{usuario.nome}</strong> (
+            <span className="break-all">{usuario.email}</span>). Ao salvar, você entra neste aparelho e os outros saem da
+            conta.
+          </>
+        }
+      >
+        <FormSenhaNova />
+      </Moldura>
+    );
+  }
   if (link.finalidade === "entrar") {
     return (
       <Moldura

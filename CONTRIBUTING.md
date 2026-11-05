@@ -29,7 +29,7 @@ Siga o passo a passo de [Rodando localmente](README.md#rodando-localmente) no RE
 ## Abrindo o pull request
 
 1. Trabalhe numa branch `tipo/numero-da-issue-descricao-curta`, criada a partir da `stage`, em que o tipo é o label da issue. Exemplo: `bug/12-erro-no-login`.
-2. Rode `npm run lint`, `npm run typecheck` e `npm test` (precisa do Postgres). O GitHub roda as mesmas verificações em todo PR.
+2. Rode `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` e `npm run test:integracao` (precisa do Postgres). O GitHub roda as mesmas verificações em todo PR. A integração usa o Next compilado e um banco de teste.
 3. Explique o que muda e por quê, e ligue o PR à issue: `Closes #12` se ele resolve, `Refs #12` se só se relaciona. Se mexeu na interface, coloque um print.
 4. Prefira PRs pequenos, com um assunto só.
 

@@ -8,7 +8,7 @@ import { CATEGORIAS, NOMES_UF, UFS, type Uf } from "@/lib/dominio";
 import { normalizarTexto } from "@/lib/texto";
 
 export const ORDENS = {
-  verificados: "Verificados primeiro",
+  verificados: "Assumidos primeiro",
   recentes: "Mais recentes",
   az: "Nome (A–Z)",
 } as const;
@@ -168,7 +168,8 @@ export function interpretarLocal(texto: string, cidades: CidadeComNegocios[]): L
   const estado = ESTADOS.find((e) => e.busca === busca || e.uf.toLowerCase() === busca);
   if (estado) return { uf: estado.uf, rotulo: estado.nome };
 
-  const partes = /^(.+?)\s*(?:,|\/|\s-|\s)\s*([a-z]{2})$/.exec(busca);
+  const mesmoNome = cidades.filter((c) => normalizarTexto(c.cidade) === busca);
+  const partes = mesmoNome.length === 0 ? /^(.+?)\s*(?:,|\/|\s-|\s)\s*([a-z]{2})$/.exec(busca) : null;
   const uf = partes && UFS.find((u) => u.toLowerCase() === partes[2]);
   if (partes && uf) {
     const cidade = cidades.find((c) => c.uf === uf && normalizarTexto(c.cidade) === partes[1]);
@@ -177,7 +178,6 @@ export function interpretarLocal(texto: string, cidades: CidadeComNegocios[]): L
     return { cidade: nome, uf, rotulo: `${nome}, ${uf}` };
   }
 
-  const mesmoNome = cidades.filter((c) => normalizarTexto(c.cidade) === busca);
   if (mesmoNome.length === 1) {
     const [cidade] = mesmoNome;
     return { cidade: cidade!.cidade, uf: cidade!.uf, rotulo: `${cidade!.cidade}, ${cidade!.uf}` };

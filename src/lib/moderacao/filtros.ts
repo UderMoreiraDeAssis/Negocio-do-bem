@@ -9,6 +9,7 @@ export const ABAS = {
   negocios: "Negócios",
   contas: "Contas",
   depoimentos: "Depoimentos",
+  embaixadores: "Embaixadores",
   auditoria: "Auditoria",
   sistema: "Sistema",
 } as const;
@@ -20,7 +21,7 @@ export const SITUACOES_NEGOCIO = {
   "fora-do-ar": "Tirados do ar",
   ocultos: "Ocultos pelo dono",
   pendentes: "Aguardando moderação",
-  verificados: "Verificados",
+  verificados: "Perfis assumidos",
   "sem-dono": "Sem dono",
   "sem-foto": "No diretório, sem foto",
   "sem-contato": "No diretório, sem contato",
@@ -47,7 +48,7 @@ export const SITUACOES_DEPOIMENTO = {
 export type SituacaoDepoimento = keyof typeof SITUACOES_DEPOIMENTO;
 
 /** O que pode ser alvo de um registro da auditoria. */
-export const TIPOS_DE_ALVO = ["empresa", "usuario", "reivindicacao", "depoimento"] as const;
+export const TIPOS_DE_ALVO = ["empresa", "usuario", "reivindicacao", "depoimento", "embaixador"] as const;
 export type Alvo = { tipo: (typeof TIPOS_DE_ALVO)[number]; id: string };
 
 export const POR_PAGINA = 30;

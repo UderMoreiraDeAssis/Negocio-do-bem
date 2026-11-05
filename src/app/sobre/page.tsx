@@ -52,7 +52,8 @@ export default function Sobre() {
         <p>
           Procure seu negócio no{" "}
           <Link href="/explorar">diretório</Link> e clique em <strong>&ldquo;Sou o dono&rdquo;</strong>. Se ele ainda não
-          estiver lá, <Link href="/indicar">cadastre</Link> marcando &ldquo;Este negócio é meu&rdquo;.
+          estiver lá, <Link href="/participar?dono=sim">cadastre</Link> pelo @ do Instagram e escolha &ldquo;Sou dono
+          deste negócio&rdquo;. Sem Instagram também dá.
         </p>
         <p>
           Depois, envie os dados do negócio: CNPJ ou MEI (se tiver), site e um contato. Se ninguém assumiu o perfil
@@ -71,15 +72,19 @@ export default function Sobre() {
           acima e, no painel, clique em &ldquo;Ocultar meu negócio&rdquo;. Ele sai do diretório na hora.
         </p>
         <p>
-          <strong>Que dados vocês guardam?</strong> Da sua conta, nome e e-mail. O e-mail nunca aparece no site: só a
-          moderação vê. Ele serve para você entrar e para receber avisos sobre os seus pedidos e o seu negócio, como
-          a decisão da moderação ou um depoimento novo. Dos negócios, só o que aparece no perfil:
+          <strong>Que dados vocês guardam?</strong> Da sua conta, nome, e-mail e telefone. O e-mail e o telefone nunca
+          aparecem no site: só a moderação vê. O e-mail serve para você entrar e para receber avisos sobre os seus
+          pedidos e o seu negócio, como a decisão da moderação ou um depoimento novo. O telefone serve só para esses
+          avisos, nunca para divulgação. Se você entra com o Google, guardamos também o número que o
+          Google dá à sua conta, para reconhecê-la da próxima vez. Dos negócios, só o que aparece no perfil:
           textos, fotos e contatos públicos.
           Não fazemos raspagem do Instagram e não guardamos tokens de acesso.
         </p>
         <p>
-          <strong>Vocês medem as visitas?</strong> Sim, com o Google Analytics, para saber quantas pessoas visitam o site e
-          quais páginas e buscas são mais comuns. Ele usa cookies no seu navegador e não recebe seu nome nem seu e-mail.
+          <strong>Vocês medem as visitas?</strong> Sim, com o Google Analytics, para saber quantas pessoas visitam o site,
+          quais páginas e buscas são mais comuns, quantas contas e negócios são cadastrados e quantos contatos os negócios
+          recebem pelo site. Ele usa cookies no seu navegador e não recebe seu nome, seu e-mail, seu telefone nem o nome do
+          negócio: só a categoria, a cidade e o estado, que já estão no perfil.
         </p>
         <p>
           <strong>E os depoimentos?</strong> Ficam no ar com o nome de quem escreveu. Donos podem responder, mas não
