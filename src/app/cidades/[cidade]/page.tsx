@@ -1,15 +1,21 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { CapaDaCidade } from "@/components/CapaDaCidade";
+import { EmbaixadoresDaCidade } from "@/components/Embaixadores";
 import { Atalhos, Vitrine, VitrineCarregando } from "@/components/Vitrine";
 import { CAUSAS } from "@/lib/causas";
 import { buscarDiretorio, cidadeDoSlug, listarCidades } from "@/lib/consultas";
 import { hrefCidade, hrefDiretorio, SEM_FILTROS, slugCidade, type CidadeComNegocios } from "@/lib/diretorio";
 import { CATEGORIAS, NOMES_UF, type Uf } from "@/lib/dominio";
+import { embaixadoresDaCidade, embaixadoresNoSite } from "@/lib/embaixadores";
+import { fotoDaCidade } from "@/lib/fotos-das-cidades";
 import { jsonLdDaVitrine, metadadosDaPagina, type Migalha } from "@/lib/seo";
 
 // "Negócios do bem em Salvador, BA": a página que responde a quem busca pela cidade.
 // Só existe para cidades com negócios no diretório; as outras mostram "Não encontramos esta página".
+// As cidades de fotos-das-cidades.json levam a foto no topo e têm a prévia do link
+// pronta de antemão, em JPEG. As outras usam o opengraph-image.tsx desta pasta.
 
 function textos(cidade: CidadeComNegocios) {
   const onde = `${cidade.cidade}, ${cidade.uf}`;
@@ -31,8 +37,15 @@ function textos(cidade: CidadeComNegocios) {
 export async function generateMetadata(props: PageProps<"/cidades/[cidade]">): Promise<Metadata> {
   const cidade = await cidadeDoSlug((await props.params).cidade);
   if (!cidade) notFound();
-  const { titulo, descricao, caminho } = textos(cidade);
-  return metadadosDaPagina({ titulo, descricao, caminho });
+  const { onde, titulo, descricao, caminho } = textos(cidade);
+  const foto = fotoDaCidade(cidade.cidade, cidade.uf);
+  return metadadosDaPagina({
+    titulo,
+    descricao,
+    caminho,
+    imagemPropria: true,
+    previa: foto ? { url: foto.previa, alt: `${foto.alt}, com o texto "Negócios do bem em ${onde}"` } : undefined,
+  });
 }
 
 export default function PaginaDaCidade(props: PageProps<"/cidades/[cidade]">) {
@@ -47,8 +60,13 @@ async function Cidade({ params }: Pick<PageProps<"/cidades/[cidade]">, "params">
   const cidade = await cidadeDoSlug((await params).cidade);
   if (!cidade) notFound();
   const { onde, titulo, descricao, migalhas } = textos(cidade);
-  const [resultado, cidades] = await Promise.all([buscarDiretorio({ ...SEM_FILTROS, onde }), listarCidades()]);
+  const [resultado, cidades, embaixadores] = await Promise.all([
+    buscarDiretorio({ ...SEM_FILTROS, onde }),
+    listarCidades(),
+    embaixadoresNoSite(),
+  ]);
   const estado = NOMES_UF[cidade.uf as Uf];
+  const foto = fotoDaCidade(cidade.cidade, cidade.uf);
   const vizinhas = cidades
     .filter((c) => c.uf === cidade.uf && slugCidade(c.cidade, c.uf) !== slugCidade(cidade.cidade, cidade.uf))
     .sort((a, b) => b.total - a.total || a.cidade.localeCompare(b.cidade, "pt-BR"));
@@ -64,6 +82,8 @@ async function Cidade({ params }: Pick<PageProps<"/cidades/[cidade]">, "params">
           tipo de negócio ou pelas causas que importam para você.
         </p>
       }
+      capa={foto && <CapaDaCidade foto={foto} />}
+      destaque={<EmbaixadoresDaCidade embaixadores={embaixadoresDaCidade(embaixadores, cidade.cidade, cidade.uf)} />}
       total={resultado.total}
       itens={resultado.itens}
       hrefNoDiretorio={hrefDiretorio({ onde })}
@@ -73,6 +93,7 @@ async function Cidade({ params }: Pick<PageProps<"/cidades/[cidade]">, "params">
         migalhas,
         negocios: resultado.itens,
         sobre: { "@type": "City", name: cidade.cidade, containedInPlace: { "@type": "State", name: estado } },
+        foto,
       })}
     >
       <Atalhos

@@ -46,7 +46,7 @@ async function PorEstado() {
     return (
       <div className="cartao mt-10 px-6 py-14 text-center">
         <p className="font-serif text-2xl">Ainda não há negócios no diretório.</p>
-        <Link href="/indicar" className="botao-coral mt-6">
+        <Link href="/participar" className="botao-coral mt-6">
           Indicar um negócio
         </Link>
       </div>

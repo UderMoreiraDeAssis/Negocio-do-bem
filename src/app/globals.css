@@ -266,3 +266,29 @@ body {
   border-radius: 0.35rem;
   padding: 0.1em 0.35em;
 }
+
+/* A faixa que passa sozinha (FaixaRolante.tsx): a trilha leva os itens duas vezes e anda a metade. */
+@keyframes rolar-faixa {
+  to {
+    transform: translateX(-50%);
+  }
+}
+.faixa-rolando {
+  animation: rolar-faixa var(--duracao-da-faixa) linear infinite;
+}
+.faixa-janela:hover .faixa-rolando,
+.faixa-janela:focus-within .faixa-rolando,
+.faixa-rolando[data-pausada] {
+  animation-play-state: paused;
+}
+.faixa-mascara {
+  mask-image: linear-gradient(to right, transparent, #000 3rem, #000 calc(100% - 3rem), transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .faixa-rolando {
+    animation: none;
+  }
+  .faixa-mascara {
+    mask-image: none;
+  }
+}

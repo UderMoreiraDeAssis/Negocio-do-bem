@@ -3,6 +3,7 @@ import { CausaBadge } from "@/components/CausaBadge";
 import { FotoEmpresa } from "@/components/FotoEmpresa";
 import { SeloStatus } from "@/components/SeloStatus";
 import { filtrarCausas } from "@/lib/causas";
+import { temInstagram } from "@/lib/endereco";
 
 export type EmpresaResumo = {
   instagramUsername: string;
@@ -30,10 +31,10 @@ export function EmpresaCard({ empresa }: { empresa: EmpresaResumo }) {
       <div className="flex items-start gap-3">
         <FotoEmpresa empresa={empresa} />
         <div className="min-w-0">
-          <h3 className="truncate font-serif text-xl font-semibold leading-tight group-hover:text-coral-700">
+          <h3 className="line-clamp-2 break-words font-serif text-xl font-semibold leading-tight group-hover:text-coral-700">
             {empresa.nome}
           </h3>
-          <p className="truncate text-sm text-suave">@{empresa.instagramUsername}</p>
+          {temInstagram(empresa.instagramUsername) && <p className="truncate text-sm text-suave">@{empresa.instagramUsername}</p>}
         </div>
       </div>
 

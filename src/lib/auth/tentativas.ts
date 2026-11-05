@@ -3,15 +3,20 @@ import { createHash } from "node:crypto";
 import { isIP } from "node:net";
 import { db } from "@/lib/db";
 
-// Cada login e cadastro calcula o scrypt (~32 MB de memória), então o limite é
+// Cada login, cadastro e troca de senha calcula o scrypt (~32 MB de memória), então o limite é
 // conferido antes dele. A contagem fica no banco porque o site roda em várias
 // instâncias. A chave é o sha256 do IP ou do e-mail, para o banco não guardá-los.
 export const LIMITE_POR_IP = 10;
 export const LIMITE_POR_EMAIL = 5;
 export const JANELA_MS = 15 * 60 * 1000;
 
-function chave(tipo: "ip" | "ip-desconhecido" | "email", valor: string): string {
+function chave(tipo: "ip" | "email", valor: string): string {
   return createHash("sha256").update(`${tipo}:${valor}`).digest("hex");
+}
+
+/** Vai na coluna `email` das linhas do limite por e-mail, para achar as de todas as origens. */
+function hashDoEmail(email: string): string {
+  return chave("email", email);
 }
 
 function inicioDaJanela(): Date {
@@ -22,12 +27,12 @@ function inicioDaJanela(): Date {
  * Soma uma tentativa à janela atual, ou abre uma janela nova se a anterior venceu.
  * É um comando só no banco, para tentativas simultâneas não se perderem.
  */
-async function contar(chaveTentativa: string): Promise<number> {
+async function contar(chaveTentativa: string, email: string | null = null): Promise<number> {
   const agora = new Date();
   const inicio = new Date(agora.getTime() - JANELA_MS);
   const [tentativa] = await db.$queryRaw<{ contagem: number }[]>`
-    INSERT INTO "TentativaAcesso" ("chave", "contagem", "janelaIniciadaEm")
-    VALUES (${chaveTentativa}, 1, ${agora})
+    INSERT INTO "TentativaAcesso" ("chave", "contagem", "janelaIniciadaEm", "email")
+    VALUES (${chaveTentativa}, 1, ${agora}, ${email})
     ON CONFLICT ("chave") DO UPDATE SET
       "contagem" = CASE WHEN "TentativaAcesso"."janelaIniciadaEm" >= ${inicio}
         THEN "TentativaAcesso"."contagem" + 1 ELSE 1 END,
@@ -83,19 +88,33 @@ export function normalizarIp(ip: string): string {
 }
 
 /**
- * Conta uma tentativa de login ou de cadastro vinda deste IP e diz se ela pode seguir.
- * Sem IP conhecido, todas as tentativas dividem um contador só: o cadastro não tem
- * limite por e-mail, e sem este contador o scrypt ficaria sem freio.
+ * Conta uma tentativa de login, cadastro ou senha nova vinda deste IP e diz se ela pode seguir.
+ * Sem IP confiável (`ip` null) não há contador: um contador dividido por todos
+ * deixaria um visitante gastar a cota dos outros.
+ * - Em produção, a tentativa é recusada, e o aviso para quem cuida do site vai para o log.
+ *   O cadastro não tem limite por e-mail, e sem o limite por IP o scrypt ficaria sem freio.
+ * - Em desenvolvimento e nos testes, a tentativa segue sem limite por IP.
+ *   O limite por e-mail do login continua valendo.
  */
 export async function tentativaDoIpLiberada(ip: string | null): Promise<boolean> {
+  if (!ip) {
+    if (process.env.NODE_ENV !== "production") return true;
+    console.error(
+      "Operação recusada: não há IP confiável nesta requisição. No Vercel, confira o x-vercel-forwarded-for. " +
+        "No Cloudflare, confira CLOUDFLARE_DEPLOY=1 e o cf-connecting-ip. " +
+        "Em outra hospedagem, defina AUTENTICACAO_PROXY_CONFIAVEL=1 só se há um proxy seu que escreve o x-forwarded-for " +
+        "e é o único caminho até o site. Veja a seção \"Publicando\" do README.",
+    );
+    return false;
+  }
   await db.tentativaAcesso.deleteMany({ where: { janelaIniciadaEm: { lt: inicioDaJanela() } } });
-  return (await contar(ip ? chave("ip", ip) : chave("ip-desconhecido", ""))) <= LIMITE_POR_IP;
+  return (await contar(chave("ip", ip))) <= LIMITE_POR_IP;
 }
 
 /**
  * O contador do e-mail é separado por origem (o IP, ou o /64 no IPv6): quem erra a senha
- * de outra pessoa de outro lugar não bloqueia a dona da conta. Sem IP confiável, as
- * tentativas sem IP dividem um contador só por e-mail.
+ * de outra pessoa de outro lugar não bloqueia a dona da conta. Sem IP confiável, em
+ * desenvolvimento e nos testes, as tentativas dividem um contador só por e-mail.
  */
 function chaveDoEmail(email: string, ip: string | null): string {
   return chave("email", `${email} ${ip ?? "ip-desconhecido"}`);
@@ -108,10 +127,19 @@ function chaveDoEmail(email: string, ip: string | null): string {
  * tentativas que chegam juntas antes de a primeira contar. Nada fica preso no banco durante o scrypt.
  */
 export async function reservarTentativaDoEmail(email: string, ip: string | null): Promise<boolean> {
-  return (await contar(chaveDoEmail(email, ip))) <= LIMITE_POR_EMAIL;
+  return (await contar(chaveDoEmail(email, ip), hashDoEmail(email))) <= LIMITE_POR_EMAIL;
 }
 
 /** O login deu certo: a contagem daquele e-mail, naquela origem, volta a zero. */
 export async function zerarTentativasDoEmail(email: string, ip: string | null): Promise<void> {
   await db.tentativaAcesso.deleteMany({ where: { chave: chaveDoEmail(email, ip) } });
+}
+
+/**
+ * A senha mudou: as contagens daquele e-mail, de todas as origens, voltam a zero.
+ * Quem esqueceu a senha costuma errar algumas vezes antes de pedir o link, e sem isto
+ * a senha nova seria recusada até a janela vencer.
+ */
+export async function zerarTentativasDeTodasAsOrigens(email: string): Promise<void> {
+  await db.tentativaAcesso.deleteMany({ where: { email: hashDoEmail(email) } });
 }

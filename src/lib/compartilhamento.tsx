@@ -1,7 +1,10 @@
 // Peças das imagens de compartilhamento (opengraph-image.tsx): a prévia que
 // aparece quando alguém manda um link do site no WhatsApp, Instagram, LinkedIn etc.
 
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { INTER, NEWSREADER } from "@/lib/fontes-compartilhamento";
+import { ehFotoDoSite } from "@/lib/fotos";
 import { CORES_DA_MARCA, ICONE, LOGO, svgDoIcone, svgDoLogo } from "@/lib/marca";
 
 export const TAMANHO = { width: 1200, height: 630 };
@@ -58,4 +61,28 @@ export function ImagemDoSite() {
       </div>
     </div>
   );
+}
+
+/**
+ * Foto do perfil de um negócio ou de um embaixador, como data URI. O ImageResponse
+ * não lê WebP, e uma foto que não carrega derrubaria a imagem inteira: nesses
+ * casos fica o monograma.
+ */
+export async function fotoEmDataUri(url: string | null): Promise<string | null> {
+  if (!ehFotoDoSite(url)) return null;
+  const tipo = /\.png$/i.test(url) ? "image/png" : /\.jpe?g$/i.test(url) ? "image/jpeg" : null;
+  if (!tipo) return null;
+  try {
+    let dados: Buffer;
+    if (url.startsWith("/enviados/")) {
+      dados = await readFile(join(process.cwd(), "public", url));
+    } else {
+      const resposta = await fetch(url);
+      if (!resposta.ok) return null;
+      dados = Buffer.from(await resposta.arrayBuffer());
+    }
+    return `data:${tipo};base64,${dados.toString("base64")}`;
+  } catch {
+    return null;
+  }
 }

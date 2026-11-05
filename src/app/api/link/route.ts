@@ -9,7 +9,11 @@ import { COOKIE_LINK, VALIDADE_MS } from "@/lib/auth/links";
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("t") ?? "";
   const resposta = NextResponse.redirect(new URL("/link", request.nextUrl.origin));
-  if (token) {
+  if (!token) {
+    // Sem token, nada do link anterior fica no cookie: num computador dividido, a próxima
+    // pessoa não herda um link de senha nova que ainda vale.
+    resposta.cookies.delete({ name: COOKIE_LINK, path: "/link" });
+  } else {
     resposta.cookies.set(COOKIE_LINK, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
