@@ -55,6 +55,19 @@ describe("avisos de correção", () => {
     expect(await db.registroAuditoria.findFirstOrThrow()).toMatchObject({ usuarioId: membroId, acao: "correcao.enviada", alvoId: empresaId });
   });
 
+  it("recusa status desconhecido mesmo em gravação direta no banco", async () => {
+    await expect(db.correcaoPerfil.create({
+      data: {
+        empresaId,
+        autorId: membroId,
+        problema: "Dado informado incorretamente",
+        correcao: "Correção sugerida",
+        status: "estado_invalido",
+      },
+    })).rejects.toThrow();
+    expect(await db.correcaoPerfil.count()).toBe(0);
+  });
+
   it("exige sessão válida no servidor", async () => {
     acesso.token = "";
     await expect(avisarCorrecao(undefined, formulario())).rejects.toThrow("redirect:/entrar");
