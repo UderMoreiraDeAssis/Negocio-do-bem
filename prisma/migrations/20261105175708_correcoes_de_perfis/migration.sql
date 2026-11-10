@@ -14,6 +14,11 @@ CREATE TABLE "CorrecaoPerfil" (
     CONSTRAINT "CorrecaoPerfil_pkey" PRIMARY KEY ("id")
 );
 
+-- Rejeita estados desconhecidos que deixariam avisos invisíveis na fila de moderação.
+ALTER TABLE "CorrecaoPerfil"
+ADD CONSTRAINT "CorrecaoPerfil_status_check"
+CHECK ("status" IN ('pendente', 'corrigido', 'sem_mudanca'));
+
 -- CreateIndex
 CREATE INDEX "CorrecaoPerfil_status_criadoEm_idx" ON "CorrecaoPerfil"("status", "criadoEm");
 
