@@ -34,7 +34,7 @@ export async function TrocasDeArroba() {
         <article key={pedido.id} className="cartao space-y-4 p-6">
           <header className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <Link href={`/empresas/${pedido.empresa.instagramUsername}`} className="font-serif text-2xl font-semibold hover:text-coral-700">
+              <Link href={`/empresas/${pedido.empresa.instagramUsername}`} className="font-display text-2xl font-semibold hover:text-coral-700">
                 {pedido.empresa.nome}
               </Link>
               <p className="text-sm text-suave">

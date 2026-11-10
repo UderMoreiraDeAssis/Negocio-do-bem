@@ -30,8 +30,8 @@ export default function Embaixadores(props: PageProps<"/embaixadores">) {
       <div className="mt-6 flex flex-wrap items-stretch gap-7">
         <div className="flex min-w-0 flex-[999_1_30rem] flex-col justify-center">
           <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">Comunidade</p>
-          <h1 className="mt-2 font-serif text-5xl leading-[1.02] font-semibold tracking-tight sm:text-6xl">
-            Embaixadores do <span className="text-coral italic">bem</span>
+          <h1 className="mt-2 font-display text-5xl leading-[1.02] font-semibold tracking-tight sm:text-6xl">
+            Embaixadores do <span className="font-serif text-coral italic">bem</span>
           </h1>
           <p className="mt-4 max-w-2xl text-lg leading-relaxed text-pretty text-suave">
             Pessoas que levam o Negócio do Bem para as suas cidades: indicam negócios, contam as histórias deles e chamam a
@@ -49,7 +49,7 @@ export default function Embaixadores(props: PageProps<"/embaixadores">) {
 
       <section className="mt-16 flex flex-col items-start justify-between gap-5 rounded-3xl bg-tinta px-8 py-10 text-papel sm:flex-row sm:items-center escuro:bg-superficie escuro:text-tinta escuro:ring-1 escuro:ring-linha">
         <div>
-          <h2 className="font-serif text-3xl font-semibold">Quer ser embaixador do bem?</h2>
+          <h2 className="font-display text-3xl font-semibold">Quer ser embaixador do bem?</h2>
           <p className="mt-1 max-w-xl text-papel/70 escuro:text-suave">
             Se você fala da sua cidade nas redes e quer levar mais gente aos negócios de lá, escreva para a gente.
           </p>
@@ -78,13 +78,13 @@ async function Alcance() {
       {seguidores > 0 ? (
         <div>
           <p className="text-xs font-semibold tracking-[0.08em] text-papel/70 uppercase escuro:text-suave">Alcance somado</p>
-          <p className="mt-2.5 font-serif text-7xl leading-[0.95] font-semibold tracking-tight text-coral escuro:text-coral-700">
+          <p className="mt-2.5 font-display text-7xl leading-[0.95] font-semibold tracking-tight text-coral escuro:text-coral-700">
             {formatarSeguidores(seguidores)}
           </p>
           <p className="mt-2.5 text-xl font-medium">seguidores no Instagram</p>
         </div>
       ) : (
-        <p className="font-serif text-3xl font-semibold">Gente que espalha a palavra pelo Brasil</p>
+        <p className="font-display text-3xl font-semibold">Gente que espalha a palavra pelo Brasil</p>
       )}
       <dl className="flex flex-wrap gap-x-7 gap-y-3 border-t border-papel/15 pt-4 escuro:border-linha">
         <Numero valor={embaixadores.length} rotulo={embaixadores.length === 1 ? "embaixador" : "embaixadores"} />
@@ -115,7 +115,7 @@ async function Lista({ searchParams }: Pick<PageProps<"/embaixadores">, "searchP
   if (embaixadores.length === 0) {
     return (
       <div className="cartao mt-10 px-6 py-14 text-center">
-        <p className="font-serif text-2xl">Os primeiros embaixadores chegam em breve.</p>
+        <p className="font-display text-2xl">Os primeiros embaixadores chegam em breve.</p>
         <p className="mx-auto mt-2 max-w-md text-suave">Enquanto isso, indique os negócios do bem da sua cidade.</p>
         <Link href="/participar" className="botao-coral mt-6">
           Indicar um negócio
@@ -155,7 +155,7 @@ async function Lista({ searchParams }: Pick<PageProps<"/embaixadores">, "searchP
       )}
 
       <p className="mt-7 border-b border-linha pb-3.5 text-suave">
-        <strong className="font-serif text-2xl font-semibold text-tinta">{lista.length}</strong>{" "}
+        <strong className="font-display text-2xl font-semibold text-tinta">{lista.length}</strong>{" "}
         {lista.length === 1 ? "embaixador" : "embaixadores"}
         {escolhido ? ` · ${NOMES_UF[escolhido]}` : " em todo o Brasil"}
       </p>

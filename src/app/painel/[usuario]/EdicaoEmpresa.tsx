@@ -31,7 +31,7 @@ export function EdicaoEmpresa({ empresa, voltar, trocaDoArroba = false }: { empr
   return (
     <>
       <section className="cartao space-y-4 p-6 sm:p-8">
-        <h2 className="font-serif text-2xl font-semibold">Foto do perfil</h2>
+        <h2 className="font-display text-2xl font-semibold">Foto do perfil</h2>
         <FormFoto empresa={fotoDe(empresa)} voltar={voltar} />
       </section>
 

@@ -23,12 +23,12 @@ export function Passo({
     <li className="grid grid-cols-[2.5rem_1fr] gap-4">
       <span
         aria-hidden="true"
-        className="grid h-10 w-10 place-items-center rounded-full bg-coral font-serif text-xl font-semibold text-white"
+        className="grid h-10 w-10 place-items-center rounded-full bg-coral font-display text-xl font-semibold text-white"
       >
         {numero}
       </span>
       <div className="min-w-0 pt-1.5">
-        <Titulo className="font-serif text-xl font-semibold">
+        <Titulo className="font-display text-xl font-semibold">
           <span className="sr-only">Passo {numero}: </span>
           {titulo}
         </Titulo>

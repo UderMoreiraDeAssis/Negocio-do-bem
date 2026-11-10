@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "Meus cupons", robots: FORA_DA_BUSCA 
 export default function MeusCupons(props: PageProps<"/cupons/meus">) {
   return (
     <div className="mx-auto max-w-3xl px-4 pt-8 sm:px-6 sm:pt-12">
-      <h1 className="font-serif text-4xl font-semibold tracking-tight">Cupons do bem</h1>
+      <h1 className="font-display text-4xl font-semibold tracking-tight">Cupons do bem</h1>
       <Suspense fallback={<div className="mt-8 h-80 animate-pulse rounded-3xl bg-superficie" />}>
         <Conteudo searchParams={props.searchParams} />
       </Suspense>
@@ -64,7 +64,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/cupons/meus">, "searc
 
       {cupons.length === 0 ? (
         <div className="cartao p-8 text-center">
-          <p className="font-serif text-2xl">Você ainda não tem cupons</p>
+          <p className="font-display text-2xl">Você ainda não tem cupons</p>
           <p className="mx-auto mt-2 max-w-md text-suave">
             Escolha uma oferta do Clube do Bem e gere o cupom. Ele aparece aqui, pronto para mostrar no caixa.
           </p>
@@ -93,7 +93,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/cupons/meus">, "searc
                         </p>
                       </>
                     )}
-                    <p className="font-serif text-xl font-semibold">{cupom.oferta.titulo}</p>
+                    <p className="font-display text-xl font-semibold">{cupom.oferta.titulo}</p>
                     <p className="text-sm text-suave">
                       {rotuloDoDesconto(cupom.oferta)} · {rotuloOndeVale(cupom.oferta.ondeVale)}
                     </p>
@@ -107,7 +107,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/cupons/meus">, "searc
           )}
           {outros.length > 0 && (
             <section>
-              <h2 className="font-serif text-2xl font-semibold">Usados e vencidos</h2>
+              <h2 className="font-display text-2xl font-semibold">Usados e vencidos</h2>
               <ul className="cartao mt-4 divide-y divide-linha">
                 {outros.map((cupom) => (
                   <li key={cupom.id} className="flex flex-col gap-1 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">

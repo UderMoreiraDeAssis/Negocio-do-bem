@@ -92,7 +92,7 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/painel/[usuar
         </Link>
         <div>
           <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">Clube do Bem</p>
-          <h1 className="mt-1 font-serif text-4xl font-semibold tracking-tight">Ofertas e cupons</h1>
+          <h1 className="mt-1 font-display text-4xl font-semibold tracking-tight">Ofertas e cupons</h1>
           <Link href="/clube-do-bem#para-negocios" className="link mt-2 inline-block text-sm">
             Como funciona o Clube do Bem
           </Link>
@@ -113,7 +113,7 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/painel/[usuar
       {/* Sem oferta nenhuma, ainda não há cupom para validar. */}
       {(liberado || empresa.ofertas.length > 0) && (
         <section id="validar" className="scroll-mt-24 space-y-4">
-          <h2 className="font-serif text-2xl font-semibold">Validar um cupom</h2>
+          <h2 className="font-display text-2xl font-semibold">Validar um cupom</h2>
           <form action={`/painel/${empresa.instagramUsername}/clube#validar`} method="get" className="cartao space-y-3 p-5">
             <label htmlFor="codigo" className="rotulo">
               Código que a pessoa mostrou
@@ -148,7 +148,7 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/painel/[usuar
         {!liberado ? null : ativa ? (
           <div className="cartao space-y-3 p-6">
             <p className="text-xs font-semibold tracking-[0.2em] text-folha uppercase">Valendo agora</p>
-            <h2 className="font-serif text-2xl font-semibold">{ativa.titulo}</h2>
+            <h2 className="font-display text-2xl font-semibold">{ativa.titulo}</h2>
             <p className="text-sm text-suave">
               {rotuloDoDesconto(ativa)} · {rotuloOndeVale(ativa.ondeVale)} · <Prazo fim={ativa.fim.toISOString()} />
             </p>
@@ -177,7 +177,7 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/painel/[usuar
 
       {empresa.ofertas.length > 0 && (
         <section className="space-y-4">
-          <h2 className="font-serif text-2xl font-semibold">Ofertas do negócio</h2>
+          <h2 className="font-display text-2xl font-semibold">Ofertas do negócio</h2>
           <ul className="cartao divide-y divide-linha">
             {empresa.ofertas.map((oferta) => (
               <li key={oferta.id} className="flex flex-col gap-1 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">

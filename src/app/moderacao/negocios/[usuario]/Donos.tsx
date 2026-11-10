@@ -18,7 +18,7 @@ export async function Donos({ empresa, aviso }: { empresa: { id: string; instagr
   return (
     <section id="donos" className="scroll-mt-24 space-y-4">
       <div>
-        <h2 className="font-serif text-2xl font-semibold">Donos</h2>
+        <h2 className="font-display text-2xl font-semibold">Donos</h2>
         <p className="mt-1 text-sm leading-relaxed text-suave">
           Quem assumiu o perfil e pode editá-lo. Remova quem não é do negócio: a pessoa recebe o motivo por e-mail, e um
           pedido novo dela para este negócio vai para a moderação.

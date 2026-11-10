@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: "Cupons do bem", robots: FORA_DA_BUSC
 export default function Cupons(props: PageProps<"/cupons">) {
   return (
     <div className="mx-auto max-w-3xl px-4 pt-8 sm:px-6 sm:pt-12">
-      <h1 className="font-serif text-4xl font-semibold tracking-tight">Cupons do bem</h1>
+      <h1 className="font-display text-4xl font-semibold tracking-tight">Cupons do bem</h1>
       <Suspense fallback={<div className="mt-8 h-80 animate-pulse rounded-3xl bg-superficie" />}>
         <Conteudo searchParams={props.searchParams} />
       </Suspense>
@@ -88,7 +88,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/cupons">, "searchPara
 
       {lista.length === 0 ? (
         <div className="cartao p-8 text-center">
-          <p className="font-serif text-2xl">Nenhuma oferta valendo agora</p>
+          <p className="font-display text-2xl">Nenhuma oferta valendo agora</p>
           <p className="mx-auto mt-2 max-w-md text-suave">
             Os negócios do Clube do Bem criam ofertas por poucos dias. Enquanto isso, descubra negócios que fazem o bem.
           </p>
@@ -114,7 +114,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/cupons">, "searchPara
                     </span>
                   </span>
                 </Link>
-                <p className="font-serif text-2xl leading-snug font-semibold">{oferta.titulo}</p>
+                <p className="font-display text-2xl leading-snug font-semibold">{oferta.titulo}</p>
                 <p className="text-sm text-suave">
                   {rotuloDoDesconto(oferta)} · {rotuloOndeVale(oferta.ondeVale)}
                 </p>

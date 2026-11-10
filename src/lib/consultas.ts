@@ -284,3 +284,50 @@ export function podeVerPerfil(empresa: EmpresaVisivel, usuario: UsuarioSessao | 
   if (!usuario) return false;
   return usuario.moderador || ehDono(empresa, usuario) || empresa.indicadaPorId === usuario.id;
 }
+
+const LIMITE_DO_RANKING = 4;
+
+const INCLUIR_NO_CARD = {
+  causas: { select: { causa: true } },
+  _count: { select: { depoimentos: { where: { status: "publicado" } }, favoritos: true } },
+  ofertas: { where: condicaoDeOfertaAtiva(), select: { id: true }, take: 1 },
+} satisfies Prisma.EmpresaInclude;
+
+/** Busca os negócios pelos ids e devolve na ordem dos ids (o findMany não garante a ordem). */
+async function negociosNaOrdem(ids: string[]) {
+  const itens = await db.empresa.findMany({ where: { ...NO_DIRETORIO, id: { in: ids } }, include: INCLUIR_NO_CARD });
+  const porId = new Map(itens.map((e) => [e.id, e]));
+  return ids.flatMap((id) => porId.get(id) ?? []);
+}
+
+/**
+ * "Os mais queridos" da página inicial: os negócios do diretório com mais favoritos e os
+ * com mais depoimentos publicados. Só entra quem tem pelo menos um; no empate, o que
+ * recebeu o último favorito (ou depoimento) primeiro. O número de favoritos não sai daqui:
+ * só o dono vê quantas pessoas favoritaram o negócio, e o ranking mostra a posição.
+ */
+export const maisQueridos = cache(async (limite = LIMITE_DO_RANKING) => {
+  const [favoritos, depoimentos] = await Promise.all([
+    db.empresaFavorita.groupBy({
+      by: ["empresaId"],
+      where: { empresa: NO_DIRETORIO },
+      _count: { _all: true },
+      _max: { criadoEm: true },
+      orderBy: [{ _count: { empresaId: "desc" } }, { _max: { criadoEm: "desc" } }],
+      take: limite,
+    }),
+    db.depoimento.groupBy({
+      by: ["empresaId"],
+      where: { status: "publicado", empresa: NO_DIRETORIO },
+      _count: { _all: true },
+      _max: { criadoEm: true },
+      orderBy: [{ _count: { empresaId: "desc" } }, { _max: { criadoEm: "desc" } }],
+      take: limite,
+    }),
+  ]);
+  const [maisFavoritados, maisDepoimentos] = await Promise.all([
+    negociosNaOrdem(favoritos.map((f) => f.empresaId)),
+    negociosNaOrdem(depoimentos.map((d) => d.empresaId)),
+  ]);
+  return { maisFavoritados, maisDepoimentos };
+});

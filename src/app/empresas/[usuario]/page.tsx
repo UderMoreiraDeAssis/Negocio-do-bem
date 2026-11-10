@@ -112,7 +112,7 @@ async function Perfil({ params, searchParams }: Pick<PageProps<"/empresas/[usuar
                 <span className="rounded-full bg-coral-50 px-2.5 py-1 text-xs font-semibold text-coral-700">Parceiro do Clube do Bem</span>
               )}
             </div>
-            <h1 className="font-serif text-[clamp(1.75rem,5vw,2.625rem)] leading-[1.1] font-semibold tracking-tight text-balance">{empresa.nome}</h1>
+            <h1 className="font-display text-[clamp(1.75rem,5vw,2.625rem)] leading-[1.1] font-semibold tracking-tight text-balance">{empresa.nome}</h1>
             <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-suave">
               {/* Sem WhatsApp, o botão principal já leva ao Instagram: não repete o link aqui. */}
               {(empresa.whatsapp || !temInstagram(empresa.instagramUsername)) && (
@@ -309,7 +309,7 @@ function OfertaDoClube({
     <div id="clube" className="cartao scroll-mt-24 space-y-3 border-coral/40 p-5">
       <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">🎟️ Clube do Bem</p>
       <div>
-        <p className="font-serif text-xl leading-snug font-semibold">{oferta.titulo}</p>
+        <p className="font-display text-xl leading-snug font-semibold">{oferta.titulo}</p>
         <p className="mt-1 text-sm text-suave">
           {rotuloDoDesconto(oferta)} · {rotuloOndeVale(oferta.ondeVale)}
         </p>
@@ -320,7 +320,7 @@ function OfertaDoClube({
         {restam !== null && ` · ${restam === 1 ? "resta 1 cupom" : `restam ${restam} cupons`}`}
       </p>
       {meuCupom ? (
-        <div className="rounded-2xl bg-papel p-4">
+        <div className="rounded-2xl bg-areia p-4">
           <p className="text-xs text-suave">Seu cupom</p>
           <p className="font-mono text-3xl tracking-[0.2em]">{meuCupom}</p>
           <p className="mt-1 text-sm text-suave">
@@ -372,7 +372,7 @@ function OfertaDoClube({
 function CartaoDeContato({ empresa, medir, lugarComLink }: { empresa: Perfil; medir: boolean; lugarComLink: boolean }) {
   const instagram = temInstagram(empresa.instagramUsername);
   const medida = (canal: CanalDeContato) => (medir ? medirContato(canal, empresa) : {});
-  const linha = "block rounded-xl px-3 py-2 transition hover:bg-papel";
+  const linha = "block rounded-xl px-3 py-2 transition hover:bg-areia";
   const rotulo = "block text-xs text-suave";
   const onde = `${empresa.cidade}, ${empresa.uf}`;
   return (
@@ -446,7 +446,7 @@ function Causas({ causas, link }: { causas: string[]; link: boolean }) {
     .filter((g) => g.slugs.length > 0);
   return (
     <section className="border-t border-linha py-10 lg:py-12">
-      <h2 className="font-serif text-3xl font-semibold">O que este negócio defende</h2>
+      <h2 className="font-display text-3xl font-semibold">O que este negócio defende</h2>
       {link && <p className="mt-1 text-suave">Toque em uma causa para ver outros negócios que também a defendem.</p>}
       <div className="mt-6 space-y-5">
         {grupos.map(({ grupo, slugs }) => (
@@ -474,7 +474,7 @@ function SemHistoria({ empresa, dono }: { empresa: Perfil; dono: boolean }) {
   if (dono) {
     return (
       <div className="cartao p-8 text-center">
-        <p className="font-serif text-2xl">Conte a história do seu negócio</p>
+        <p className="font-display text-2xl">Conte a história do seu negócio</p>
         <p className="mx-auto mt-2 max-w-md text-suave">
           Como tudo começou, o que move vocês, quem faz acontecer. É aqui que a comunidade conhece vocês de verdade.
         </p>
@@ -528,7 +528,7 @@ function Depoimentos({
   const jaEscreveu = !!usuario && empresa.depoimentos.some((d) => d.autorId === usuario.id);
   return (
     <section id="depoimentos" className="scroll-mt-24 border-t border-linha py-10 lg:py-12">
-      <h2 className="font-serif text-3xl font-semibold">Depoimentos da comunidade</h2>
+      <h2 className="font-display text-3xl font-semibold">Depoimentos da comunidade</h2>
       <p className="mt-1 text-suave">Experiências reais de quem conhece este negócio.</p>
 
       <div className="mt-8 space-y-4">
@@ -562,7 +562,7 @@ function Depoimentos({
               )}
             </figcaption>
             {depoimento.resposta && (
-              <div className="mt-4 rounded-2xl bg-papel p-4 text-sm leading-relaxed">
+              <div className="mt-4 rounded-2xl bg-areia p-4 text-sm leading-relaxed">
                 <p className="mb-1 font-semibold text-tinta">Resposta de {empresa.nome}</p>
                 <p className="whitespace-pre-line text-suave">{depoimento.resposta}</p>
               </div>
@@ -612,7 +612,7 @@ async function Parecidos({ empresa }: { empresa: Perfil }) {
   return (
     <section className="border-t border-linha bg-superficie/50 py-12">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
-        <h2 className="font-serif text-3xl font-semibold">Mais negócios do bem em {empresa.cidade}</h2>
+        <h2 className="font-display text-3xl font-semibold">Mais negócios do bem em {empresa.cidade}</h2>
         <div className="mt-6 space-y-3">
           {parecidos.map((outro) => (
             <EmpresaLinha key={outro.instagramUsername} empresa={outro} />

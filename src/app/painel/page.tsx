@@ -19,7 +19,7 @@ export const metadata: Metadata = { title: "Meu painel", robots: FORA_DA_BUSCA }
 export default function Painel(props: PageProps<"/painel">) {
   return (
     <div className="mx-auto max-w-4xl px-4 pt-12 sm:px-6">
-      <h1 className="font-serif text-4xl font-semibold tracking-tight">Meu painel</h1>
+      <h1 className="font-display text-4xl font-semibold tracking-tight">Meu painel</h1>
       <Suspense fallback={<div className="mt-8 h-80 animate-pulse rounded-3xl bg-superficie" />}>
         <Conteudo searchParams={props.searchParams} />
       </Suspense>
@@ -32,8 +32,8 @@ const CORES_STATUS: Record<string, string> = {
   aprovada: "bg-folha-50 text-folha",
   recusada: "bg-coral-50 text-coral-700",
   revogada: "bg-coral-50 text-coral-700",
-  expirada: "bg-papel text-suave",
-  cancelada: "bg-papel text-suave",
+  expirada: "bg-areia text-suave",
+  cancelada: "bg-areia text-suave",
   rejeitada: "bg-coral-50 text-coral-700",
 };
 
@@ -75,7 +75,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/painel">, "searchPara
       )}
 
       <section>
-        <h2 className="font-serif text-2xl font-semibold">Meus negócios</h2>
+        <h2 className="font-display text-2xl font-semibold">Meus negócios</h2>
         {empresas.length === 0 ? (
           <div className="cartao mt-4 p-6 text-suave">
             Você ainda não assumiu um perfil de negócio.{" "}
@@ -95,7 +95,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/painel">, "searchPara
                 <div className="flex items-center gap-3">
                   <Monograma nome={empresa.nome} chave={empresa.instagramUsername} />
                   <div className="min-w-0">
-                    <p className="line-clamp-2 break-words font-serif text-xl font-semibold">{empresa.nome}</p>
+                    <p className="line-clamp-2 break-words font-display text-xl font-semibold">{empresa.nome}</p>
                     <p className="text-sm text-suave">
                       {rotuloDoInstagram(empresa.instagramUsername)} · {formatarFavoritos(empresa._count.favoritos)}
                     </p>
@@ -122,7 +122,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/painel">, "searchPara
 
       {reivindicacoes.length > 0 && (
         <section>
-          <h2 className="font-serif text-2xl font-semibold">Minhas solicitações de reivindicação</h2>
+          <h2 className="font-display text-2xl font-semibold">Minhas solicitações de reivindicação</h2>
           <ul className="cartao mt-4 divide-y divide-linha">
             {reivindicacoes.map((r) => (
               <li key={r.id} className="flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -145,7 +145,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/painel">, "searchPara
       )}
 
       <section>
-        <h2 className="font-serif text-2xl font-semibold">Minhas indicações</h2>
+        <h2 className="font-display text-2xl font-semibold">Minhas indicações</h2>
         {indicacoes.length === 0 ? (
           <p className="mt-4 text-suave">
             Você ainda não indicou nenhum negócio.{" "}
@@ -168,7 +168,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/painel">, "searchPara
       </section>
 
       <section>
-        <h2 className="font-serif text-2xl font-semibold">Minha conta</h2>
+        <h2 className="font-display text-2xl font-semibold">Minha conta</h2>
         <div className="cartao mt-4 space-y-6 p-6">
           {conta?.senhaHash ? (
             <>

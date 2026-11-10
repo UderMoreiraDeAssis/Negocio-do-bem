@@ -20,7 +20,7 @@ export default function Instalacao() {
   return (
     <div className="mx-auto max-w-3xl px-4 pt-14 sm:px-6">
       <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">Instale o app</p>
-      <h1 className="mt-2 font-serif text-5xl leading-tight font-semibold tracking-tight text-balance">
+      <h1 className="mt-2 font-display text-5xl leading-tight font-semibold tracking-tight text-balance">
         Qual é o seu celular?
       </h1>
       <p className="mt-3 text-lg leading-relaxed text-suave">

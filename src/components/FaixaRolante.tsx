@@ -64,7 +64,7 @@ export function FaixaRolante({
         <button
           type="button"
           onClick={() => setPausada(!pausada)}
-          className="inline-flex min-h-11 items-center gap-2 self-end rounded-full border border-papel/25 px-4 text-[13px] font-semibold transition hover:border-papel/60 motion-reduce:hidden escuro:border-linha escuro:hover:border-tinta/40"
+          className="inline-flex min-h-11 items-center gap-2 self-end rounded-full bg-areia px-4 text-[13px] font-semibold transition hover:bg-linha motion-reduce:hidden"
         >
           {pausada ? (
             <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round" aria-hidden="true">

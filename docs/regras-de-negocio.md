@@ -380,7 +380,7 @@ Código: `indicarEmpresa` em `src/acoes/empresas.ts`, tela em `src/app/participa
 
 ### O cadastro por etapas
 
-- **Uma entrada só:** `/participar` é o "Cadastrar" do menu e o destino dos botões de indicar. O `/indicar` antigo redireciona para lá, com a busca (`?instagram=<@>&dono=sim`), que vira o @ e a escolha de dono já preenchidos.
+- **Uma entrada só:** `/participar` é o "Adicionar empresa" do menu e o destino dos botões de indicar. O `/indicar` antigo redireciona para lá, com a busca (`?instagram=<@>&dono=sim`), que vira o @ e a escolha de dono já preenchidos.
 - **Uma pergunta por vez.** Primeiro o @, depois "O que você quer fazer?". As respostas ficam num formulário só: voltar não perde nada, Enter avança, e cada etapa confere os próprios campos antes de seguir. O servidor confere tudo de novo no envio, e um erro dele leva a pessoa de volta à etapa do campo errado.
 - **As etapas:** quem indica passa por @, escolha, nome e categoria, cidade e frase, causas (com o "por que você indica?") e revisão. O dono tem duas a mais antes da revisão: os contatos do negócio e o contato dele.
 - **A procura do @** (`procurarArroba` em `src/acoes/participacao.ts`) não precisa de login e só lê. As opções da etapa seguinte dependem do que ela acha (`casoDaProcura` em `src/lib/participacao.ts`):
@@ -718,7 +718,7 @@ Código: `favoritar` em `src/acoes/favoritos.ts`, o coração em `src/components
   - só a própria pessoa vê os favoritos dela;
   - **o perfil mostra quantas pessoas favoritaram** ("1 pessoa favoritou", "12 pessoas favoritaram"), para todo mundo, ao lado do coração. Com zero, nada aparece, para um negócio novo não ficar exposto com "0";
   - o dono vê o mesmo número no perfil, ao lado de "Editar meu perfil", e no `/painel` e no `/painel/<@>`, mas não quem favoritou;
-  - o número não aparece nos cards nem muda a ordem do diretório, porque o site não tem ranking.
+  - o número não aparece nos cards nem muda a ordem do diretório. Ele só aparece fora do perfil no ranking "Os mais queridos" da página inicial (veja [Diretório e busca](#11-diretório-e-busca)).
 - **Sem e-mail:** o dono não é avisado quando alguém favorita.
 - **Clube do Bem:** favoritar vai ser a condição para gerar cupom ([#248](https://github.com/fabs-reis/Negocio-do-bem/issues/248)).
 
@@ -879,18 +879,28 @@ Código: `src/acoes/depoimentos.ts`, `decidirDenuncia` em `src/acoes/moderacao.t
 
 ## 11. Diretório e busca
 
-Código: filtros e "Onde?" em `src/lib/diretorio.ts`, consultas em `src/lib/consultas.ts` (`resumoDoDiretorio`, `listarCidades`, `buscarDiretorio`), páginas `src/app/page.tsx` e `src/app/explorar/page.tsx`.
+Código: filtros e "Onde?" em `src/lib/diretorio.ts`, consultas em `src/lib/consultas.ts` (`resumoDoDiretorio`, `listarCidades`, `buscarDiretorio`, `maisQueridos`), páginas `src/app/page.tsx` e `src/app/explorar/page.tsx`.
 
 - **Quem aparece:** só negócios com `moderacao = "aprovada"` e `oculta = false`. Os números da página inicial contam os mesmos negócios.
 
 ### Página inicial
 
-- **O número de negócios cadastrados** aparece em destaque, subindo de zero até o total ao abrir a página (direto no total para quem pede menos movimento no sistema). Embaixo, quantas cidades, quantos estados e quantos perfis foram assumidos.
+A ordem, de cima para baixo:
+
+- **Primeira tela:** um selo com quantos negócios há e em quantas cidades, o título, a busca e os atalhos. Ao lado (embaixo, no celular), a foto da cidade com mais negócios entre as que têm foto, com o nome e o total, levando à página da cidade. Por cima da foto, até dois dos mais queridos que têm foto (o segundo só no computador). Sem cidade com foto, a foto não aparece.
 - **A busca** tem dois campos, "O que você procura?" e "Onde?", e leva ao diretório.
 - **"Experimente:"** tem atalhos fixos para um tipo de negócio e algumas causas.
-- **Os 16 tipos de negócio** aparecem com quantos negócios cada um tem. Clicar num tipo abre o diretório com ele marcado. Tipos sem negócios ficam apagados, mas continuam clicáveis.
-- **A faixa dos embaixadores** fica entre as cidades e "Como funciona" (veja [Embaixadores do bem](#19-embaixadores-do-bem)).
-- A página inicial não lista negócios nem filtros de causa: isso fica no diretório.
+- **Os números:** quantos negócios (subindo até o total ao abrir a página, direto no total para quem pede menos movimento no sistema), cidades, estados e perfis assumidos.
+- **Os 16 tipos de negócio** aparecem com quantos negócios cada um tem. Clicar num tipo abre o diretório com ele marcado. Tipos sem negócios ficam apagados, mas continuam clicáveis. No celular, deslizam para o lado.
+- **"Os mais queridos":** até 4 negócios do diretório, em duas abas:
+  - **Mais favoritados:** pelo número de favoritos, com o número no card ("12 favoritos"). É o mesmo número que o perfil já mostra para todo mundo;
+  - **Mais depoimentos:** pelo número de depoimentos publicados;
+  - só entra quem tem pelo menos um. No empate, vem primeiro quem recebeu o favorito (ou o depoimento) mais recente. Cada card mostra a posição (1º, 2º…) no lugar dos selos de perfil e cupom;
+  - uma aba sem ninguém não aparece; sem nenhuma das duas, a seção some.
+- **A faixa dos embaixadores** (veja [Embaixadores do bem](#19-embaixadores-do-bem)).
+- **Explore por cidade:** as 12 cidades com mais negócios. As 4 primeiras que têm foto aparecem como cartões com a foto; as outras, como botões.
+- **"Como funciona"** e o convite para donos de negócio.
+- A página inicial não tem filtros de causa: isso fica no diretório.
 
 ### Diretório (`/explorar`)
 
@@ -988,6 +998,7 @@ Regras:
 - **Quem marca as causas:** quem indica, o dono e a moderação. É autodeclarado: ninguém confere se o negócio pratica a causa. Quem indica é orientado a marcar só o que sabe que é verdade, e o dono, só o que vive no dia a dia.
 - **Ordem:** os selos aparecem sempre na ordem da lista oficial.
 - **Nos cards do diretório,** aparecem até 3 selos e um "+N" para o resto.
+- **Cor:** os selos de causa são todos verdes, a cor das causas no site. O grupo e o emoji aparecem nos filtros do diretório e nas páginas das causas.
 - **Para criar uma causa,** basta acrescentá-la à lista. O banco guarda só o slug.
 - **Trocar o slug de uma causa existente** exige uma migração que atualize as linhas de `EmpresaCausa`. Sem isso, os negócios perdem a causa na tela (os slugs desconhecidos são descartados ao exibir), mas as linhas continuam no banco.
 
@@ -1262,7 +1273,7 @@ O site pode ser instalado como app (PWA), com o nome, as cores e os ícones de `
 
 **A navegação no celular** (`src/components/BarraInferior.tsx`)
 
-Em telas pequenas (abaixo de `sm`, 640 px), uma barra fixa no rodapé substitui o menu do topo, que fica só com o logo e a busca. No computador nada muda. A barra respeita a área do botão home do iPhone (`viewportFit: "cover"`) e o rodapé do site ganha folga para ela não cobrir os links.
+Em telas pequenas (abaixo de `sm`, 640 px), uma barra flutuante no rodapé substitui o menu do topo, que fica só com o logo, a busca e o botão laranja "+ Adicionar" (no computador, "+ Adicionar empresa", também em laranja), que leva a `/participar`. No computador nada muda. A barra respeita a área do botão home do iPhone (`viewportFit: "cover"`) e o rodapé do site ganha folga para ela não cobrir os links.
 
 - **Quem compra** (entrou ou não): Início, Explorar, Cupons, Favoritos e Conta. A aba Cupons mostra quantas ofertas estão valendo agora.
 - **Dono com negócio liberado no clube** (liberação "liberada" e ainda dono): Início, Cupons, **Validar** (botão grande no centro), Negócio e Conta. Dono sem liberação, suspensa ou recusada, vê a barra de quem compra e chega ao negócio pela Conta.
@@ -1367,7 +1378,7 @@ Embaixadores são pessoas, em geral influenciadores, que levam o projeto para um
 
 ### Onde aparece
 
-- **Página inicial:** a faixa escura entre "Explore por cidade" e "Como funciona", só com os marcados para ela. Sem nenhum marcado, a faixa não aparece.
+- **Página inicial:** a faixa entre "Os mais queridos" e "Explore por cidade", só com os marcados para ela. Sem nenhum marcado, a faixa não aparece.
   - Os rostos passam sozinhos num loop, 5 segundos por embaixador, quando não cabem na largura. Cabendo, ficam parados e no centro.
   - A faixa para com o mouse em cima, com o foco do teclado e com o botão "Pausar". Para quem pede menos movimento no aparelho, fica parada e rola para o lado.
   - O loop usa uma cópia dos rostos, que fica fora do leitor de tela e do Tab. Os links da cópia continuam funcionando no clique, porque boa parte da faixa na tela é a cópia.
@@ -1486,7 +1497,7 @@ Código: regras em `src/lib/ofertas.ts` (com testes em `tests/db/ofertas.test.ts
 - **Código:** 6 caracteres, sem 0, O, 1 e I, que se confundem ao ditar. Aparece no perfil e em **Meus cupons** (`/cupons/meus`, na aba Cupons e na Conta), com o prazo.
 - **Validade:** até o fim previsto da oferta, mesmo se o dono encerrar antes ou ocultar o perfil. Com a oferta suspensa (por suspensão da liberação, troca de contato ou @ pelo dono, remoção do dono que criou a oferta ou rejeição do negócio pela moderação), o cupom não vale. Quando o negócio sai do diretório sem suspensão da oferta (oculto pelo dono), **Meus cupons** mostra o nome sem link e o aviso "Este negócio saiu do diretório. O cupom vale no balcão até o fim da oferta."
 - **Aviso fixo** no perfil e em Meus cupons: o Negócio do Bem nunca pede Pix nem pagamento para liberar cupom; o desconto vale na hora da compra, e quem garante é o negócio.
-- **No diretório,** o card de um negócio com oferta valendo ganha o selo "🎟️ Cupom" (no `/explorar`, nas páginas de cidade, causa e tipo, nos favoritos e nos negócios parecidos).
+- **No diretório,** o card de um negócio com oferta valendo ganha o selo "Cupom" (no `/explorar`, nas páginas de cidade, causa e tipo, nos favoritos e nos negócios parecidos).
 
 ### Validação no balcão
 

@@ -33,9 +33,9 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/negocio">, "searchPar
   if (negocios.length === 0) {
     return (
       <div className="space-y-4">
-        <h1 className="font-serif text-4xl font-semibold tracking-tight">Negócio</h1>
+        <h1 className="font-display text-4xl font-semibold tracking-tight">Negócio</h1>
         <div className="cartao space-y-3 p-6">
-          <p className="font-serif text-2xl">Você ainda não tem um negócio aqui</p>
+          <p className="font-display text-2xl">Você ainda não tem um negócio aqui</p>
           <p className="text-suave">Cadastre o seu, ou assuma o perfil de um negócio que já está no diretório.</p>
           <Link href="/participar" className="botao-coral">
             Cadastrar um negócio
@@ -49,7 +49,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/negocio">, "searchPar
   if (!escolhido) {
     return (
       <div className="space-y-4">
-        <h1 className="font-serif text-4xl font-semibold tracking-tight">Negócio</h1>
+        <h1 className="font-display text-4xl font-semibold tracking-tight">Negócio</h1>
         <p className="text-suave">Escolha qual negócio você quer cuidar.</p>
         <ul className="cartao divide-y divide-linha overflow-hidden">
           {negocios.map((n) => (
@@ -73,7 +73,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/negocio">, "searchPar
     <div className="space-y-6">
       <div>
         <p className="text-sm text-suave">Negócio</p>
-        <h1 className="font-serif text-4xl font-semibold tracking-tight">{escolhido.nome}</h1>
+        <h1 className="font-display text-4xl font-semibold tracking-tight">{escolhido.nome}</h1>
       </div>
       <AvisoDaUrl codigo={aviso} />
 
@@ -87,15 +87,15 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/negocio">, "searchPar
 
       {liberado ? (
         <div className="space-y-3 rounded-3xl bg-coral p-5 text-white">
-          <p className="font-serif text-2xl leading-tight font-semibold">Cliente com cupom?</p>
+          <p className="font-display text-2xl leading-tight font-semibold">Cliente com cupom?</p>
           <p className="text-sm text-white/90">Digite o código e marque o uso na hora.</p>
-          <Link href={`/validar?negocio=${escolhido.instagramUsername}`} className="inline-flex w-full items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-coral-700 transition hover:bg-papel">
+          <Link href={`/validar?negocio=${escolhido.instagramUsername}`} className="inline-flex w-full items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-coral-700 transition hover:bg-areia">
             Validar cupom
           </Link>
         </div>
       ) : (
         <div className="cartao space-y-3 border-coral/40 p-5">
-          <p className="font-serif text-xl font-semibold">🎟️ Seja Parceiro do Clube do Bem</p>
+          <p className="font-display text-xl font-semibold">🎟️ Seja Parceiro do Clube do Bem</p>
           <p className="text-sm text-suave">Com o negócio verificado, você cria ofertas e valida cupons por aqui.</p>
           <Link href={`${painel}/clube#verificar`} className="botao-coral">
             Verificar meu negócio

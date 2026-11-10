@@ -215,7 +215,7 @@ function Saude({ total, href, informativo, children }: { total: number; href?: s
       <span
         aria-hidden="true"
         className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold ${
-          ok ? "bg-folha-50 text-folha" : informativo ? "bg-papel text-suave" : "bg-amber-50 text-amber-800"
+          ok ? "bg-folha-50 text-folha" : informativo ? "bg-areia text-suave" : "bg-amber-50 text-amber-800"
         }`}
       >
         {ok ? "✓" : informativo ? "i" : "!"}

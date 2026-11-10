@@ -24,7 +24,7 @@ export function Verificacao({
     return (
       <section id="verificar" className="cartao scroll-mt-24 space-y-2 border-folha/40 p-6 text-sm leading-relaxed">
         <p className="text-xs font-semibold tracking-[0.2em] text-folha uppercase">Em análise</p>
-        <h2 className="font-serif text-2xl font-semibold">A moderação está conferindo o seu negócio</h2>
+        <h2 className="font-display text-2xl font-semibold">A moderação está conferindo o seu negócio</h2>
         <p className="text-suave">
           Você pediu a verificação em {formatarDataCurta(liberacao.decididoEm)}, com o CNPJ {formatarCnpj(liberacao.cnpj)}. A
           moderação confere a ficha na Receita e o quadro de sócios. A resposta aparece aqui, e com ela você já pode criar
@@ -40,7 +40,7 @@ export function Verificacao({
     <section id="verificar" className="cartao scroll-mt-24 space-y-4 border-coral/40 p-6 text-sm leading-relaxed">
       <div className="space-y-2">
         <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">🎟️ Clube do Bem</p>
-        <h2 className="font-serif text-2xl font-semibold">Verifique o seu negócio para criar ofertas</h2>
+        <h2 className="font-display text-2xl font-semibold">Verifique o seu negócio para criar ofertas</h2>
         {(recusada || suspensa) && liberacao && (
           <p className="rounded-2xl bg-coral-50 p-3 text-coral-700">
             {recusada

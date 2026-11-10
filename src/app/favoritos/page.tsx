@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Favoritos", robots: FORA_DA_BUSCA };
 export default function Favoritos(props: PageProps<"/favoritos">) {
   return (
     <div className="mx-auto max-w-6xl px-4 pt-12 sm:px-6">
-      <h1 className="font-serif text-4xl font-semibold tracking-tight">Favoritos</h1>
+      <h1 className="font-display text-4xl font-semibold tracking-tight">Favoritos</h1>
       <Suspense fallback={<div className="mt-8 h-80 animate-pulse rounded-3xl bg-superficie" />}>
         <Conteudo searchParams={props.searchParams} />
       </Suspense>
@@ -41,7 +41,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/favoritos">, "searchP
 
       {total === 0 ? (
         <div className="cartao p-8 text-center">
-          <p className="font-serif text-2xl">Você ainda não tem favoritos</p>
+          <p className="font-display text-2xl">Você ainda não tem favoritos</p>
           <p className="mx-auto mt-2 max-w-md text-suave">
             Toque no coração de um negócio, no diretório ou no perfil dele, para guardá-lo aqui.
           </p>

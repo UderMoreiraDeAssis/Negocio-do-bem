@@ -11,8 +11,8 @@ export default function Erro({ error, retry }: { error: unknown; retry: () => vo
 
   return (
     <div className="mx-auto max-w-xl px-4 pt-24 text-center sm:px-6">
-      <p className="font-serif text-7xl text-coral">Ops</p>
-      <h1 className="mt-4 font-serif text-3xl font-semibold">Esta página não abriu agora</h1>
+      <p className="font-display text-7xl text-coral">Ops</p>
+      <h1 className="mt-4 font-display text-3xl font-semibold">Esta página não abriu agora</h1>
       <p className="mt-2 text-suave">Tivemos um problema do nosso lado. Tente de novo daqui a pouco.</p>
       <div className="mt-8 flex flex-wrap justify-center gap-3">
         <button type="button" onClick={() => retry()} className="botao">

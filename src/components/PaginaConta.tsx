@@ -17,10 +17,10 @@ export function PaginaConta({
 }) {
   return (
     <div className="mx-auto max-w-md px-4 pt-16 sm:px-6">
-      <h1 className="text-center font-serif text-4xl font-semibold tracking-tight">{titulo}</h1>
+      <h1 className="text-center font-display text-4xl font-semibold tracking-tight">{titulo}</h1>
       <p className="mt-2 text-center text-suave">{subtitulo}</p>
       <div className="cartao mt-8 p-6 sm:p-8">
-        <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl bg-papel" />}>
+        <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl bg-areia" />}>
           <Conteudo searchParams={searchParams} formulario={formulario} />
         </Suspense>
       </div>

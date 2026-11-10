@@ -53,7 +53,7 @@ async function Reivindicar({
       <Link href={`/empresas/${username}`} className="text-sm text-suave hover:text-tinta">
         ← Voltar para o perfil
       </Link>
-      <h1 className="font-serif text-4xl leading-tight font-semibold tracking-tight">
+      <h1 className="font-display text-4xl leading-tight font-semibold tracking-tight">
         Este negócio é seu?
       </h1>
       <p className="text-lg leading-relaxed text-suave">
@@ -75,7 +75,7 @@ async function Reivindicar({
       <>
         {cabecalho}
         <div className="cartao p-8 text-center">
-          <p className="font-serif text-2xl">Primeiro, entre na sua conta</p>
+          <p className="font-display text-2xl">Primeiro, entre na sua conta</p>
           <p className="mt-2 text-suave">É nela que o perfil do negócio vai ficar guardado.</p>
           <div className="mt-6 flex justify-center gap-3">
             <Link href={`/entrar?voltar=${encodeURIComponent(caminho)}`} className="botao">
@@ -163,7 +163,7 @@ async function Reivindicar({
         {loginDisponivel && (
           <section className="cartao p-6 sm:p-8">
             <div className="flex items-center gap-2">
-              <h2 className="font-serif text-2xl font-semibold">Entrar com Instagram</h2>
+              <h2 className="font-display text-2xl font-semibold">Entrar com Instagram</h2>
               <span className="rounded-full bg-folha-50 px-2.5 py-0.5 text-xs font-semibold text-folha">Instantâneo</span>
             </div>
             <p className="mt-2 leading-relaxed text-suave">
@@ -188,7 +188,7 @@ async function Reivindicar({
           <details className="group cartao p-6 sm:p-8">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-4 [&::-webkit-details-marker]:hidden">
               <span>
-                <span className="block font-serif text-2xl font-semibold">Não tenho acesso ao Instagram do negócio</span>
+                <span className="block font-display text-2xl font-semibold">Não tenho acesso ao Instagram do negócio</span>
                 <span className="mt-1 block text-suave">Conte a sua relação com o negócio para assumir o perfil.</span>
               </span>
               <span aria-hidden="true" className="text-2xl text-suave transition group-open:rotate-45">
@@ -199,7 +199,7 @@ async function Reivindicar({
           </details>
         ) : (
           <section className="cartao p-6 sm:p-8">
-            <h2 className="font-serif text-2xl font-semibold">Assuma o perfil</h2>
+            <h2 className="font-display text-2xl font-semibold">Assuma o perfil</h2>
             <p className="mt-2 leading-relaxed text-suave">
               {aprovaSozinhoPorDocumento(empresa, tiradaDosDonos)
                 ? "Como ninguém assumiu este perfil ainda, ele passa a ser seu assim que você enviar."

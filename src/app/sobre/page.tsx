@@ -16,7 +16,7 @@ export default function Sobre() {
   return (
     <div className="mx-auto max-w-3xl px-4 pt-14 sm:px-6">
       <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">Manifesto</p>
-      <h1 className="mt-2 font-serif text-5xl leading-tight font-semibold tracking-tight text-balance">
+      <h1 className="mt-2 font-display text-5xl leading-tight font-semibold tracking-tight text-balance">
         Escolher onde gastar também é escolher o mundo que a gente quer.
       </h1>
 
@@ -126,7 +126,7 @@ export default function Sobre() {
       <div className="mt-8 space-y-8">
         {(Object.keys(GRUPOS) as GrupoCausa[]).map((grupo) => (
           <section key={grupo}>
-            <h3 className="font-serif text-xl font-semibold">{GRUPOS[grupo]}</h3>
+            <h3 className="font-display text-xl font-semibold">{GRUPOS[grupo]}</h3>
             <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {CAUSAS.filter((c) => c.grupo === grupo).map((causa) => (
                 <li key={causa.slug} className="cartao p-4">

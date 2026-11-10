@@ -51,7 +51,7 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/moderacao/neg
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">Edição pela moderação</p>
-            <h1 className="mt-1 font-serif text-4xl font-semibold tracking-tight">{empresa.nome}</h1>
+            <h1 className="mt-1 font-display text-4xl font-semibold tracking-tight">{empresa.nome}</h1>
             <p className="text-suave">
               {rotuloDoInstagram(empresa.instagramUsername)} · {MODERACAO_EMPRESA[empresa.moderacao]} · {temDono ? "tem dono" : "sem dono"}
               {empresa.oculta && " · oculto pelo dono"}

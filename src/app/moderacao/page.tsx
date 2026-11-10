@@ -38,7 +38,7 @@ export default function Moderacao(props: PageProps<"/moderacao">) {
   return (
     <div className="mx-auto max-w-6xl px-4 pt-12 sm:px-6">
       <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">Painel da moderação</p>
-      <h1 className="mt-1 font-serif text-4xl font-semibold tracking-tight">Moderação</h1>
+      <h1 className="mt-1 font-display text-4xl font-semibold tracking-tight">Moderação</h1>
       <Suspense fallback={<div className="mt-8 h-96 animate-pulse rounded-3xl bg-superficie" />}>
         <Conteudo searchParams={props.searchParams} />
       </Suspense>
@@ -65,7 +65,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/moderacao">, "searchP
       <MenuModeracao aba={filtros.aba} pendentes={pendentes} />
 
       <div className="mt-6 min-w-0 space-y-6 lg:mt-0">
-        <h2 className="font-serif text-2xl font-semibold">{ABAS[filtros.aba]}</h2>
+        <h2 className="font-display text-2xl font-semibold">{ABAS[filtros.aba]}</h2>
         <AvisoDaUrl codigo={params.aviso} />
 
         {filtros.aba === "visao-geral" && <VisaoGeral />}
@@ -125,7 +125,7 @@ async function Reivindicacoes() {
           <article key={r.id} className="cartao space-y-4 p-6">
             <header className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <Link href={`/empresas/${r.empresa.instagramUsername}`} className="font-serif text-2xl font-semibold hover:text-coral-700">
+                <Link href={`/empresas/${r.empresa.instagramUsername}`} className="font-display text-2xl font-semibold hover:text-coral-700">
                   {r.empresa.nome}
                 </Link>
                 <p className="text-sm text-suave">
@@ -149,7 +149,7 @@ async function Reivindicacoes() {
             </p>
 
             {r.metodo === "codigo_dm" && r.codigo && (
-              <div className="rounded-2xl bg-papel p-4 text-sm leading-relaxed">
+              <div className="rounded-2xl bg-areia p-4 text-sm leading-relaxed">
                 Pedido antigo: o código por DM não é mais oferecido. Confira se{" "}
                 <strong>{oficial ? `@${oficial}` : "o perfil oficial"}</strong> recebeu uma DM <strong>de @{r.empresa.instagramUsername}</strong> com o
                 código <code className="rounded bg-superficie px-2 py-0.5 font-mono text-base font-bold text-coral-700">{r.codigo}</code>.
@@ -158,7 +158,7 @@ async function Reivindicacoes() {
             )}
 
             {r.metodo === "documento" && (
-              <dl className="grid grid-cols-1 gap-x-6 gap-y-2 rounded-2xl bg-papel p-4 text-sm sm:grid-cols-[10rem_1fr]">
+              <dl className="grid grid-cols-1 gap-x-6 gap-y-2 rounded-2xl bg-areia p-4 text-sm sm:grid-cols-[10rem_1fr]">
                 <dt className="text-suave">Relação</dt>
                 <dd>{r.relacao}</dd>
                 <dt className="text-suave">Contato</dt>
@@ -285,7 +285,7 @@ async function Indicacoes() {
         <article key={e.id} className="cartao space-y-3 p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <Link href={`/empresas/${e.instagramUsername}`} className="font-serif text-2xl font-semibold hover:text-coral-700">
+              <Link href={`/empresas/${e.instagramUsername}`} className="font-display text-2xl font-semibold hover:text-coral-700">
                 {e.nome}
               </Link>
               <p className="text-sm text-suave">

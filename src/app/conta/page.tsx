@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Conta", robots: FORA_DA_BUSCA };
 export default function Conta() {
   return (
     <div className="mx-auto max-w-xl px-4 pt-8 sm:px-6 sm:pt-12">
-      <h1 className="font-serif text-4xl font-semibold tracking-tight">Conta</h1>
+      <h1 className="font-display text-4xl font-semibold tracking-tight">Conta</h1>
       <Suspense fallback={<div className="mt-6 h-96 animate-pulse rounded-3xl bg-superficie" />}>
         <Conteudo />
       </Suspense>
@@ -39,7 +39,7 @@ async function Conteudo() {
         </div>
       ) : (
         <div className="cartao space-y-3 p-5">
-          <p className="font-serif text-2xl leading-snug">Entre para favoritar, gerar cupons e cuidar do seu negócio</p>
+          <p className="font-display text-2xl leading-snug">Entre para favoritar, gerar cupons e cuidar do seu negócio</p>
           <div className="flex flex-wrap gap-2">
             <Link href="/entrar?voltar=%2Fconta" className="botao-coral">
               Entrar

@@ -44,7 +44,7 @@ export function FormOferta({
     <form action={acao} onSubmit={enviarSemLimpar(acao)} className="cartao space-y-5 p-6">
       <input type="hidden" name="empresaId" value={empresaId} />
       <div>
-        <h2 className="font-serif text-2xl font-semibold">Criar uma oferta</h2>
+        <h2 className="font-display text-2xl font-semibold">Criar uma oferta</h2>
         <p className="mt-1 text-sm text-suave">
           Ela aparece no perfil do negócio até o último dia. Depois de criada, não muda: para trocar, encerre e crie outra.
         </p>

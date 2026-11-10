@@ -15,7 +15,7 @@ export function FormInstagram({ empresa, voltar }: { empresa: { id: string; inst
 
   return (
     <section className="cartao space-y-4 p-6 sm:p-8">
-      <h2 className="font-serif text-2xl font-semibold">Instagram</h2>
+      <h2 className="font-display text-2xl font-semibold">Instagram</h2>
       <p className="text-suave">
         Hoje: <strong className="text-tinta">{rotuloDoInstagram(empresa.instagramUsername)}</strong>. O @ também é o endereço da página
         (negociodobem.com/empresas/<span className="text-tinta">{comInstagram ? empresa.instagramUsername : "@"}</span>). O endereço antigo

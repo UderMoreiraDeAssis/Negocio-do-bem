@@ -30,9 +30,9 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/validar">, "searchPar
   if (negocios.length === 0) {
     return (
       <div className="space-y-4">
-        <h1 className="font-serif text-4xl font-semibold tracking-tight">Validar cupom</h1>
+        <h1 className="font-display text-4xl font-semibold tracking-tight">Validar cupom</h1>
         <div className="cartao space-y-3 p-6">
-          <p className="font-serif text-2xl">Só para negócios do Clube do Bem</p>
+          <p className="font-display text-2xl">Só para negócios do Clube do Bem</p>
           <p className="text-suave">
             Quando o seu negócio estiver verificado, é aqui que você confere o código que o cliente mostra e marca o cupom como usado.
           </p>
@@ -63,7 +63,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/validar">, "searchPar
     <div className="space-y-6">
       <div>
         <p className="text-sm text-suave">{negocio.nome}</p>
-        <h1 className="font-serif text-4xl font-semibold tracking-tight">Validar cupom</h1>
+        <h1 className="font-display text-4xl font-semibold tracking-tight">Validar cupom</h1>
       </div>
 
       {negocios.length > 1 && (
@@ -120,7 +120,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/validar">, "searchPar
 
       {recentes.length > 0 && (
         <section className="space-y-3">
-          <h2 className="font-serif text-xl font-semibold">Últimos cupons usados</h2>
+          <h2 className="font-display text-xl font-semibold">Últimos cupons usados</h2>
           <ul className="cartao divide-y divide-linha text-sm">
             {recentes.map((recente) => (
               <li key={recente.id} className="flex items-center justify-between gap-3 p-4">

@@ -482,7 +482,7 @@ export function CadastroPorEtapas({ conta, instagramInicial, donoInicial, contin
         )}
 
         <Secao etapa="fim" atual={etapa} titulo={conta.logado ? "Revise e publique" : "Falta pouco: entre ou crie sua conta"}>
-          <dl className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-x-4 gap-y-1.5 rounded-2xl bg-papel p-4 text-sm">
+          <dl className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-x-4 gap-y-1.5 rounded-2xl bg-areia p-4 text-sm">
             <dt className="text-suave">Instagram</dt>
             <dd className="truncate">{semInstagram ? "Sem Instagram" : `@${(procura?.instagram ?? visto.instagram ?? arroba).replace(/^@+/, "")}`}</dd>
             <dt className="text-suave">Nome</dt>
@@ -599,7 +599,7 @@ function Secao({
       <h2
         id={`etapa-${etapa}`}
         tabIndex={-1}
-        className="font-serif text-3xl leading-tight font-semibold tracking-tight text-balance outline-none"
+        className="font-display text-3xl leading-tight font-semibold tracking-tight text-balance outline-none"
       >
         {titulo}
       </h2>
@@ -647,7 +647,7 @@ function Escolha({
         {previa ? (
           <Cartao nome={previa.nome ?? `@${procura.instagram}`} instagram={procura.instagram} foto={previa.foto} linha="Prévia do Instagram" />
         ) : (
-          <p className="rounded-2xl bg-papel p-4 text-sm leading-relaxed text-suave">
+          <p className="rounded-2xl bg-areia p-4 text-sm leading-relaxed text-suave">
             Não conseguimos ver a prévia de @{procura.instagram}. Confira se o @ está certo. Contas pessoais não aparecem, e
             tudo bem.
           </p>
@@ -692,7 +692,7 @@ function Escolha({
 function EscolhaSemInstagram({ aoEscolher, aoVoltarAoArroba }: { aoEscolher: (ramo: Ramo) => void; aoVoltarAoArroba: () => void }) {
   return (
     <>
-      <p className="rounded-2xl bg-papel p-4 text-sm leading-relaxed text-suave">
+      <p className="rounded-2xl bg-areia p-4 text-sm leading-relaxed text-suave">
         Tudo bem não ter Instagram. O perfil fica no Negócio do Bem com um endereço feito do nome e da cidade, e o dono
         pode colocar uma foto depois.
       </p>
@@ -709,7 +709,7 @@ function EscolhaSemInstagram({ aoEscolher, aoVoltarAoArroba }: { aoEscolher: (ra
 
 function Cartao({ nome, instagram, foto, linha }: { nome: string; instagram: string; foto: string | null; linha: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-papel p-4">
+    <div className="flex items-center gap-3 rounded-2xl bg-areia p-4">
       {foto ? (
         // A foto chega pronta: do site ou em data URL, da prévia do Instagram.
         // eslint-disable-next-line @next/next/no-img-element

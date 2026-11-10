@@ -13,7 +13,7 @@ export function CabecaDoTutorial({ aparelho, titulo, children }: { aparelho: str
         ← Trocar de celular
       </Link>
       <p className="mt-6 text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">{aparelho}</p>
-      <h1 className="mt-2 font-serif text-4xl leading-tight font-semibold tracking-tight text-balance sm:text-5xl">{titulo}</h1>
+      <h1 className="mt-2 font-display text-4xl leading-tight font-semibold tracking-tight text-balance sm:text-5xl">{titulo}</h1>
       <p className="mt-3 text-lg leading-relaxed text-suave">{children}</p>
     </>
   );

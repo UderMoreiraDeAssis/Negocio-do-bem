@@ -67,7 +67,7 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/painel/[usuar
         </Link>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="font-serif text-4xl font-semibold tracking-tight">{empresa.nome}</h1>
+            <h1 className="font-display text-4xl font-semibold tracking-tight">{empresa.nome}</h1>
             <p className="text-suave">
               {rotuloDoInstagram(empresa.instagramUsername)} · {empresa.oculta ? "Oculto do diretório" : MODERACAO_EMPRESA[empresa.moderacao]} ·{" "}
               {formatarFavoritos(empresa._count.favoritos)}
@@ -89,7 +89,7 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/painel/[usuar
       <EdicaoEmpresa empresa={empresa} voltar={`/painel/${empresa.instagramUsername}`} />
 
       <section id="depoimentos" className="scroll-mt-24">
-        <h2 className="font-serif text-2xl font-semibold">Depoimentos</h2>
+        <h2 className="font-display text-2xl font-semibold">Depoimentos</h2>
         <p className="mt-1 text-sm text-suave">
           Você pode responder a cada depoimento. Para manter a confiança da comunidade, donos não apagam depoimentos:
           se algum for ofensivo, use &ldquo;Denunciar&rdquo; no perfil público e a moderação avalia.
@@ -128,7 +128,7 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/painel/[usuar
       <TrocaDoArroba empresaId={empresa.id} endereco={empresa.instagramUsername} troca={troca} />
 
       <section className="cartao p-6">
-        <h2 className="font-serif text-2xl font-semibold">Aparecer no diretório</h2>
+        <h2 className="font-display text-2xl font-semibold">Aparecer no diretório</h2>
         <p className="mt-1 text-sm leading-relaxed text-suave">
           {empresa.oculta
             ? "Seu negócio está oculto: ninguém encontra o perfil no diretório nem pelo link."
@@ -164,7 +164,7 @@ function ChamadaDoClube({ username, status }: { username: string; status?: strin
   return (
     <div className="cartao flex flex-col gap-4 border-coral/40 p-5 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <p className="font-serif text-xl font-semibold">🎟️ Verifique a sua empresa e seja Parceiro do Clube do Bem</p>
+        <p className="font-display text-xl font-semibold">🎟️ Verifique a sua empresa e seja Parceiro do Clube do Bem</p>
         <p className="mt-1 text-sm leading-relaxed text-suave">
           {deNovo
             ? "A liberação do seu negócio não está valendo. Veja o motivo e peça a verificação de novo."
@@ -186,7 +186,7 @@ function TrocaDoArroba({ empresaId, endereco, troca }: { empresaId: string; ende
   return (
     <section id="arroba" className="cartao scroll-mt-24 space-y-4 p-6">
       <div>
-        <h2 className="font-serif text-2xl font-semibold">{semInstagram ? "Instagram do negócio" : "@ do Instagram"}</h2>
+        <h2 className="font-display text-2xl font-semibold">{semInstagram ? "Instagram do negócio" : "@ do Instagram"}</h2>
         <p className="mt-1 text-sm leading-relaxed text-suave">
           {semInstagram
             ? "Seu negócio está sem Instagram. Se ele tem um perfil, peça para ligar o @: o endereço da página passa a ser o @."

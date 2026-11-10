@@ -75,9 +75,9 @@ export function BarraInferior({ perfil }: { perfil: PerfilDaBarra }) {
   return (
     <nav
       aria-label="Menu principal"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-linha bg-superficie/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden"
+      className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-40 rounded-[1.75rem] border border-linha/80 bg-superficie/90 shadow-flutuante backdrop-blur-lg sm:hidden"
     >
-      <ul className="mx-auto grid max-w-md grid-cols-5 items-end px-1 pt-1.5 pb-1.5">
+      <ul className="mx-auto grid max-w-md grid-cols-5 items-end px-1 py-1.5">
         {abas.map((aba) => {
           const ativa = COMECA_COM(caminho, aba.rotas);
           return (
@@ -86,10 +86,9 @@ export function BarraInferior({ perfil }: { perfil: PerfilDaBarra }) {
                 href={aba.href}
                 aria-current={ativa ? "page" : undefined}
                 className={`relative flex w-full min-w-0 flex-col items-center gap-0.5 py-1.5 text-[11px] leading-none font-medium focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-coral ${
-                  aba.centro ? "-mt-6 font-bold text-coral-700" : ativa ? "font-bold text-coral-700" : "text-suave"
+                  aba.centro ? "-mt-7 font-bold text-coral-700" : ativa ? "font-bold text-coral-700" : "text-suave"
                 }`}
               >
-                {ativa && !aba.centro && <span aria-hidden="true" className="absolute -top-1.5 h-[3px] w-6 rounded-b-full bg-coral" />}
                 {aba.centro ? (
                   <span className={`grid h-13 w-13 place-items-center rounded-full border-4 border-superficie bg-coral text-white shadow-lg shadow-coral/40 ${ativa ? "ring-2 ring-coral-700" : ""}`}>
                     <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true" {...TRACO}>

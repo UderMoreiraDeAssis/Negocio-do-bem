@@ -20,7 +20,7 @@ export function ItemDeLista({
       <Link
         href={href}
         {...(externo ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-        className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-papel focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-coral"
+        className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-areia focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-coral"
       >
         <span className="text-coral-700" aria-hidden="true">
           {icone}

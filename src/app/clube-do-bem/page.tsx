@@ -133,7 +133,7 @@ export default function ClubeDoBem() {
   return (
     <div className="mx-auto max-w-3xl px-4 pt-14 sm:px-6">
       <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">🎟️ Clube do Bem</p>
-      <h1 className="mt-2 font-serif text-5xl leading-tight font-semibold tracking-tight text-balance">
+      <h1 className="mt-2 font-display text-5xl leading-tight font-semibold tracking-tight text-balance">
         Cupons de quem faz o bem
       </h1>
       <p className="mt-3 text-lg leading-relaxed text-suave">
@@ -148,7 +148,7 @@ export default function ClubeDoBem() {
             href={href}
             className="cartao flex flex-col p-6 transition hover:border-tinta/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral"
           >
-            <span className="font-serif text-2xl font-semibold">{titulo}</span>
+            <span className="font-display text-2xl font-semibold">{titulo}</span>
             <span className="mt-1 text-sm text-suave">{detalhe}</span>
             <span className="mt-4 text-sm font-semibold text-coral-700">Ver o passo a passo&nbsp;↓</span>
           </a>
@@ -157,7 +157,7 @@ export default function ClubeDoBem() {
 
       <section aria-labelledby="para-quem-compra" className="mt-16">
         <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">Para quem compra</p>
-        <h2 id="para-quem-compra" className="mt-2 scroll-mt-24 font-serif text-4xl font-semibold tracking-tight">
+        <h2 id="para-quem-compra" className="mt-2 scroll-mt-24 font-display text-4xl font-semibold tracking-tight">
           Como usar um cupom
         </h2>
         <p className="mt-3 leading-relaxed text-suave">
@@ -172,7 +172,7 @@ export default function ClubeDoBem() {
           <Passo nivel="h3" numero={1} titulo="Ache um negócio com cupom">
             <p>
               No <Link href="/explorar" className="link">Explorar</Link>, os negócios com oferta valendo têm o selo{" "}
-              <Destaque>🎟️ Cupom</Destaque>.
+              <Destaque>Cupom</Destaque>.
             </p>
             <Print nome="cliente-1-selo-no-diretorio" alt="Cartão da Padaria Florescer no Explorar, com o selo Cupom" />
             <p className="pt-3">
@@ -216,7 +216,7 @@ export default function ClubeDoBem() {
         </Passos>
 
         <div className="mt-10 rounded-3xl bg-folha-50 p-6">
-          <h3 className="font-serif text-lg font-semibold text-folha">Bom saber</h3>
+          <h3 className="font-display text-lg font-semibold text-folha">Bom saber</h3>
           <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-relaxed">
             <li>O cupom vale uma vez só, até o último dia da oferta.</li>
             <li>Algumas ofertas têm limite de cupons: quando acabam, acabou.</li>
@@ -228,7 +228,7 @@ export default function ClubeDoBem() {
 
       <section aria-labelledby="para-negocios" className="mt-20">
         <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">Para donos de negócio</p>
-        <h2 id="para-negocios" className="mt-2 scroll-mt-24 font-serif text-4xl font-semibold tracking-tight">
+        <h2 id="para-negocios" className="mt-2 scroll-mt-24 font-display text-4xl font-semibold tracking-tight">
           Como oferecer cupons
         </h2>
         <p className="mt-3 leading-relaxed text-suave">
@@ -295,7 +295,7 @@ export default function ClubeDoBem() {
           <Passo nivel="h3" numero={3} titulo="A oferta entra no ar">
             <p>
               Ela aparece no perfil do negócio, com o selo <Destaque>Parceiro do Clube do Bem</Destaque>, e no Explorar, com o
-              selo <Destaque>🎟️ Cupom</Destaque>. No painel, você acompanha quantos cupons foram gerados e quantos foram usados.
+              selo <Destaque>Cupom</Destaque>. No painel, você acompanha quantos cupons foram gerados e quantos foram usados.
             </p>
             <Print nome="dono-3-oferta-no-ar" alt="Painel com a oferta valendo agora: 1 cupom gerado de 50, 0 usados" />
             <p className="pt-3">
@@ -327,7 +327,7 @@ export default function ClubeDoBem() {
         </Passos>
 
         <div className="mt-10 cartao p-6">
-          <h3 className="font-serif text-lg font-semibold">Cuidados</h3>
+          <h3 className="font-display text-lg font-semibold">Cuidados</h3>
           <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-suave">
             <li>
               Se você trocar o WhatsApp, o telefone, o site ou o e-mail de contato do perfil, a sua liberação e a oferta ficam
@@ -341,7 +341,7 @@ export default function ClubeDoBem() {
       </section>
 
       <section aria-labelledby="seguranca" className="mt-20">
-        <h2 id="seguranca" className="scroll-mt-24 font-serif text-3xl font-semibold tracking-tight">
+        <h2 id="seguranca" className="scroll-mt-24 font-display text-3xl font-semibold tracking-tight">
           Como a gente evita golpe
         </h2>
         <ul className="mt-6 grid gap-5 sm:grid-cols-2">
@@ -362,7 +362,7 @@ export default function ClubeDoBem() {
       </section>
 
       <section aria-labelledby="duvidas" className="mt-20">
-        <h2 id="duvidas" className="scroll-mt-24 font-serif text-3xl font-semibold tracking-tight">
+        <h2 id="duvidas" className="scroll-mt-24 font-display text-3xl font-semibold tracking-tight">
           Dúvidas
         </h2>
         <div className="mt-6 space-y-3">
