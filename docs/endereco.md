@@ -53,6 +53,8 @@ Os limites são escolhas conservadoras do projeto, não cotas garantidas pelo Vi
 
 Uma trava transacional do PostgreSQL permite somente **uma consulta externa por vez** entre instâncias. Quem não obtém a trava libera a conexão, espera brevemente e relê a cópia antes de tentar a trava de novo, por até cinco segundos. Assim duas consultas ao mesmo CEP reutilizam a resposta. Encerramento ou falha da transação libera a trava; não há trava permanente para recuperar manualmente. A cópia utilizável ou o preenchimento manual atendem quem não puder esperar.
 
+A requisição usa domínio e protocolo fixos (`https://viacep.com.br`), confere os oito dígitos novamente no ponto de saída e codifica o CEP como um único segmento de caminho. Redirecionamentos são recusados.
+
 Cada chamada externa tem timeout de quatro segundos e nenhuma repetição automática. Falhas pausam o provedor por um minuto, dobrando até uma hora; `Retry-After` é aceito até 24 horas, com variação adicional de até 20%. Cache válido continua atendendo durante a pausa. Não há atualização em massa, varredura de CEPs ou rotina que pressione a fonte.
 
 Falha do armazenamento ou da coordenação retorna indisponibilidade (ou uma cópia já lida ainda utilizável) e registra uma mensagem operacional sem CEP, IP, conteúdo do formulário ou erro bruto do banco.

@@ -189,8 +189,9 @@ async function registrarSucesso(): Promise<void> {
 
 /** Uma chamada, sem repetição: repetir só aumentaria a carga num serviço com problema. */
 async function chamarViaCep(cep: string): Promise<RespostaDoProvedor> {
+  if (!/^[0-9]{8}$/.test(cep)) return { tipo: "falha" };
   try {
-    const resposta = await fetch(`https://viacep.com.br/ws/${cep}/json/`, {
+    const resposta = await fetch(`https://viacep.com.br/ws/${encodeURIComponent(cep)}/json/`, {
       headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
       signal: AbortSignal.timeout(TEMPO_LIMITE_MS),
       cache: "no-store",

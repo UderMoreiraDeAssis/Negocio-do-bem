@@ -16,7 +16,7 @@ import { db } from "@/lib/db";
 const ORIGEM = "203.0.113.5";
 const PRACA_DA_SE = { cep: "01001-000", logradouro: "Praça da Sé", bairro: "Sé", localidade: "São Paulo", uf: "SP" };
 
-const chamadas = vi.fn<(url: string) => Promise<Response>>();
+const chamadas = vi.fn<(url: string, opcoes?: RequestInit) => Promise<Response>>();
 
 function responderCom(corpo: unknown, status = 200, cabecalhos: Record<string, string> = {}) {
   chamadas.mockImplementation(async () => new Response(JSON.stringify(corpo), { status, headers: cabecalhos }));
@@ -37,7 +37,7 @@ async function encerrarPausa() {
 beforeEach(async () => {
   await limparBanco();
   chamadas.mockReset();
-  vi.stubGlobal("fetch", (url: string) => chamadas(url));
+  vi.stubGlobal("fetch", (url: string, opcoes?: RequestInit) => chamadas(url, opcoes));
   vi.stubEnv("CEP_CONSULTA", "viacep");
   vi.stubEnv("CEP_ARMAZENAMENTO_AUTORIZADO", "1");
 });
@@ -67,8 +67,8 @@ describe("consulta de CEP", () => {
     expect(await db.cotaCep.count()).toBe(0);
   });
 
-  it("recusa formato inválido sem consultar nem contar", async () => {
-    expect(await consultarCep("0100-100", ORIGEM)).toEqual({ situacao: "invalido" });
+  it.each(["0100-100", "../01001000", "//127.0.0.1", "01001000?url=http://127.0.0.1", "01001000%2f..", "01001000#fragmento"])("recusa CEP inválido %s sem consultar nem contar", async (valor) => {
+    expect(await consultarCep(valor, ORIGEM)).toEqual({ situacao: "invalido" });
     expect(chamadas).not.toHaveBeenCalled();
     expect(await db.cotaCep.count()).toBe(0);
   });
@@ -79,7 +79,9 @@ describe("consulta de CEP", () => {
     expect(primeira).toMatchObject({ situacao: "encontrado", aConfirmar: false, endereco: { cidade: "São Paulo", bairro: "Sé" } });
     expect(await consultarCep("01001-000", ORIGEM)).toEqual(primeira);
     expect(chamadas).toHaveBeenCalledTimes(1);
-    expect(chamadas.mock.calls[0]![0]).toBe("https://viacep.com.br/ws/01001000/json/");
+    expect(chamadas).toHaveBeenCalledWith("https://viacep.com.br/ws/01001000/json/", expect.objectContaining({
+      redirect: "error", cache: "no-store", signal: expect.any(AbortSignal),
+    }));
   });
 
   it("revalida a cópia vencida no uso", async () => {
