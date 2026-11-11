@@ -42,7 +42,7 @@ export async function Negocios({ filtros }: { filtros: FiltrosModeracao }) {
               <FotoEmpresa empresa={e} />
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <Link href={`/empresas/${e.instagramUsername}`} className="font-serif text-xl font-semibold hover:text-coral-700">
+                  <Link href={`/empresas/${e.instagramUsername}`} className="font-display text-xl font-semibold hover:text-coral-700">
                     {e.nome}
                   </Link>
                   <EtiquetasDoNegocio empresa={e} />

@@ -66,15 +66,12 @@ export function integracoes(): Integracao[] {
   ];
 }
 
-/** Em que ambiente o site está rodando e de qual commit ele veio, quando o host informa. */
+/** Em que ambiente o site está rodando. */
 export function ambiente() {
   return {
     nome: ambienteDeDeploy() ?? process.env.NODE_ENV ?? "desconhecido",
     endereco: ENDERECO_DO_SITE,
     indexavel: INDEXAVEL,
-    branch: process.env.VERCEL_GIT_COMMIT_REF ?? null,
-    commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
-    regiao: process.env.VERCEL_REGION ?? null,
   };
 }
 

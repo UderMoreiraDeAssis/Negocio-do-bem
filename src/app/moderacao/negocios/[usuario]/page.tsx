@@ -10,6 +10,9 @@ import { db } from "@/lib/db";
 import { MODERACAO_EMPRESA } from "@/lib/dominio";
 import { rotuloDoInstagram } from "@/lib/endereco";
 import { normalizarEndereco } from "@/lib/instagram";
+import { Clube } from "./Clube";
+import { Donos } from "./Donos";
+import { seguirEnderecoAntigo } from "@/lib/troca-de-arroba";
 
 export const metadata: Metadata = { title: "Editar perfil · Moderação", robots: { index: false } };
 
@@ -31,9 +34,13 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/moderacao/neg
     where: { instagramUsername: username },
     include: { causas: { select: { causa: true } }, _count: { select: { membros: true } } },
   });
+  if (!empresa) await seguirEnderecoAntigo(username, (atual) => `/moderacao/negocios/${atual}`);
   if (!empresa) notFound();
-  const { aviso } = await searchParams;
+  const { aviso, cnpj } = await searchParams;
   const temDono = empresa._count.membros > 0;
+  // Os avisos do clube e dos donos aparecem na própria seção, para onde a página volta.
+  const codigo = typeof aviso === "string" ? aviso : undefined;
+  const daSecao = (prefixo: string) => (codigo?.startsWith(prefixo) ? codigo : undefined);
 
   return (
     <div className="space-y-10">
@@ -44,7 +51,7 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/moderacao/neg
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">Edição pela moderação</p>
-            <h1 className="mt-1 font-serif text-4xl font-semibold tracking-tight">{empresa.nome}</h1>
+            <h1 className="mt-1 font-display text-4xl font-semibold tracking-tight">{empresa.nome}</h1>
             <p className="text-suave">
               {rotuloDoInstagram(empresa.instagramUsername)} · {MODERACAO_EMPRESA[empresa.moderacao]} · {temDono ? "tem dono" : "sem dono"}
               {empresa.oculta && " · oculto pelo dono"}
@@ -58,10 +65,18 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/moderacao/neg
           Você está editando como moderação. {temDono && "Este negócio tem dono, então mude só o necessário. "}Cada
           alteração fica registrada na auditoria.
         </Aviso>
-        <AvisoDaUrl codigo={aviso} />
+        {!daSecao("clube_") && !daSecao("dono_") && <AvisoDaUrl codigo={codigo} />}
       </div>
 
-      <EdicaoEmpresa empresa={empresa} voltar={`/moderacao/negocios/${empresa.instagramUsername}`} />
+      <Donos empresa={empresa} aviso={daSecao("dono_")} />
+
+      <EdicaoEmpresa empresa={empresa} voltar={`/moderacao/negocios/${empresa.instagramUsername}`} trocaDoArroba />
+
+      <Clube
+        empresa={empresa}
+        cnpjDaUrl={typeof cnpj === "string" && cnpj.trim() ? cnpj.trim() : undefined}
+        aviso={daSecao("clube_")}
+      />
     </div>
   );
 }

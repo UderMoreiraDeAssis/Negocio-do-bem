@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { once } from "node:events";
-import { createWriteStream, mkdtempSync, readFileSync, rmSync, type WriteStream } from "node:fs";
+import { createWriteStream, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, type WriteStream } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -20,9 +20,10 @@ const ACOES = [
   "recusarReivindicacao",
   "moderarEmpresa",
   "decidirDenuncia",
+  "removerDono",
 ] as const;
 type Acao = (typeof ACOES)[number];
-type Alvos = { empresaId: string; reivindicacaoId: string; depoimentoId: string };
+type Alvos = { empresaId: string; reivindicacaoId: string; depoimentoId: string; donoId: string };
 
 /** Os campos que o formulário real da fila envia para cada ação. */
 const CAMPOS: Record<Acao, (alvos: Alvos) => Record<string, string>> = {
@@ -32,6 +33,7 @@ const CAMPOS: Record<Acao, (alvos: Alvos) => Record<string, string>> = {
   recusarReivindicacao: ({ reivindicacaoId }) => ({ reivindicacaoId, motivo: "Prova de runtime" }),
   moderarEmpresa: ({ empresaId }) => ({ empresaId, decisao: "rejeitar", aba: "negocios" }),
   decidirDenuncia: ({ depoimentoId }) => ({ depoimentoId, decisao: "remover" }),
+  removerDono: ({ empresaId, donoId }) => ({ empresaId, usuarioId: donoId, motivo: "Prova de runtime", confirmo: "sim" }),
 };
 
 function formularios(html: string) {
@@ -53,6 +55,11 @@ describe("Next em produção", () => {
   let reivindicacaoId: string;
   let depoimentoId: string;
   let moderadorId: string;
+  let donoId: string;
+  let liberacaoId: string;
+  let pastaDosDocumentos = "";
+  let chaveDoDocumento = "";
+  const BYTES_DO_DOCUMENTO = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1]);
   let emailDoModerador: string;
   let usernameDoNegocio: string;
   let cookieModerador: string;
@@ -60,7 +67,7 @@ describe("Next em produção", () => {
   const acoes = {} as Record<Acao, string>;
   const usuarios: string[] = [];
 
-  const alvos = (): Alvos => ({ empresaId, reivindicacaoId, depoimentoId });
+  const alvos = (): Alvos => ({ empresaId, reivindicacaoId, depoimentoId, donoId });
   const idsAuditados = () => [empresaId, empresaPendenteId, reivindicacaoId, depoimentoId];
 
   async function criarPessoa(papel: string) {
@@ -108,6 +115,13 @@ describe("Next em produção", () => {
   async function restaurar() {
     await db.registroAuditoria.deleteMany({ where: { OR: [{ usuarioId: { in: usuarios } }, { alvoId: { in: idsAuditados() } }] } });
     await db.empresaMembro.deleteMany({ where: { empresaId: { in: [empresaId, empresaPendenteId] } } });
+    // O negócio da prova tem um dono, para que remover dono tenha o que mudar.
+    await db.empresaMembro.create({ data: { empresaId, usuarioId: donoId } });
+    // E um pedido do clube em análise, com o documento: remover o dono o recusa e apaga o arquivo.
+    if (liberacaoId) {
+      await db.liberacaoClube.update({ where: { id: liberacaoId }, data: { status: "pendente", motivo: null, documentoChaves: [chaveDoDocumento] } });
+      writeFileSync(join(pastaDosDocumentos, chaveDoDocumento), BYTES_DO_DOCUMENTO);
+    }
     await db.empresa.update({ where: { id: empresaId }, data: { moderacao: "aprovada" } });
     await db.empresa.update({ where: { id: empresaPendenteId }, data: { moderacao: "pendente" } });
     await db.reivindicacao.update({
@@ -135,6 +149,8 @@ describe("Next em produção", () => {
       },
     });
     empresaId = empresa.id;
+    donoId = (await criarPessoa("membro")).id;
+    await db.empresaMembro.create({ data: { empresaId, usuarioId: donoId } });
     // Os dados abaixo fazem a fila mostrar todos os formulários de moderação.
     const pendente = await db.empresa.create({
       data: {
@@ -168,11 +184,26 @@ describe("Next em produção", () => {
     origem = `http://127.0.0.1:${porta}`;
 
     pastaDoLog = mkdtempSync(join(tmpdir(), "negocio-do-bem-integracao-"));
+    // Um documento de verdade (os primeiros bytes de um JPEG) na pasta que o servidor usa como bucket.
+    pastaDosDocumentos = join(pastaDoLog, "documentos");
+    mkdirSync(pastaDosDocumentos);
+    chaveDoDocumento = `${randomBytes(16).toString("hex")}.jpg`;
+    writeFileSync(join(pastaDosDocumentos, chaveDoDocumento), BYTES_DO_DOCUMENTO);
+    liberacaoId = (await db.liberacaoClube.create({
+      data: { empresaId, usuarioId: donoId, cnpj: "11222333000181", status: "pendente", documentoChaves: [chaveDoDocumento] },
+    })).id;
     caminhoLog = join(pastaDoLog, "next.log");
     log = createWriteStream(caminhoLog);
     servidor = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(porta)], {
       cwd: raiz,
-      env: { ...process.env, NODE_ENV: "production", DATABASE_URL: URL_BANCO_TESTE, APP_URL: origem, NEXT_TELEMETRY_DISABLED: "1" },
+      env: {
+        ...process.env,
+        NODE_ENV: "production",
+        DATABASE_URL: URL_BANCO_TESTE,
+        APP_URL: origem,
+        NEXT_TELEMETRY_DISABLED: "1",
+        DOCUMENTOS_PASTA: pastaDosDocumentos,
+      },
       stdio: ["ignore", "pipe", "pipe"],
     });
     servidor.stdout!.pipe(log, { end: false });
@@ -208,6 +239,10 @@ describe("Next em produção", () => {
     acoes.moderarEmpresa = indicacoes.find((f) => f.corpo.includes(`value="${empresaPendenteId}"`))?.id ?? "";
     const denuncias = await formulariosDaAba("denuncias");
     acoes.decidirDenuncia = denuncias.find((f) => f.corpo.includes(`value="${depoimentoId}"`))?.id ?? "";
+    log!.write("\nPROVA: GET edição do negócio como moderador\n");
+    const edicao = await ler(`/moderacao/negocios/${usernameDoNegocio}`, cookieModerador);
+    expect(edicao.status).toBe(200);
+    acoes.removerDono = formularios(edicao.html).find((f) => f.corpo.includes('name="confirmo"'))?.id ?? "";
   }, 60_000);
 
   beforeEach(async () => {
@@ -246,6 +281,23 @@ describe("Next em produção", () => {
   it("recebe da fila um identificador de ação diferente para cada Server Action", () => {
     for (const acao of ACOES) expect(acoes[acao], `A fila compilada deve expor o formulário de ${acao}.`).toMatch(/^\$ACTION_ID_/);
     expect(new Set(Object.values(acoes)).size).toBe(ACOES.length);
+  });
+
+  it("libera na CSP o Google Analytics e o Cloudflare Web Analytics", async () => {
+    const resposta = await fetch(`${origem}/sobre`);
+    await resposta.text();
+    const diretivas = new Map(
+      (resposta.headers.get("content-security-policy") ?? "")
+        .split(";")
+        .map((trecho) => trecho.trim().split(/\s+/))
+        .map(([nome, ...fontes]) => [nome, fontes] as const),
+    );
+    // O Cloudflare injeta o script do Web Analytics, e o GA4 também envia para www.google.com/g/collect.
+    expect(diretivas.get("script-src")).toEqual(expect.arrayContaining(["https://*.googletagmanager.com", "https://static.cloudflareinsights.com"]));
+    expect(diretivas.get("connect-src")).toEqual(
+      expect.arrayContaining(["https://*.google-analytics.com", "https://*.google.com", "https://cloudflareinsights.com"]),
+    );
+    expect(diretivas.get("frame-ancestors")).toEqual(["'none'"]);
   });
 
   describe.each(["visitante", "membro"])("%s", (papel) => {
@@ -296,7 +348,28 @@ describe("Next em produção", () => {
     });
   });
 
+  describe.each(["visitante", "membro"])("documento da verificação: %s", (papel) => {
+    it("recebe 404, sem o arquivo", async () => {
+      const resposta = await fetch(`${origem}/moderacao/documentos/${liberacaoId}/0`, { headers: { cookie: papel === "membro" ? cookieMembro : "" } });
+      expect(resposta.status).toBe(404);
+      expect(resposta.headers.get("content-type")).not.toContain("image/jpeg");
+      expect(await db.registroAuditoria.count({ where: { acao: "clube.documento_visto" } })).toBe(0);
+    });
+  });
+
   describe("moderador (controle positivo)", () => {
+    it("abre o documento da verificação, sem cache, e a abertura fica na auditoria", async () => {
+      const resposta = await fetch(`${origem}/moderacao/documentos/${liberacaoId}/0`, { headers: { cookie: cookieModerador } });
+      expect(resposta.status).toBe(200);
+      expect(resposta.headers.get("content-type")).toBe("image/jpeg");
+      expect(resposta.headers.get("cache-control")).toContain("no-store");
+      expect(resposta.headers.get("x-content-type-options")).toBe("nosniff");
+      expect((await resposta.arrayBuffer()).byteLength).toBe(12);
+      expect(await db.registroAuditoria.count({ where: { acao: "clube.documento_visto", usuarioId: moderadorId } })).toBe(1);
+      expect((await fetch(`${origem}/moderacao/documentos/${liberacaoId}/1`, { headers: { cookie: cookieModerador } })).status).toBe(404);
+      expect((await fetch(`${origem}/moderacao/documentos/inexistente/0`, { headers: { cookie: cookieModerador } })).status).toBe(404);
+    });
+
     it("vê a ficha da conta e a edição do negócio", async () => {
       const ficha = await ler(`/moderacao/contas/${moderadorId}`, cookieModerador);
       expect(ficha.status).toBe(200);
@@ -328,6 +401,27 @@ describe("Next em produção", () => {
         status: "recusada", motivoRecusa: "Prova de runtime", revisadoPorId: moderadorId,
       });
       expect(await db.registroAuditoria.count({ where: { alvoId: empresaPendenteId, acao: "reivindicacao.recusada" } })).toBe(1);
+    });
+
+    it("executa removerDono e grava a remoção e a auditoria", async () => {
+      log!.write("\nPROVA: POST removerDono como moderador\n");
+      const resposta = await enviar("removerDono", cookieModerador);
+      await resposta.text();
+      expect(resposta.status).toBe(303);
+      expect(resposta.headers.get("location")).toBe(`/moderacao/negocios/${usernameDoNegocio}?aviso=dono_removido#donos`);
+      expect(await db.empresaMembro.count({ where: { empresaId } })).toBe(0);
+      expect(await db.registroAuditoria.count({ where: { alvoId: empresaId, acao: "empresa.dono_removido" } })).toBe(1);
+      // O pedido do clube em análise foi recusado, e o documento dele saiu do bucket.
+      expect(await db.liberacaoClube.findUniqueOrThrow({ where: { id: liberacaoId } })).toMatchObject({ status: "recusada", documentoChaves: [] });
+      expect(existsSync(join(pastaDosDocumentos, chaveDoDocumento))).toBe(false);
+    });
+
+    it("não remove o dono sem a confirmação marcada", async () => {
+      const resposta = await enviar("removerDono", cookieModerador, { empresaId, usuarioId: donoId, motivo: "Prova de runtime" });
+      await resposta.text();
+      expect(resposta.status).toBe(303);
+      expect(resposta.headers.get("location")).toContain("aviso=dono_sem_confirmacao");
+      expect(await db.empresaMembro.count({ where: { empresaId } })).toBe(1);
     });
 
     it("executa decidirDenuncia e grava a decisão e a auditoria", async () => {

@@ -27,6 +27,7 @@ O raciocínio por trás das decisões e a história do projeto estão em [Como o
 17. [O site como app](#17-o-site-como-app)
 18. [Comportamentos atuais que valem conhecer](#18-comportamentos-atuais-que-valem-conhecer)
 19. [Embaixadores do bem](#19-embaixadores-do-bem)
+20. [Clube do Bem](#20-clube-do-bem)
 
 ---
 
@@ -41,6 +42,10 @@ O raciocínio por trás das decisões e a história do projeto estão em [Como o
 | Indicação | criação de uma `Empresa` | Alguém da comunidade (ou o próprio dono) cadastra um negócio. |
 | Reivindicação | `Reivindicacao` | O pedido de uma pessoa para virar dona de um negócio. |
 | Depoimento | `Depoimento` | O relato de alguém da comunidade sobre um negócio. |
+| Oferta | `Oferta` | Um desconto por pouco tempo (até 15 dias) que um dono liberado cria para o Clube do Bem. |
+| Cupom | `Cupom` | O código que uma pessoa gera para usar a oferta na compra. Uso único, validado pelo dono. |
+| Liberação do clube | `LiberacaoClube` | A permissão que a moderação dá a um dono, depois de conferir o CNPJ na Receita, para criar ofertas do Clube do Bem. |
+| Favorito | `EmpresaFavorita` | Um negócio que uma conta guardou com o coração, para achar de novo na página Favoritos. É a primeira parte do Clube do Bem ([#248](https://github.com/fabs-reis/Negocio-do-bem/issues/248)). |
 | Denúncia | campos `denunciado`, `motivoDenuncia` e `denunciadoPorId` do `Depoimento` | O aviso de que um depoimento tem algo errado. |
 | Causa | `EmpresaCausa` + lista em `src/lib/causas.ts` | Um valor que o negócio pratica, como "Escala 5x2" ou "Antirracista". Vira selo no perfil e filtro na busca. |
 | Auditoria | `RegistroAuditoria` | O registro de quem fez o quê nas ações importantes. |
@@ -62,6 +67,10 @@ Código: `src/acoes/conta.ts`, `src/lib/auth/`.
   - senha de 8 a 200 caracteres.
 - **Contas sem telefone:** as criadas antes do telefone ser obrigatório ([#191](https://github.com/fabs-reis/Negocio-do-bem/issues/191)) continuam sem ele e funcionam igual. Ninguém é obrigado a informar depois.
 - **Um e-mail, uma conta.** O cadastro avisa quando o e-mail já existe ("Que tal entrar?").
+- **Conta criada no meio do cadastro de um negócio:** o formulário já vem com o e-mail e o telefone que o dono deu na etapa "Como a gente fala com você?", com o aviso "Trouxemos o contato que você deu no cadastro do negócio. Pode mudar." ([#317](https://github.com/fabs-reis/Negocio-do-bem/issues/317)).
+  - Os dois vêm do rascunho do navegador (`ndb:cadastro`, veja [O cadastro por etapas](#o-cadastro-por-etapas)), nunca pela URL, e só quando o `voltar` leva de volta ao cadastro (`/participar?continuar=1`). Em outra entrada no `/cadastrar`, o formulário começa vazio.
+  - Quem só indicou não deu contato, e nada é preenchido. O nome da pessoa continua sendo pedido aqui: o cadastro do negócio não pede.
+  - Os valores são só o começo: a pessoa muda o que quiser, e o servidor valida tudo como em qualquer cadastro.
 - **Login** (`/entrar`): e-mail e senha.
   - Senha incorreta, conta inexistente e limite de tentativas mostram o mesmo erro, "E-mail ou senha incorretos". Sem IP confiável em produção, aparece o aviso temporário descrito abaixo.
   - Quando o e-mail não existe, a senha é conferida contra um hash falso, para a resposta levar o mesmo tempo e não revelar quais e-mails têm conta.
@@ -76,6 +85,7 @@ Código: `src/acoes/conta.ts`, `src/lib/auth/`.
     - Se não estava, a senha é apagada, as sessões abertas são encerradas e o e-mail passa a valer como confirmado. Quem criou a conta nunca provou ser dono do endereço: sem isso, alguém criaria a conta com o e-mail de outra pessoa e continuaria entrando com a senha depois que ela entrasse pelo Google.
   - **Sem conta com o e-mail:** a conta só é criada depois que a pessoa informa o telefone, que o Google não dá.
     - O retorno guarda quem o Google disse que é a pessoa (`CadastroGoogle`: o `sub`, o e-mail, o nome e o `voltar`) e leva a `/cadastrar/google`, "Falta só o seu telefone", que mostra o e-mail da conta do Google.
+    - Quem veio do cadastro de um negócio como dono encontra o telefone já preenchido com o que deu no cadastro, pela mesma regra do `/cadastrar` (o `voltar` guardado leva ao cadastro). O e-mail é sempre o do Google.
     - O cookie `ndb_google_cadastro` (`httpOnly`, `sameSite=lax`, só no caminho `/cadastrar/google`) leva o token. O banco guarda só o sha256 dele. O cadastro vale por 30 minutos; os vencidos são apagados quando outro é guardado.
     - Com o telefone válido, a conta é criada com o nome do Google (até 80 caracteres; sem nome, o começo do e-mail), o telefone, o e-mail confirmado e sem senha. O cadastro guardado é apagado, a sessão é aberta e a pessoa vai para o `voltar`.
     - Depois do prazo, a página diz que ele acabou e leva de volta ao `/cadastrar`. Se, enquanto isso, o e-mail foi ligado a outro Google, aparece "Este e-mail já está ligado a outra conta do Google" e nada é criado.
@@ -88,7 +98,7 @@ Código: `src/acoes/conta.ts`, `src/lib/auth/`.
   - O login pelo Google não passa pelo limite de tentativas, porque não confere senha.
 - **Limite de tentativas** (`src/lib/auth/tentativas.ts`), conferido antes do scrypt, porque cada conferência de senha custa ~32 MB de memória:
   - **por IP:** 10 tentativas de login, cadastro, troca de senha no painel, pedido de senha nova em `/esqueci-a-senha` e senha nova pelo link, somadas, a cada 15 minutos;
-  - **de onde vem o IP:** no Cloudflare, só do cabeçalho `cf-connecting-ip`, escrito pela rede, quando `CLOUDFLARE_DEPLOY=1`; no Vercel, só do cabeçalho `x-vercel-forwarded-for`, que o Vercel escreve. Em outra hospedagem, de nenhum cabeçalho, a menos que quem cuida do site defina `AUTENTICACAO_PROXY_CONFIAVEL=1` (há um proxy seu na frente, que escreve o `x-forwarded-for`): então vale o último valor desse cabeçalho, se for um IP. Um cabeçalho que o visitante pode escrever nunca vale;
+  - **de onde vem o IP:** no Cloudflare, só do cabeçalho `cf-connecting-ip`, escrito pela rede, quando `CLOUDFLARE_DEPLOY=1`. Em outra hospedagem, de nenhum cabeçalho, a menos que quem cuida do site defina `AUTENTICACAO_PROXY_CONFIAVEL=1` (há um proxy seu na frente, que escreve o `x-forwarded-for`): então vale o último valor desse cabeçalho, se for um IP. Um cabeçalho que o visitante pode escrever nunca vale;
   - **IPv6:** o IPv4 escrito como IPv6 (`::ffff:203.0.113.5`) conta como o IPv4. Os outros endereços IPv6 contam pelo prefixo /64, então todos os endereços da mesma rede dividem a cota;
   - **sem IP confiável:** em produção, login, cadastro, pedido de recuperação, envio de senha pelo link e troca no painel são recusados antes da senha e sem criar contador. O servidor registra um aviso de configuração. Em desenvolvimento e nos testes, essas ações seguem sem limite por IP, e o limite por e-mail continua valendo;
   - **por e-mail, em cada origem:** 5 tentativas de senha a cada 15 minutos para o mesmo e-mail, vindas do mesmo IP (ou do mesmo /64 no IPv6). Cada origem tem o próprio contador, então quem erra a senha de outra pessoa não a impede de entrar de outro lugar. Sem IP conhecido, as tentativas sem IP dividem um contador por e-mail. A tentativa é contada antes de a senha ser conferida, e não depois: assim, tentativas que chegam juntas não passam todas. A sexta já nem chega à conferência, mesmo com a senha certa. Vale também para a senha atual digitada na troca de senha do painel. Um login certo zera a contagem daquele e-mail naquela origem. Trocar a senha, no painel ou pelo link, zera a contagem daquele e-mail em todas as origens: quem esqueceu a senha costuma errar algumas vezes antes de pedir o link, e a senha nova não pode ficar recusada até a janela vencer;
@@ -141,7 +151,7 @@ Código: `src/lib/auth/links.ts`, `src/acoes/conta.ts`, `src/app/api/link/route.
 > As regras abaixo voltam a valer quando a constante for ligada de novo, junto com a troca do envio de e-mails.
 
 - **O cadastro manda um link de confirmação** para o e-mail digitado. A conta já entra no site na hora.
-- **Sem o e-mail confirmado, a conta não** indica negócios, não escreve nem denuncia depoimentos e não reivindica negócios, por nenhum dos caminhos.
+- **Sem o e-mail confirmado, a conta não** indica negócios, não escreve nem denuncia depoimentos, não reivindica negócios, não gera cupom e não pede a verificação do Clube do Bem, por nenhum dos caminhos.
   - Nesses lugares, e no topo do `/painel`, aparece "Confirme seu e-mail", com um botão para mandar o link de novo.
   - As Server Actions conferem de novo no servidor e respondem "Antes, confirme o seu e-mail".
 - **O resto funciona sem confirmar:** entrar, sair, o painel, editar o próprio negócio, responder depoimentos e cancelar pedidos.
@@ -203,7 +213,7 @@ O painel tem um menu com quatro grupos. No celular, ele vira uma linha que rola 
 | Grupo | Seção | O que mostra |
 | --- | --- | --- |
 | Painel | **Visão geral** (abre primeiro) | As filas que esperam a moderação, os números do projeto, a atividade das últimas semanas, o diretório por estado, tipo e causa, e a saúde dos dados. |
-| Filas | **Reivindicações**, **Indicações**, **Denúncias** | As filas que já existiam ([seções 5](#5-moderação-das-indicações), [6](#a-decisão-da-moderação) e [10](#denúncias)). O menu mostra quantos itens esperam em cada uma. |
+| Filas | **Reivindicações**, **Indicações**, **Denúncias**, **Clube do Bem**, **Trocas de @** | As filas que já existiam ([seções 5](#5-moderação-das-indicações), [6](#a-decisão-da-moderação) e [10](#denúncias)), os pedidos de verificação do [Clube do Bem](#liberação-para-o-clube) e os pedidos de [troca do @](#pedido-de-troca-do-). O menu mostra quantos itens esperam em cada uma. |
 | Cadastros | **Negócios** | Todos os negócios, com filtros por situação ([seção 5](#editar-qualquer-perfil)). |
 | Cadastros | **Contas** | Todas as contas, com busca e filtros, e a ficha de cada uma. |
 | Cadastros | **Depoimentos** | Todos os depoimentos, publicados e removidos. |
@@ -252,7 +262,7 @@ O painel tem um menu com quatro grupos. No celular, ele vira uma linha que rola 
 
 **Sistema:**
 
-- **Ambiente:** o nome (`production`, `preview` ou `development`), o endereço público e se os buscadores podem indexar; quando informados pelo host, também o branch e o commit.
+- **Ambiente:** o nome (`production`, `preview` ou `development`), o endereço público e se os buscadores podem indexar.
 - **Integrações:** só se cada uma está ligada (fotos no Cloudflare R2, Instagram do projeto, Entrar com o Google, Entrar com Instagram, rotina de fotos, Google Analytics e verificação nos buscadores), com o que falta para ligar. Os valores das variáveis nunca aparecem.
 - **Banco:** quantas linhas cada tabela tem e as migrações aplicadas, da mais nova para a mais antiga. Uma migração que começou e não terminou aparece em destaque, porque trava o próximo deploy.
 
@@ -272,7 +282,13 @@ Código: `normalizarUsername` em `src/lib/instagram.ts`.
   - só letras, números, `.` e `_`, até 30 caracteres;
   - não pode começar nem terminar com `.`, nem ter `..`;
   - recusa caminhos do Instagram que não são perfis (`p`, `reel`, `reels`, `explore`, `stories`, `accounts`, `direct`, `tv`).
-- **Ninguém muda o @ depois** (nem o dono, nem a moderação). Não existe tela para isso.
+- **Trocar o @** (`trocarArroba` em `src/lib/troca-de-arroba.ts`, #298 e #299): a moderação troca o @ na edição do perfil, pela seção "Instagram". O dono **pede** a troca no painel, e ela só vale quando a moderação aprova (veja [Pedido de troca do @](#pedido-de-troca-do-)).
+  - O novo @ passa pela mesma normalização. É recusado se já for de outro negócio, ou se for o @ atual.
+  - Um negócio sem Instagram ganha um @ do mesmo jeito. Não há como voltar a "sem Instagram".
+  - **O endereço antigo continua valendo:** fica guardado em `EnderecoAntigo` e leva para o atual (`/empresas`, com redirecionamento permanente, `/empresas/<@>/reivindicar`, `/painel/<@>`, `/painel/<@>/clube` e `/moderacao/negocios/<@>`). Depois de várias trocas, todos os antigos levam ao atual. O @ antigo fica livre: se outro negócio for cadastrado com ele, a página é desse negócio; e, se o próprio negócio voltar a um @ antigo, aquele redirecionamento sai.
+  - Como toda troca passa pela moderação, nenhuma suspende o Clube do Bem. (A suspensão com o motivo "O @ do Instagram mudou" continua no código para uma troca registrada como do dono, que hoje não acontece.)
+  - Os IDs fixos do Instagram (abaixo) saem na troca, porque eram da conta do @ antigo. Sem foto, a foto do novo perfil do Instagram vira a do negócio, pelas regras da [prévia](#o-cadastro-por-etapas).
+  - **Auditoria:** `empresa.arroba_trocado_pela_moderacao` (ou `empresa.arroba_trocado`, nas trocas antigas feitas pelo dono), com o @ antigo e o novo nos detalhes, na mesma transação da troca.
 - **Negócio sem Instagram:** quem cadastra pelo "O negócio não tem Instagram" ganha um endereço feito do nome e da cidade, em minúsculas, sem acento e com hífens: "Padaria do Bairro", em Recife, vira `/empresas/padaria-do-bairro-recife` (`enderecoSemInstagram` em `src/lib/endereco.ts`).
   - O endereço fica na mesma coluna do @ (`instagramUsername`). Como o Instagram não aceita hífen no @, e a cidade no fim garante ao menos um hífen, um endereço nunca se confunde com um @ (`temInstagram`).
   - Se outro negócio já usa o endereço, o novo ganha `-2`, `-3`… no fim.
@@ -280,6 +296,19 @@ Código: `normalizarUsername` em `src/lib/instagram.ts`.
 - Além do @, o negócio pode guardar dois IDs fixos do Instagram:
   - `instagramUserId`, preenchido pelo Entrar com Instagram, hoje desligado (ver [seção 6](#entrar-com-instagram-desligado-por-padrão));
   - `instagramIgsid`, que só vem de pedidos antigos por código de DM (ver [seção 6](#pedidos-antigos-por-código-de-dm)).
+
+### Pedido de troca do @
+
+Código: `src/lib/troca-de-arroba.ts` e `src/acoes/arroba.ts` (#299).
+
+- **Quem pede:** um dono do negócio, com o e-mail confirmado, na seção "@ do Instagram" do painel (`/painel/<@>#arroba`). Serve para corrigir um @ errado, seguir um @ que mudou no Instagram ou ligar um @ a um negócio cadastrado sem Instagram.
+- **Por que passa pela moderação:** o dono pode ter assumido o perfil só com os dados do negócio, sem provar que controla o Instagram. Sem a conferência, ele poderia pôr o @ de outro negócio que ainda não está no site.
+- **O pedido não entra** quando o @ é inválido (as mesmas regras de `normalizarUsername`), é o mesmo de agora ou já é de outro negócio. Há **um pedido em análise por negócio**: um segundo, mesmo enviado ao mesmo tempo, recebe "Já existe um pedido de troca do @ em análise".
+- **Enquanto em análise,** o painel mostra o @ pedido e o botão "Cancelar o pedido". Recusado, mostra o motivo e deixa pedir de novo.
+- **A fila "Trocas de @"** da moderação mostra o negócio, o @ atual e o pedido (com link para os dois no Instagram), o que a Meta mostra do @ novo (nome, site e seguidores; ou o aviso de que a conta é pessoal ou não existe) e quem pediu. A moderação aprova ou recusa com um motivo, que o dono vê.
+- **Aprovada,** a troca segue as regras de [trocar o @](#identidade-o--do-instagram), como uma troca da moderação, na mesma transação que fecha o pedido: o endereço antigo passa a levar ao novo e o Clube do Bem não é suspenso. Depois da resposta, o dono recebe o e-mail e, se o negócio não tem foto, o site busca a do @ novo.
+- **A aprovação não acontece** se o pedido já foi decidido, se o @ do negócio mudou depois do pedido ou se outro negócio ocupou o @ novo enquanto isso. O pedido continua na fila, e a moderação vê o aviso.
+- **Auditoria:** `empresa.arroba_pedido` (pelo dono) e `empresa.arroba_recusado`; a aprovação registra a troca em `empresa.arroba_trocado_pela_moderacao`.
 
 ### Dados do negócio
 
@@ -291,9 +320,9 @@ Validação: `src/acoes/empresas.ts` e `src/lib/formulario.ts`.
 | Categoria | Sim | Uma da lista fixa (ver [seção 12](#categorias)). |
 | Cidade e estado (UF) | Sim | Um município da lista do IBGE, escolhido no campo de cidade, que sugere cidades enquanto a pessoa digita. O estado vem junto com a cidade. O servidor confere na mesma lista e grava o nome oficial, com acentos (ver [seção 12](#municípios)). |
 | Resumo ("em uma frase") | Sim | 10 a 160 caracteres. Aparece nos cards do diretório. |
-| Telefone comercial | Só no cadastro do dono | Número brasileiro com DDD, com as regras do WhatsApp (ver abaixo). No perfil, vira o botão "Ligar". |
+| Telefone comercial | Não | Número brasileiro com DDD, com as regras do WhatsApp (ver abaixo). No perfil, vira o botão "Ligar". |
 | Site | Não | Até 200 caracteres. Sem `http`, ganha `https://`. Precisa ter um ponto no domínio. |
-| WhatsApp | Não | Número brasileiro com DDD (ver abaixo). |
+| WhatsApp | Só no cadastro do dono | Número brasileiro com DDD (ver abaixo). |
 | E-mail de contato | Não | E-mail válido, até 200 caracteres, guardado em minúsculas. |
 | Link do mapa | Não | Até 1.000 caracteres após normalizar. Google Maps (`maps.app.goo.gl`, `maps.google.com`, `google.com/maps`, `goo.gl/maps`, também com `.br`) ou Apple Maps (`maps.apple.com`, `maps.apple`). Sem esquema ganha `https://`; `http` vira `https`. Nos hosts com `/maps`, só esse segmento ou seus subcaminhos são aceitos. |
 | E-mail e telefone do dono | Só no cadastro do dono | O contato de quem cadastrou o negócio como dono, com as regras do e-mail e do telefone. **Não aparecem no perfil:** só os donos (no painel) e a moderação (na fila de indicações e na edição) veem. |
@@ -317,7 +346,7 @@ O negócio tem três informações de estado que andam separadas:
 | Campo | Valores | O que significa |
 | --- | --- | --- |
 | `moderacao` | `pendente` · `aprovada` · `rejeitada` | Se o negócio está no ar. Toda indicação entra `aprovada`, e a moderação pode tirar do ar (`rejeitada`) e publicar de novo. `pendente` só existe em negócios indicados antes da publicação automática. Só `aprovada` pode aparecer no diretório. |
-| `status` | `indicada` · `verificada` | Se o perfil foi assumido. Vira `verificada` quando a primeira reivindicação é aprovada e não volta mais. O nome interno não significa certificação de identidade ou das causas. |
+| `status` | `indicada` · `verificada` | Se o perfil foi assumido. Vira `verificada` quando a primeira reivindicação é aprovada e só volta a `indicada` quando a moderação tira o último dono (veja [Tirar um dono](#tirar-um-dono)). O nome interno não significa certificação de identidade ou das causas. |
 | `oculta` | `false` · `true` | Se o dono tirou o negócio do diretório. |
 
 **Um negócio aparece para o público quando `moderacao = "aprovada"` e `oculta = false`.** Fora disso, só o dono, a moderação e quem indicou veem o perfil (ver [seção 7](#quem-vê-um-perfil-que-não-está-no-diretório)).
@@ -352,7 +381,7 @@ Código: `indicarEmpresa` em `src/acoes/empresas.ts`, tela em `src/app/participa
 
 ### O cadastro por etapas
 
-- **Uma entrada só:** `/participar` é o "Cadastrar" do menu e o destino dos botões de indicar. O `/indicar` antigo redireciona para lá, com a busca (`?instagram=<@>&dono=sim`), que vira o @ e a escolha de dono já preenchidos.
+- **Uma entrada só:** `/participar` é o "Adicionar empresa" do menu e o destino dos botões de indicar. O `/indicar` antigo redireciona para lá, com a busca (`?instagram=<@>&dono=sim`), que vira o @ e a escolha de dono já preenchidos.
 - **Uma pergunta por vez.** Primeiro o @, depois "O que você quer fazer?". As respostas ficam num formulário só: voltar não perde nada, Enter avança, e cada etapa confere os próprios campos antes de seguir. O servidor confere tudo de novo no envio, e um erro dele leva a pessoa de volta à etapa do campo errado.
 - **As etapas:** quem indica passa por @, escolha, nome e categoria, cidade e frase, causas (com o "por que você indica?") e revisão. O dono tem duas a mais antes da revisão: os contatos do negócio e o contato dele.
 - **A procura do @** (`procurarArroba` em `src/acoes/participacao.ts`) não precisa de login e só lê. As opções da etapa seguinte dependem do que ela acha (`casoDaProcura` em `src/lib/participacao.ts`):
@@ -371,7 +400,7 @@ Código: `indicarEmpresa` em `src/acoes/empresas.ts`, tela em `src/app/participa
   - Sem `META_ACCESS_TOKEN` e `META_IG_USER_ID`, não há prévia.
 - **Foto no cadastro:** depois de criar um negócio com Instagram, a foto da prévia vira a foto do perfil (`gravarFotoDaPrevia` em `src/lib/fotos-instagram.ts`), sem atrasar a resposta. Ela segue as regras da rotina de fotos: nunca troca uma foto já enviada e registra `empresa.foto_do_instagram` na auditoria. Sem prévia, a rotina tenta depois.
 - **Sem Instagram:** "O negócio não tem Instagram", na primeira etapa, pula a procura e oferece indicar ou cadastrar como dono. O resto das etapas é igual, e o negócio ganha um endereço feito do nome e da cidade ([seção 3](#identidade-o--do-instagram)).
-- **Conta no fim:** sem login, a última etapa pede para entrar ou criar a conta. As respostas ficam guardadas no navegador (`ndb:cadastro`) e voltam na revisão quando a pessoa retorna com `?continuar=1`. Publicar apaga o rascunho do navegador.
+- **Conta no fim:** sem login, a última etapa pede para entrar ou criar a conta. As respostas ficam guardadas no navegador (`ndb:cadastro`) e voltam na revisão quando a pessoa retorna com `?continuar=1`. Publicar apaga o rascunho do navegador. Criar a conta por ali já começa com o e-mail e o telefone do dono (veja [Cadastro e login](#cadastro-e-login)).
 
 ### As regras do envio
 
@@ -390,7 +419,7 @@ Código: `indicarEmpresa` em `src/acoes/empresas.ts`, tela em `src/app/participa
 Quando a pessoa escolhe **"Sou dono deste negócio"** (ou "Sou dono do negócio", sem Instagram):
 
 - o campo "Por que você indica?" some e o motivo não é guardado;
-- a pessoa informa os contatos do negócio: **telefone comercial (obrigatório)**, WhatsApp, e-mail e site (opcionais). Eles aparecem no perfil;
+- a pessoa informa os contatos do negócio: **WhatsApp (obrigatório)**, telefone comercial, e-mail e site (opcionais). Eles aparecem no perfil;
 - e o contato dela: **e-mail e telefone de contato (obrigatórios)**. O e-mail e o telefone começam preenchidos com os da conta. Esse contato não aparece no perfil ([seção 3](#dados-do-negócio));
 - o negócio é criado do mesmo jeito, já publicado, com a pessoa como quem indicou;
 - a pessoa vai direto para a página de reivindicação (`/empresas/<endereço>/reivindicar`) para enviar os dados do negócio.
@@ -420,7 +449,8 @@ Código: `moderarEmpresa` e `publicarIndicacoesPendentes` em `src/acoes/moderaca
 - **Auditoria:** registra `empresa.aprovada` ou `empresa.rejeitada`, uma linha por negócio, com o @ nos detalhes. A decisão e a auditoria são confirmadas juntas: se a auditoria falhar, o negócio continua como estava.
 - **O que muda num negócio tirado do ar:**
   - o @ continua ocupado, então ninguém consegue indicar de novo;
-  - a página de reivindicação responde 404, e um pedido que chegue mesmo assim fica com a moderação.
+  - a página de reivindicação responde 404, e um pedido que chegue mesmo assim fica com a moderação;
+  - as ofertas ativas e as encerradas ainda dentro do prazo ficam suspensas na mesma transação, e os cupons delas deixam de valer.
 
 ### Editar qualquer perfil
 
@@ -430,9 +460,10 @@ Código: aba "Negócios" e `src/app/moderacao/negocios/[usuario]/page.tsx`.
   - A busca usa os mesmos campos da busca do diretório e aceita o @ com a arroba.
   - **Filtros:** no diretório, tirados do ar, ocultos pelo dono, aguardando moderação, perfis assumidos, sem dono e, entre os do diretório, sem foto, sem contato e sem história.
   - Depois de "Tirar do ar" ou "Publicar de novo", a moderação volta para a mesma lista, com a busca, o filtro e a página. O endereço de volta só é aceito se for da própria moderação (`destinoNaModeracao`).
-- **Edição:** `/moderacao/negocios/<@>` usa o **mesmo formulário do painel do dono**: foto, informações, contatos, causas e história.
+- **Edição:** `/moderacao/negocios/<@>` usa o **mesmo formulário do painel do dono**: foto, @ do Instagram, informações, contatos, causas e história.
   - Um aviso lembra que a edição é pela moderação e que fica registrada.
   - Se o negócio tem dono, o aviso pede para mudar só o necessário.
+  - Acima do formulário, a seção **"Donos"** lista quem assumiu o perfil (nome, e-mail e desde quando), com o botão "Remover dos donos" (veja [Tirar um dono](#tirar-um-dono)).
 - **No perfil público,** quem é da moderação (e não é dono) vê o botão **"Editar perfil (moderação)"**.
 - **Na auditoria,** toda edição da moderação ganha o sufixo `_pela_moderacao`. Exemplos: `empresa.editada_pela_moderacao`, `empresa.foto_trocada_pela_moderacao`.
 
@@ -453,12 +484,13 @@ Código: regras em `src/lib/reivindicacao.ts` (com testes em `tests/db/reivindic
 
 Desde a [issue #20](https://github.com/fabs-reis/Negocio-do-bem/issues/20), **o pedido pelos dados do negócio é aprovado assim que é enviado** quando:
 
-- o negócio **não tem dono**; e
-- o negócio **não foi tirado do ar**.
+- o negócio **não tem dono**;
+- o negócio **não foi tirado do ar**; e
+- a moderação **não tirou antes esta conta dos donos** deste negócio (veja [Tirar um dono](#tirar-um-dono)).
 
 Nesse caso, a aprovação é a mesma da moderação (veja "O que a aprovação faz" abaixo), mas sem revisor: o pedido fica com `revisadoPorId` vazio, e a auditoria mostra "sistema". A pessoa vai para o painel do negócio com o aviso "Pronto! Você agora é dono deste perfil…".
 
-Fora desses casos, o pedido fica pendente para a moderação: é uma disputa (o negócio já tem dono) ou um negócio que a moderação tirou do ar.
+Fora desses casos, o pedido fica pendente para a moderação: é uma disputa (o negócio já tem dono), um negócio que a moderação tirou do ar ou um pedido novo de conta já removida dos donos deste negócio (que vê texto neutro antes e depois do envio, sem prometer aprovação imediata nem dizer que o perfil já tem dono).
 
 **Risco aceito:** não há conferência do CNPJ, do site nem do contato antes de aprovar. Qualquer conta consegue assumir um perfil que ainda não tem dono. Os dados enviados ficam guardados e aparecem para a moderação se houver disputa. A regra está em `solicitarPorDocumento` (`src/lib/reivindicacao.ts`).
 
@@ -469,10 +501,9 @@ Hoje é o único caminho ligado. A pessoa envia:
 | Campo | Obrigatório | Regra |
 | --- | --- | --- |
 | Relação com o negócio | Sim | 2 a 120 caracteres (ex.: "sou a dona", "cuido das redes"). |
-| Contato | Sim | 5 a 160 caracteres. WhatsApp ou e-mail para a moderação falar com a pessoa. |
-| CNPJ ou MEI | Não | Validado pelos dígitos verificadores, inclusive no formato alfanumérico que a Receita passou a emitir em julho de 2026. Guardado sem pontuação. |
-| Site | Não | Mesma regra do site do negócio. |
 | Mensagem | Não | Até 1.000 caracteres. |
+
+Desde a [#293](https://github.com/fabs-reis/Negocio-do-bem/issues/293), o formulário não pede mais contato, CNPJ nem site: a moderação fala com a pessoa pelo e-mail da conta, e o CNPJ vem depois, no pedido de verificação do painel ([seção 20](#liberação-para-o-clube)). Pedidos antigos continuam com o que a pessoa enviou. O formulário só serve para assumir: quem assume ganha o perfil "assumido", e a verificação é o passo seguinte.
 
 O @ do Instagram não é pedido: é o do próprio perfil.
 
@@ -492,9 +523,9 @@ O @ do Instagram não é pedido: é o do próprio perfil.
 
 ### A decisão da moderação
 
-Na aba "Reivindicações" (`/moderacao?aba=reivindicacoes`) ficam os pedidos que não foram aprovados na hora: disputas, negócios tirados do ar e pedidos feitos antes da aprovação automática. Eles aparecem dos mais antigos para os mais novos, até 50 por vez.
+Na aba "Reivindicações" (`/moderacao?aba=reivindicacoes`) ficam os pedidos que não foram aprovados na hora: disputas, negócios tirados do ar, pedidos de contas já removidas dos donos e pedidos feitos antes da aprovação automática. Eles aparecem dos mais antigos para os mais novos, até 50 por vez.
 
-**Fila antiga:** quando há pedidos pendentes de negócios sem dono e no ar, o topo da aba mostra o botão **"Aprovar os N pedidos sem dono"** (`aprovarPendentesSemDono`). Ele aplica a regra da aprovação na hora a esses pedidos, por ordem de chegada. Se duas pessoas pediram o mesmo negócio, só a primeira é aprovada, e o pedido da segunda continua na fila, agora como disputa. A auditoria registra quem da moderação clicou.
+**Fila antiga:** quando há pedidos pendentes que podem ser aprovados sozinhos (`pendentesQueAprovamSozinhos`: negócio sem dono e no ar, de conta que não foi removida dos donos dele), o topo da aba mostra o botão **"Aprovar os N pedidos sem dono"** (`aprovarPendentesSemDono`). Ele aplica a mesma regra da aprovação na hora a esses pedidos, por ordem de chegada. Se duas pessoas pediram o mesmo negócio, só a primeira elegível é aprovada, e o pedido da segunda continua na fila, agora como disputa. A auditoria registra quem da moderação clicou.
 
 Cada pedido mostra:
 
@@ -534,6 +565,25 @@ O que a moderação confere: se o CNPJ, o site e o contato batem com o @ do Inst
 
 **Depois da decisão,** a pessoa recebe um e-mail com o resultado ([seção 14](#14-avisos-por-e-mail)) e acompanha em `/painel`, em "Minhas solicitações de reivindicação". Aparecem as 20 mais recentes, menos as canceladas, com o status e, se recusada, o motivo.
 
+### Tirar um dono
+
+Código: `removerDono` em `src/lib/reivindicacao.ts` (com testes em `tests/db/remover-dono.test.ts`), a ação em `src/acoes/moderacao.ts` e o botão em `src/app/moderacao/RemoverDono.tsx`.
+
+A moderação tira uma conta dos donos de um negócio quando ela não é do negócio: por exemplo, quando o nome da conta não bate com nenhum sócio na ficha da Receita ([issue #292](https://github.com/fabs-reis/Negocio-do-bem/issues/292)).
+
+- **Onde:** o botão **"Remover dos donos"** fica ao lado de cada dono, na seção "Donos" da ficha do negócio (`/moderacao/negocios/<@>#donos`). Também aparece na ficha da Receita do Clube do Bem, na ficha do negócio e na fila do clube, quando o nome da conta não bate com a ficha. Da fila, a moderação volta para a fila.
+- **Confirmação e motivo:** o botão abre um formulário com o motivo (até 500 caracteres; a pessoa recebe por e-mail) e a caixa "Confirmo: <nome> deixa de ser dono de @<negócio>…". Sem a caixa marcada, nada muda ("Marque a confirmação para remover o dono"). Sem motivo, fica "Sem motivo informado".
+- **O que acontece,** numa transação só, com o negócio travado (duas remoções ao mesmo tempo, ou uma remoção e uma aprovação, se enxergam):
+  1. A pessoa deixa de ser dona.
+  2. O pedido aprovado dela vira `revogada`, com o motivo, quem removeu e quando.
+  3. No Clube do Bem, a liberação dela fica suspensa, ou o pedido em análise fica recusado, com o motivo "Deixou de ser dono do negócio". As ofertas que ela criou e cujos cupons ainda valiam (ativas ou encerradas antes do fim) ficam suspensas; as de outro dono e as já vencidas continuam como estavam.
+  4. Se não sobrou nenhum dono, o negócio volta a `indicada` e a ficar visível (`oculta: false`, voltando ao diretório se o ex-dono o tinha ocultado): some o selo "Perfil assumido" e volta o botão "Sou o dono". Se ainda sobrou outro dono, `oculta` não muda.
+  5. Registra `empresa.dono_removido` na auditoria (e `clube.suspenso` ou `clube.recusado`, se for o caso).
+- **Duas pessoas da moderação ao mesmo tempo:** a segunda vê "Essa conta já não era dona deste negócio", e nada é gravado de novo.
+- **Pedido de novo:** um pedido novo da mesma pessoa para o mesmo negócio nunca é aprovado na hora, nem pelos dados do negócio, nem pelo botão "Aprovar os N pedidos sem dono", nem pelo Entrar com Instagram. Ele vai para a fila com a anotação "A moderação já tirou esta conta dos donos deste negócio". Outras pessoas assumem o negócio sem dono na hora, como antes.
+- **E-mail:** a pessoa recebe o motivo e o link para pedir o perfil de novo ([seção 14](#14-avisos-por-e-mail)).
+- **Pedidos de outras pessoas** que esperavam na fila continuam lá. Se o negócio ficou sem dono, eles entram no botão "Aprovar os N pedidos sem dono".
+
 ### Estados de um pedido
 
 ```mermaid
@@ -544,6 +594,7 @@ stateDiagram-v2
     pendente --> cancelada: a pessoa cancela
     pendente --> cancelada: outro pedido dela foi aprovado
     pendente --> expirada: código por DM venceu e foi trocado (só pedidos antigos)
+    aprovada --> revogada: a moderação tira a pessoa dos donos
 ```
 
 | Status | Rótulo na tela | Quando |
@@ -553,6 +604,7 @@ stateDiagram-v2
 | `recusada` | Recusada | Pela moderação, com motivo. |
 | `cancelada` | Cancelada | A pessoa cancelou, outro pedido dela para o mesmo negócio foi aprovado, ou ela refez o "Entrar com Instagram". |
 | `expirada` | Expirada | Só em pedidos antigos por código de DM: quando a pessoa gerava um código novo depois que o anterior venceu. |
+| `revogada` | Removida pela moderação | A moderação tirou a pessoa dos donos depois de aprovar. O motivo fica no pedido, e a pessoa vê no painel. |
 
 ### Entrar com Instagram (desligado por padrão)
 
@@ -607,6 +659,7 @@ Código: `src/app/empresas/[usuario]/page.tsx`.
   - **"Indicado pela comunidade"** quando ainda não tem dono.
 - **Nome, @** (com o ícone e o link para o Instagram, ou "sem Instagram"), **categoria, cidade e UF.**
 - **Ação principal e "Compartilhar".** O botão grande é "Chamar no WhatsApp"; sem WhatsApp, "Ver no Instagram" (só para quem tem Instagram); sem nenhum dos dois, não há botão. Quando o botão já leva ao Instagram, o @ não repete o link abaixo do nome; com WhatsApp, o @ continua com link ali. "Compartilhar" copia o endereço do perfil e só aparece para perfis do diretório.
+- **"Favoritar",** com o coração, ao lado de "Compartilhar", num negócio do diretório, para quem não é dono, junto com quantas pessoas já favoritaram (veja [Favoritos](#favoritos)). O dono vê esse número ao lado de "Editar meu perfil".
 - **Cartão de contato** (coluna da direita no computador, logo abaixo do topo no celular), só com o que está preenchido. WhatsApp, Instagram e site abrem numa aba nova, para a pessoa não sair do site:
   - telefone comercial, que abre `tel:`;
   - WhatsApp, que abre `wa.me`;
@@ -649,6 +702,28 @@ Para todo o resto, a página responde 404. Quem pode ver encontra um aviso no to
 - **rejeitado:** a mesma frase, começando com "Não publicada";
 - **oculto:** "Este perfil está oculto pelo dono e não aparece no diretório."
 
+### Favoritos
+
+Código: `favoritar` em `src/acoes/favoritos.ts`, o coração em `src/components/CoracaoFavorito.tsx`, `coracoesDaLista` em `src/lib/consultas.ts` e a página em `src/app/favoritos/`.
+
+- **O coração** aparece:
+  - no perfil, nas ações do topo, ao lado de "Compartilhar", com o texto "Favoritar";
+  - no canto de cada card do diretório (`/explorar`, nas duas vistas, e nas páginas de cidade, causa e tipo) e da página Favoritos.
+- **Só num negócio do diretório** (publicado e não oculto), com ou sem dono. O dono não vê o coração nos próprios negócios.
+- **Precisa de login.** Sem login, o coração leva a `/entrar` e volta para a página em que a pessoa estava. Não pede o e-mail confirmado, porque favoritar não publica nada.
+- **Um toque põe ou tira dos favoritos, sem sair da página.** O coração fica cheio na hora, enquanto o servidor grava. No perfil, aparece também "Está nos seus favoritos", com o link para a página Favoritos, e o número de favoritos já conta o toque.
+- **Uma vez só:** cada pessoa favorita cada negócio uma vez (chave `empresaId` + `usuarioId`). Dois toques seguidos gravam uma linha e contam um evento no Analytics.
+- **A ação confere tudo de novo:** recusa favoritar um negócio fora do diretório ou do qual a pessoa é dona, mesmo chamada direto.
+- **Tirar dos favoritos vale sempre,** mesmo depois que o negócio saiu do diretório.
+- **A página `/favoritos`** (no menu da conta, "Favoritos") lista os favoritos, do mais recente ao mais antigo, 18 por página. Tirar um negócio pelo coração deixa o card na tela, com o coração vazio, para dar para voltar atrás; ele some da lista na próxima visita. Um negócio que sai do diretório também some, mas continua favorito: se voltar, volta à lista.
+- **Quem vê o quê:**
+  - só a própria pessoa vê os favoritos dela;
+  - **o perfil mostra quantas pessoas favoritaram** ("1 pessoa favoritou", "12 pessoas favoritaram"), para todo mundo, ao lado do coração. Com zero, nada aparece, para um negócio novo não ficar exposto com "0";
+  - o dono vê o mesmo número no perfil, ao lado de "Editar meu perfil", e no `/painel` e no `/painel/<@>`, mas não quem favoritou;
+  - o número não aparece nos cards nem muda a ordem do diretório. Ele só aparece fora do perfil no ranking "Os mais queridos" da página inicial (veja [Diretório e busca](#11-diretório-e-busca)).
+- **Sem e-mail:** o dono não é avisado quando alguém favorita.
+- **Clube do Bem:** favoritar vai ser a condição para gerar cupom ([#248](https://github.com/fabs-reis/Negocio-do-bem/issues/248)).
+
 ### Buscadores e prévia do link
 
 Código: `src/app/sitemap.ts`, `src/app/robots.ts`, `src/lib/seo.ts`, `src/app/opengraph-image.tsx`, `src/app/empresas/[usuario]/opengraph-image.tsx`, `src/app/cidades/[cidade]/opengraph-image.tsx` e `src/lib/previa-da-cidade.tsx`.
@@ -659,7 +734,7 @@ Código: `src/app/sitemap.ts`, `src/app/robots.ts`, `src/lib/seo.ts`, `src/app/o
 - **Prévia do link** (WhatsApp, Instagram, LinkedIn…): foto ou monograma, nome, categoria, cidade, até três causas e o selo "Perfil assumido". Uma foto em WebP vira monograma, porque o gerador da imagem não lê WebP.
 - **Prévia das outras páginas:** a página de cada cidade tem a sua (ver [seção 11](#páginas-de-cidade-causa-e-tipo)). As outras páginas públicas (início, `/sobre`, `/explorar`, `/cidades`, `/participar`, causas e tipos) levam a imagem geral do site, com o logo e o lema.
 - **Perfil fora do diretório:** para quem pode vê-lo, a página leva `noindex`. A prévia do link é a geral do site, sem dados do negócio.
-- **Fora da busca:** login, cadastro, painel, reivindicação e moderação levam `noindex`. `/painel`, `/moderacao` e `/api/` também ficam bloqueados no `robots.txt`.
+- **Fora da busca:** login, cadastro, painel, Favoritos, Meus cupons, reivindicação e moderação levam `noindex`. `/painel`, `/favoritos`, `/cupons` (a lista de ofertas e Meus cupons), `/moderacao` e `/api/` também ficam bloqueados no `robots.txt`.
 - **Previews** (`DEPLOY_ENV=preview`) bloqueiam todos os robôs no `robots.txt`. Só a produção entra no índice.
 
 ### Painel do dono
@@ -667,13 +742,14 @@ Código: `src/app/sitemap.ts`, `src/app/robots.ts`, `src/lib/seo.ts`, `src/app/o
 Código: `src/app/painel/`.
 
 - **`/painel`** mostra:
-  - os negócios de que a pessoa é dona, com avisos de "Oculto do diretório" e "Falta contar a história";
+  - os negócios de que a pessoa é dona, com quantas pessoas o favoritaram e os avisos de "Oculto do diretório" e "Falta contar a história";
   - as solicitações de reivindicação;
   - as indicações dela, com a situação de cada uma na moderação;
   - a seção "Minha conta", com a troca de senha, ou o link para criar uma na conta sem senha (veja [Cadastro e login](#cadastro-e-login));
   - o aviso da ação anterior (`?aviso=`), como "Senha trocada".
-- **`/painel/<@>`** só abre para os donos daquele negócio (os outros recebem 404). Nele, o dono:
-  - **edita o perfil:** foto, informações, contatos, causas e história. O @ não muda;
+- **`/painel/<@>`** só abre para os donos daquele negócio (os outros recebem 404). No topo, aparece quantas pessoas favoritaram o negócio. Nele, o dono:
+  - **edita o perfil:** foto, informações, contatos, causas e história;
+  - **pede a troca do @,** que só vale quando a moderação aprova (veja [Pedido de troca do @](#pedido-de-troca-do-));
   - **responde depoimentos:** até 1.000 caracteres. A resposta pode ser trocada a qualquer momento, e apagar o texto tira a resposta;
   - **oculta ou mostra o negócio no diretório.**
 
@@ -681,8 +757,8 @@ Código: `src/app/painel/`.
 
 - Só o dono pode, a qualquer momento.
 - O negócio sai do diretório e o perfil some para o público (404).
-- Enquanto oculto, ninguém deixa depoimento.
-- O perfil fica guardado, e o dono pode voltar a mostrar quando quiser.
+- Enquanto oculto, ninguém deixa depoimento, não se cria oferta nova e ninguém gera cupom novo; os cupons já gerados continuam valendo até o fim previsto da oferta, e em `/cupons` o nome do negócio aparece sem link (com o aviso de que saiu do diretório).
+- O perfil fica guardado, e o dono pode voltar a mostrar quando quiser. Se a moderação remover o último dono do negócio, ele deixa de ficar oculto (`oculta: false`) e volta ao diretório.
 - É a resposta para "meu negócio foi indicado e eu não quero aparecer": a pessoa reivindica o perfil e oculta.
 - **Auditoria:** registra `empresa.ocultada` e `empresa.reexibida`. Se a auditoria falhar, a visibilidade não muda.
 
@@ -749,7 +825,7 @@ Código: `scripts/fotos-instagram.ts` (roda no computador de quem cuida do proje
 
 **No servidor:**
 
-- Limite de **3 MB por foto**. O limite de envio das Server Actions é 4 MB (`next.config.ts`).
+- Limite de **3 MB por foto**. O limite de envio das Server Actions é 11 MB (`next.config.ts`), por causa do documento da verificação; cada ação confere o tamanho dos seus arquivos.
 - O tipo é conferido **pelos primeiros bytes do arquivo** (JPEG, PNG ou WebP), não pelo que o navegador diz.
 - O nome do arquivo é aleatório, nas pastas `perfis/` ou `historias/`.
 - Onde a foto fica:
@@ -805,18 +881,28 @@ Código: `src/acoes/depoimentos.ts`, `decidirDenuncia` em `src/acoes/moderacao.t
 
 ## 11. Diretório e busca
 
-Código: filtros e "Onde?" em `src/lib/diretorio.ts`, consultas em `src/lib/consultas.ts` (`resumoDoDiretorio`, `listarCidades`, `buscarDiretorio`), páginas `src/app/page.tsx` e `src/app/explorar/page.tsx`.
+Código: filtros e "Onde?" em `src/lib/diretorio.ts`, consultas em `src/lib/consultas.ts` (`resumoDoDiretorio`, `listarCidades`, `buscarDiretorio`, `maisQueridos`, `destaquesDaVitrine`, com o sorteio em `src/lib/sorteio.ts`), o carrossel em `src/components/CarrosselDeCidades.tsx`, páginas `src/app/page.tsx` e `src/app/explorar/page.tsx`.
 
 - **Quem aparece:** só negócios com `moderacao = "aprovada"` e `oculta = false`. Os números da página inicial contam os mesmos negócios.
 
 ### Página inicial
 
-- **O número de negócios cadastrados** aparece em destaque, subindo de zero até o total ao abrir a página (direto no total para quem pede menos movimento no sistema). Embaixo, quantas cidades, quantos estados e quantos perfis foram assumidos.
+A ordem, de cima para baixo:
+
+- **Primeira tela:** um selo com quantos negócios há e em quantas cidades, o título, a busca e os atalhos. Ao lado (embaixo, no celular), um carrossel com as fotos das 5 cidades com mais negócios entre as que têm foto, cada uma com o nome e o total, levando à página da cidade. Troca sozinho a cada 5 segundos, para com o mouse em cima ou com o foco dentro, e pode ser trocado pelos pontos; para quem pediu menos movimento no sistema, só troca pelos pontos. Por cima das fotos, dois negócios sorteados a cada visita (o segundo só no computador). Só entram negócios do diretório com foto do site. O sorteio é primeiro entre os que têm algum favorito ou depoimento publicado, com chance proporcional à soma dos dois (quem tem 4 aparece, em média, quatro vezes mais que quem tem 1); se faltar gente, completa com outros com foto, entre os 40 mais recentes, todos com a mesma chance. Sem cidade com foto, a vitrine não aparece.
 - **A busca** tem dois campos, "O que você procura?" e "Onde?", e leva ao diretório.
 - **"Experimente:"** tem atalhos fixos para um tipo de negócio e algumas causas.
-- **Os 16 tipos de negócio** aparecem com quantos negócios cada um tem. Clicar num tipo abre o diretório com ele marcado. Tipos sem negócios ficam apagados, mas continuam clicáveis.
-- **A faixa dos embaixadores** fica entre as cidades e "Como funciona" (veja [Embaixadores do bem](#19-embaixadores-do-bem)).
-- A página inicial não lista negócios nem filtros de causa: isso fica no diretório.
+- **Os números:** quantos negócios (subindo até o total ao abrir a página, direto no total para quem pede menos movimento no sistema), cidades, estados e perfis assumidos.
+- **Os 16 tipos de negócio** aparecem com quantos negócios cada um tem. Clicar num tipo abre o diretório com ele marcado. Tipos sem negócios ficam apagados, mas continuam clicáveis. No celular, deslizam para o lado.
+- **"Os mais queridos":** até 4 negócios do diretório, em duas abas:
+  - **Mais favoritados:** pelo número de favoritos, com o número no card ("12 favoritos"). É o mesmo número que o perfil já mostra para todo mundo;
+  - **Mais depoimentos:** pelo número de depoimentos publicados;
+  - só entra quem tem pelo menos um. No empate, vem primeiro quem recebeu o favorito (ou o depoimento) mais recente. Cada card mostra a posição (1º, 2º…) no lugar dos selos de perfil e cupom;
+  - uma aba sem ninguém não aparece; sem nenhuma das duas, a seção some.
+- **A faixa dos embaixadores** (veja [Embaixadores do bem](#19-embaixadores-do-bem)).
+- **Explore por cidade:** as 12 cidades com mais negócios. As 4 primeiras que têm foto aparecem como cartões com a foto; as outras, como botões.
+- **"Como funciona"** e o convite para donos de negócio.
+- A página inicial não tem filtros de causa: isso fica no diretório.
 
 ### Diretório (`/explorar`)
 
@@ -848,7 +934,7 @@ Código: filtros e "Onde?" em `src/lib/diretorio.ts`, consultas em `src/lib/cons
 - **Filtros em uso** aparecem acima dos resultados, cada um com um "✕" para tirar.
 - **Grade ou lista:** a lista mostra um negócio por linha, com resumo, categoria e cidade.
 - **Paginação:** 18 negócios por página, até a página 500, com os números das páginas. Com mais de 7 páginas, aparecem a primeira, a última e as vizinhas da atual.
-- **Os filtros ficam na URL** (`/explorar?q=…&onde=…&tipo=…&causa=…&verificados=sim&ordem=…&vista=lista&pagina=…`), então dá para compartilhar uma busca. O tipo vai como slug (`cafe-e-padaria`). Links antigos com `?uf=PE` viram "Pernambuco (estado)".
+- **Os filtros ficam na URL** (`/explorar?q=…&onde=…&tipo=…&causa=…&verificados=sim&ordem=…&vista=lista&pagina=…`), então dá para compartilhar uma busca. O tipo vai como slug (`cafe-e-padaria`). Links antigos com `?uf=PE` viram "Pernambuco (estado)". Os links da página inicial de antes do diretório (`/?q=…`, `/?causa=…`, `/?uf=…`, `/?pagina=…`) são redirecionados para `/explorar` com os mesmos filtros (`redirects` em `next.config.ts`).
 - **Com qualquer filtro, o endereço canônico continua `/explorar`:** as combinações de filtros não entram na busca do Google. Quem busca por cidade, causa ou tipo cai nas páginas fixas abaixo.
 
 ### Páginas de cidade, causa e tipo
@@ -914,6 +1000,7 @@ Regras:
 - **Quem marca as causas:** quem indica, o dono e a moderação. É autodeclarado: ninguém confere se o negócio pratica a causa. Quem indica é orientado a marcar só o que sabe que é verdade, e o dono, só o que vive no dia a dia.
 - **Ordem:** os selos aparecem sempre na ordem da lista oficial.
 - **Nos cards do diretório,** aparecem até 3 selos e um "+N" para o resto.
+- **Cor:** os selos de causa são todos verdes, a cor das causas no site. O grupo e o emoji aparecem nos filtros do diretório e nas páginas das causas.
 - **Para criar uma causa,** basta acrescentá-la à lista. O banco guarda só o slug.
 - **Trocar o slug de uma causa existente** exige uma migração que atualize as linhas de `EmpresaCausa`. Sem isso, os negócios perdem a causa na tela (os slugs desconhecidos são descartados ao exibir), mas as linhas continuam no banco.
 
@@ -973,11 +1060,15 @@ These tests use a real PostgreSQL database and mock external storage. They do no
 | `empresa.aprovada` / `empresa.rejeitada` | A moderação publicou (ou publicou de novo) ou tirou do ar um negócio. Os detalhes trazem o @. |
 | `empresa.editada` | O dono salvou o perfil. |
 | `empresa.foto_trocada` / `empresa.foto_removida` | O dono trocou ou removeu a foto do perfil. |
+| `empresa.arroba_trocado` | O dono trocou o @ do Instagram. Os detalhes trazem o @ antigo e o novo. Com `_pela_moderacao`, foi a moderação. |
 | `empresa.foto_do_instagram` | A rotina de fotos colocou a foto do Instagram num negócio sem foto. Os detalhes trazem o @. |
 | `empresa.editada_pela_moderacao`, `empresa.foto_trocada_pela_moderacao`, `empresa.foto_removida_pela_moderacao` | As mesmas, feitas pela moderação. Os detalhes trazem o @. |
 | `empresa.ocultada` / `empresa.reexibida` | O dono tirou ou devolveu o negócio ao diretório. |
+| `empresa.arroba_pedido` | O dono pediu a troca do @. Os detalhes trazem o @ atual e o pedido. |
+| `empresa.arroba_trocado_pela_moderacao` / `empresa.arroba_recusado` | A moderação trocou o @ (na edição do perfil ou aprovando um pedido) ou recusou o pedido. Os detalhes trazem o @ antigo e o novo (e o motivo, na recusa). `empresa.arroba_trocado` é das trocas antigas feitas direto pelo dono. |
 | `reivindicacao.aprovada` / `reivindicacao.aprovada_com_transferencia` | Um pedido foi aprovado, como co-dono ou com transferência. Os detalhes trazem o pedido, o caminho e a pessoa. |
 | `reivindicacao.recusada` | Um pedido foi recusado. Os detalhes trazem o motivo. |
+| `empresa.dono_removido` | A moderação tirou uma conta dos donos do negócio. Os detalhes trazem o @, o nome da conta e o motivo. |
 | `depoimento.mantido` / `depoimento.removido` | A moderação decidiu uma denúncia. |
 | `usuario.senha_trocada` | A pessoa trocou a própria senha no painel. |
 | `usuario.senha_redefinida` | A pessoa criou uma senha nova pelo link de "Esqueci minha senha" (ou pelo link pedido no painel). |
@@ -985,6 +1076,9 @@ These tests use a real PostgreSQL database and mock external storage. They do no
 | `embaixador.criado` / `embaixador.editado` / `embaixador.excluido` | A moderação cadastrou, editou ou excluiu um embaixador. Os detalhes trazem o @ (e o nome, na exclusão). |
 | `embaixador.foto_trocada` / `embaixador.foto_removida` | A moderação trocou ou removeu a foto de um embaixador. |
 | `embaixador.foto_do_instagram` | A consulta ao Instagram colocou a foto num embaixador sem foto. Aparece como "Sistema". |
+| `clube.documento_visto` | A moderação abriu o documento de um pedido do clube. Os detalhes trazem o @, o nome da conta e qual arquivo. |
+| `clube.liberado` / `clube.suspenso` | A moderação liberou um dono para o Clube do Bem ou suspendeu a liberação. Os detalhes trazem o @, o nome da conta e o CNPJ (na liberação) ou o motivo (na suspensão). Quando o dono troca o contato do perfil, a suspensão aparece como "Sistema". Quando a moderação tira o dono, a suspensão (ou a recusa do pedido, em `clube.recusado`) vem junto, com o motivo "Deixou de ser dono do negócio". |
+| `oferta.criada` / `oferta.encerrada` | Um dono criou ou encerrou antes do fim uma oferta do Clube do Bem. Os detalhes trazem o @ e o título. |
 
 O que **não** vai para a auditoria hoje:
 
@@ -1010,6 +1104,11 @@ O site manda poucos e-mails: só quando alguém precisa agir ou saber de uma dec
 | A moderação recusa um pedido | Quem pediu | O negócio, o motivo da recusa e o link do painel. |
 | Um pedido pelos dados do negócio fica na fila (o negócio tem dono ou está fora do ar), ou um "Entrar com Instagram" fica em análise | Cada pessoa da moderação | O negócio e o link da fila de reivindicações. |
 | Um depoimento é denunciado | Cada pessoa da moderação | O negócio e o link da fila de denúncias. |
+| Um dono pede a verificação do Clube do Bem | Cada pessoa da moderação | O negócio e o link da fila do clube. |
+| A moderação libera ou recusa um dono no Clube do Bem | O dono | O negócio e o link do painel do clube; na recusa, o motivo. |
+| Um dono pede a troca do @ | Cada pessoa da moderação | O negócio, o @ atual e o pedido, e o link da fila de trocas de @. |
+| A moderação aprova ou recusa a troca do @ | O dono que pediu | O @ novo e o endereço novo da página (o antigo leva ao novo); na recusa, o motivo e o link do painel. |
+| A moderação tira uma conta dos donos de um negócio | A pessoa que saiu | O negócio, o motivo e o link para pedir o perfil de novo, que vai para a moderação. |
 | Chega um depoimento novo | Cada dono do negócio | Quem escreveu, o texto e o link para responder. |
 | Alguém cria uma conta, ou pede de novo em "Confirme seu e-mail". Só com a confirmação ligada, e hoje ela está desligada | A própria pessoa | O link para confirmar o e-mail, que vale por 24 horas. |
 | Alguém pede para entrar por link | O e-mail digitado, se tiver conta | O link para entrar, que vale por 15 minutos. |
@@ -1041,9 +1140,16 @@ O site manda poucos e-mails: só quando alguém precisa agir ou saber de uma dec
 | Conta do Google ligada | `Usuario.googleId` | Ninguém: é só o identificador (`sub`) que o Google dá à conta, para reconhecê-la no próximo login. |
 | Sessões | `Sessao` | Ninguém vê o token: só o hash é guardado. A moderação vê quantas sessões abertas uma conta tem e quando foram abertas. |
 | Links por e-mail | `LinkEmail` | Ninguém vê o token: só o hash é guardado, com o e-mail para onde o link foi, para onde ele leva e quando foi usado. Os vencidos há mais de uma hora são apagados quando a conta recebe outro link. |
+| Nome completo e CPF informados no pedido de verificação | `LiberacaoClube.nomeCompleto` e `cpfMascarado` | Só a moderação. O CPF inteiro **nunca é guardado**: só os 6 dígitos do meio (`***.982.247-**`), os mesmos que a Receita mostra dos sócios. Serve para comparar com o quadro de sócios. A pessoa autoriza numa caixa obrigatória do formulário. Somem se a conta for apagada. |
+| Foto do RG ou da CNH, no pedido de verificação | Bucket R2 privado `DOCUMENTOS` (a chave em `LiberacaoClube.documentoChaves`) | Só a moderação, por uma rota protegida, com cada abertura na auditoria. Apagada quando a moderação decide, ou depois de 30 dias sem decisão. Nunca em endereço público. |
 | Dados do perfil do negócio | `Empresa` | **Público** quando o negócio está publicado. |
 | Dados do pedido de reivindicação (relação, contato, CNPJ, site, mensagem) | `Reivindicacao` | Só a moderação. A pessoa vê o status e o motivo da recusa. |
 | Depoimentos | `Depoimento` | **Públicos**, com nome e data. |
+| CNPJ da liberação do clube | `LiberacaoClube` | Só a moderação, na ficha do negócio. |
+| Ofertas do clube | `Oferta` | **Públicas** no perfil enquanto valem. O dono vê no painel quantos cupons cada uma gerou e quantos foram usados. |
+| Cupons | `Cupom` | O código e a oferta, só para a própria pessoa, em Meus cupons e no perfil. Quem valida no balcão (um dono) vê o código, a oferta e o primeiro nome de quem gerou, nunca o e-mail ou o telefone. |
+| Ficha da Receita (razão social, sócios, telefone e e-mail) | Não é guardada | Só a moderação, na ficha do negócio, consultada na hora pela BrasilAPI. A razão social do MEI traz o CPF da pessoa, por isso ela não vai nem para a auditoria. |
+| Os favoritos de cada pessoa | `EmpresaFavorita` | Só a própria pessoa, na página Favoritos. O perfil mostra a todos quantas pessoas favoritaram o negócio, nunca quem. |
 | Quem denunciou e o motivo | `Depoimento` | Só a moderação. |
 | Auditoria | `RegistroAuditoria` | Só a moderação. |
 | Embaixadores: nome, @, cidade ou estado, foto e seguidores | `Embaixador` | **Público** na página inicial, em `/embaixadores` e na página da cidade, enquanto "Aparece no site" estiver marcado. A foto e os seguidores vêm do perfil público no Instagram, pela API oficial da Meta. |
@@ -1074,6 +1180,10 @@ O site manda poucos e-mails: só quando alguém precisa agir ou saber de uma dec
   | `negocio_cadastrado` | Negócio publicado no diretório | `tipo` (`indicacao` ou `dono`), `categoria`, `uf`, `cidade`, `com_instagram` (`sim` ou `nao`) |
   | `perfil_reivindicado` | Pedido de dono enviado | `method` (`documento` ou `instagram`), `resultado` (`verificada` ou `em_analise`) |
   | `depoimento_publicado` | Depoimento publicado | `categoria` |
+  | `negocio_favoritado` | Alguém pôs um negócio nos favoritos (também ao gerar o cupom). Quem já tinha favoritado não conta de novo | `categoria`, `uf` |
+  | `oferta_criada` | Um dono criou uma oferta do clube | `categoria`, `uf` |
+  | `cupom_gerado` | Alguém gerou um cupom. Pedir de novo o mesmo cupom não conta | `categoria`, `uf` |
+  | `cupom_usado` | Um dono marcou um cupom como usado | `categoria`, `uf` |
   | `contato_negocio` | Clique em Ligar, WhatsApp, Instagram, site ou e-mail no perfil de um negócio público, menos do próprio dono | `canal` (`telefone`, `whatsapp`, `instagram`, `site` ou `email`), `categoria`, `uf` |
   | `cadastro_etapa` | Cada etapa do cadastro por etapas em `/participar` | `etapa` e, depois da escolha, `tipo` |
   | `app_instalado` | Site instalado como app pelo Chrome ou pelo Edge. O Safari não avisa quando alguém instala | — |
@@ -1082,6 +1192,7 @@ O site manda poucos e-mails: só quando alguém precisa agir ou saber de uma dec
 
 - Os eventos de ação só contam o que deu certo no servidor, nunca a tentativa. A ação deixa o evento no cookie `ndb_eventos` (5 minutos, legível pelo navegador), e o navegador o manda ao Analytics na página seguinte, em até 1 segundo, e apaga o cookie. Sem o Analytics configurado, o cookie não é criado.
 - O Analytics usa cookies e não recebe nome, e-mail, telefone, @ nem o nome do negócio. Os eventos levam só a categoria, a cidade e a UF do negócio, que já são públicas no perfil. O site não manda `user_id`.
+- O **Cloudflare Web Analytics** também mede as visitas. Ele é ligado no painel do Cloudflare, e não no código: o Cloudflare injeta nas páginas o script `static.cloudflareinsights.com/beacon.min.js`, que conta as visitas e o tempo de carregamento sem cookies e sem identificar quem visita. Para desligar, desative o Web Analytics do domínio no painel do Cloudflare.
 - Por decisão do projeto, o site não mostra aviso de cookies. A página "Como funciona" explica a medição na seção de privacidade.
 
 ### Proteções da interface
@@ -1121,6 +1232,13 @@ O site manda poucos e-mails: só quando alguém precisa agir ou saber de uma dec
 | Resposta do dono | até 1.000 caracteres | `src/acoes/depoimentos.ts` |
 | Motivo da denúncia | até 300 caracteres | `src/acoes/depoimentos.ts` |
 | Motivo da recusa | até 500 caracteres | `src/acoes/moderacao.ts` |
+| Motivo da suspensão do clube | até 500 caracteres | `src/acoes/clube.ts` |
+| Duração de uma oferta | de 1 a 15 dias, contando o dia em que é criada; 7 por padrão | `src/lib/ofertas.ts` |
+| Título e condições da oferta | 5 a 60 e até 300 caracteres | `src/lib/ofertas.ts` |
+| Desconto da oferta | livre: de 1% a 100%, ou em reais a partir de R$ 1 (até R$ 1.000.000, só para caber no banco) | `src/lib/ofertas.ts` |
+| Limite de cupons por oferta | opcional, de 1 a 10.000 | `src/lib/ofertas.ts` |
+| Ofertas valendo por negócio | 1 | `src/lib/ofertas.ts` |
+| Código do cupom | 6 caracteres, sem 0, O, 1 e I | `src/lib/ofertas.ts` |
 | Mensagem da reivindicação | até 1.000 caracteres | `src/acoes/reivindicacoes.ts` |
 | Foto | até 3 MB, JPEG, PNG ou WebP | `src/lib/fotos.ts` |
 | Foto do perfil | 600×600, quadrada | `src/components/FormFoto.tsx` |
@@ -1128,6 +1246,7 @@ O site manda poucos e-mails: só quando alguém precisa agir ou saber de uma dec
 | Foto vinda do Instagram | 600×600, WebP | `scripts/fotos-instagram.ts` |
 | Negócios por rodada da rotina de fotos | 100, com 1,5 s entre consultas à Meta | `scripts/fotos-instagram.ts` |
 | Negócios por página no diretório | 18 | `src/lib/consultas.ts` |
+| Negócios por página em Favoritos | 18 | `src/lib/consultas.ts` |
 | Nome do embaixador | 2 a 60 caracteres | `src/lib/embaixadores.ts` |
 | Sobre do embaixador | até 600 caracteres | `src/lib/embaixadores.ts` |
 | Ordem dos embaixadores | 0 a 999 | `src/lib/embaixadores.ts` |
@@ -1153,6 +1272,17 @@ O site manda poucos e-mails: só quando alguém precisa agir ou saber de uma dec
 ## 17. O site como app
 
 O site pode ser instalado como app (PWA), com o nome, as cores e os ícones de `src/app/manifest.ts`. Ao segurar o ícone, aparecem os atalhos Explorar, Cadastrar e Painel.
+
+**A navegação no celular** (`src/components/BarraInferior.tsx`)
+
+Em telas pequenas (abaixo de `sm`, 640 px), uma barra flutuante no rodapé substitui o menu do topo, que fica só com o logo, a busca e o botão laranja "+ Adicionar" (no computador, "+ Adicionar empresa", também em laranja), que leva a `/participar`. No computador nada muda. A barra respeita a área do botão home do iPhone (`viewportFit: "cover"`) e o rodapé do site ganha folga para ela não cobrir os links.
+
+- **Quem compra** (entrou ou não): Início, Explorar, Cupons, Favoritos e Conta. A aba Cupons mostra quantas ofertas estão valendo agora.
+- **Dono com negócio liberado no clube** (liberação "liberada" e ainda dono): Início, Cupons, **Validar** (botão grande no centro), Negócio e Conta. Dono sem liberação, suspensa ou recusada, vê a barra de quem compra e chega ao negócio pela Conta.
+- **Cupons** (`/cupons`) tem duas partes. **Ofertas** lista todas as ofertas valendo de negócios aprovados e fora do modo oculto (a mesma regra do perfil), da que termina primeiro para a última, com filtro por cidade. "Pegar cupom" gera o cupom (e favorita o negócio, como no perfil) e leva a **Meus cupons** (`/cupons/meus`). Quem não entrou vê "Entre para pegar o cupom".
+- **Validar** (`/validar`): o dono liberado digita o código e confere a oferta e o primeiro nome do cliente. "Marcar como usado" é a mesma ação do painel do clube, com as mesmas regras. Com mais de um negócio liberado, ele escolhe qual no topo. A tela lista os 5 últimos cupons usados no negócio. O painel do clube continua com a validação.
+- **Negócio** (`/negocio`): atalho para Validar, Ofertas do clube, Editar perfil, Depoimentos (quantos sem resposta) e perfil público. Quem ainda não foi liberado vê o convite para a verificação.
+- **Conta** (`/conta`) reúne o que ficava no menu suspenso: painel, favoritos, meus cupons, moderação, modo escuro, instalar o app, Como funciona e Sair. Quem não entrou vê "Entrar" e "Cadastrar um negócio".
 
 **A página de instalação** (`src/app/instalacao/`)
 
@@ -1194,7 +1324,6 @@ O sistema funciona hoje assim. Algumas destas situações podem ser intencionais
 - **Um @ tirado do ar fica bloqueado:** ninguém consegue indicar de novo, e a página de reivindicação responde 404 até a moderação publicar de novo.
 - **O @ de um negócio não muda.** Se o negócio trocar de @ no Instagram, hoje só dá para ajustar direto no banco.
 - **Cidades cadastradas antes da lista do IBGE** continuam como foram digitadas até o negócio ser editado. Se a grafia não bate com a lista, a edição pede para escolher a cidade de novo.
-- **Não dá para tirar um dono** sem transferir o perfil para outra pessoa. O selo "Perfil assumido" não volta atrás.
 - "Atualizada em", ao lado da história, usa a data da última mudança em **qualquer** dado do negócio (inclusive foto e visibilidade), não só no texto.
 
 **Reivindicações**
@@ -1202,6 +1331,10 @@ O sistema funciona hoje assim. Algumas destas situações podem ser intencionais
 - A validade de 30 dias dos pedidos por dados do negócio é só informativa.
 - Quando um pedido é aprovado, os pedidos pendentes de outras pessoas para o mesmo negócio continuam na fila.
 - **Duas pessoas pedindo o mesmo negócio sem dono ao mesmo tempo** podem virar donas juntas: a aprovação na hora não trava o negócio entre a conferência e a aprovação.
+
+**Favoritos**
+
+- Quem favorita um negócio e depois vira dono dele continua com o favorito, que entra na conta de quantas pessoas favoritaram.
 
 **Depoimentos**
 
@@ -1247,10 +1380,10 @@ Embaixadores são pessoas, em geral influenciadores, que levam o projeto para um
 
 ### Onde aparece
 
-- **Página inicial:** a faixa escura entre "Explore por cidade" e "Como funciona", só com os marcados para ela. Sem nenhum marcado, a faixa não aparece.
+- **Página inicial:** a faixa entre "Os mais queridos" e "Explore por cidade", só com os marcados para ela. Sem nenhum marcado, a faixa não aparece.
   - Os rostos passam sozinhos num loop, 5 segundos por embaixador, quando não cabem na largura. Cabendo, ficam parados e no centro.
   - A faixa para com o mouse em cima, com o foco do teclado e com o botão "Pausar". Para quem pede menos movimento no aparelho, fica parada e rola para o lado.
-  - O loop usa uma cópia dos rostos, que fica fora do leitor de tela e do Tab.
+  - O loop usa uma cópia dos rostos, que fica fora do leitor de tela e do Tab. Os links da cópia continuam funcionando no clique, porque boa parte da faixa na tela é a cópia.
   - O rosto e o @ levam à página do embaixador; o botão da cidade, aos negócios de lá.
 - **`/embaixadores`:**
   - todos os que estão no site;
@@ -1302,3 +1435,78 @@ Embaixadores são pessoas, em geral influenciadores, que levam o projeto para um
 - A moderação envia, troca ou remove, como a foto do negócio.
 - Um embaixador sem foto ganha a do Instagram na próxima consulta, como "Sistema" na auditoria (`embaixador.foto_do_instagram`). A foto enviada pela moderação nunca é trocada.
 - Sem foto nenhuma, aparecem as iniciais.
+
+---
+
+## 20. Clube do Bem
+
+O clube é a [issue #248](https://github.com/fabs-reis/Negocio-do-bem/issues/248): negócios oferecem descontos por pouco tempo a quem chega pelo site. Os [favoritos](#favoritos) são a primeira parte; esta seção junta as próximas.
+
+A página pública `/clube-do-bem` explica o clube com prints, para quem compra e para o dono, e repete as proteções contra golpe e as dúvidas comuns. Ela está no sitemap e é ligada pelo cartão do clube no perfil ("Como funciona"), por Meus cupons, pelo painel do clube, pela página Como funciona e pelo rodapé. Quando uma regra desta seção mudar, confira se o texto da página e os prints ainda valem.
+
+### Liberação para o clube
+
+Código: regras em `src/lib/clube.ts` (com testes em `tests/db/clube.test.ts`), ações em `src/acoes/clube.ts`, o pedido do dono em `src/app/painel/[usuario]/clube/Verificacao.tsx`, a fila em `src/app/moderacao/PedidosDoClube.tsx` e a ficha do negócio em `src/app/moderacao/negocios/[usuario]/Clube.tsx`.
+
+Hoje qualquer conta assume um perfil sem dono na hora, sem conferência (veja [Aprovação na hora](#aprovação-na-hora)). Isso basta para editar o perfil, mas não para criar cupons. Por isso, ser dono não basta: a moderação precisa liberar.
+
+- **Só negócio com CNPJ.** O MEI também tem CNPJ. Autônomos sem CNPJ e profissões regulamentadas ficam para depois (os conselhos da saúde, por exemplo, limitam o uso de desconto como propaganda).
+- **O dono pede a verificação com o CNPJ, o nome completo e o CPF** ([#286](https://github.com/fabs-reis/Negocio-do-bem/issues/286), [#293](https://github.com/fabs-reis/Negocio-do-bem/issues/293)). Quem acabou de assumir o perfil cai no painel do negócio, que abre com a caixa "Verifique a sua empresa e seja Parceiro do Clube do Bem". O pedido fica em "Verifique o seu negócio para criar ofertas" no painel do clube (`/painel/<@>/clube#verificar`), com o CNPJ, o nome completo (já vem com o nome da conta), o CPF e uma caixa obrigatória de autorização. Se ele mandou o CNPJ num pedido anterior, o campo já vem preenchido.
+  - **Só os 6 dígitos do meio do CPF são guardados** (`***.982.247-**`). O CPF inteiro é conferido (dígitos verificadores) e descartado, e não aparece na tela, na auditoria nem na URL. O servidor nunca devolve o CPF: se o formulário volta com erro, ele só continua no campo porque o navegador o mantém.
+  - **A moderação vê a comparação:** o nome informado contra os sócios e os 6 dígitos do CPF contra o CPF mascarado que a Receita mostra de cada sócio (no MEI, o CPF que a razão social traz). É só apoio: um gerente ou procurador pode não ser sócio, e a Receita não mostra o CPF de todos.
+  - **Perfil verificado:** liberar o dono no clube dá, no mesmo passo, o selo "Perfil verificado" no perfil público, no lugar de "Perfil assumido". Suspender a liberação, ou tirar o dono, tira o selo. Os perfis assumidos continuam "assumidos" até pedirem a verificação. O campo `status = verificada` segue querendo dizer só "assumido".
+  - **O documento (RG ou CNH):** o pedido exige a foto, de 1 a 2 arquivos (frente e verso), até 5 MB cada, em JPG, PNG, WebP ou PDF. O tipo vem dos primeiros bytes do arquivo, e não do nome. A autorização do formulário cobre o nome, o CPF e o documento.
+  - **Onde fica:** num bucket R2 **privado** (`negocio-do-bem-documentos`; `negocio-do-bem-preview-documentos` nos previews), pelo binding `DOCUMENTOS`. Ele não tem domínio público e nunca é o bucket das fotos. O banco guarda só as chaves (`LiberacaoClube.documentoChaves`), com nomes aleatórios.
+  - **Quem abre:** só a moderação, pelo link "Abrir o arquivo" na fila e na ficha do negócio (`/moderacao/documentos/<pedido>/<n>`). Quem não é da moderação recebe 404. A resposta nunca vai para cache (`Cache-Control: private, no-store`) e vem com `nosniff` e uma política que não executa nada. Cada abertura fica na auditoria (`clube.documento_visto`).
+  - **Quando é apagado:** assim que a moderação libera ou recusa o pedido, e quando ela tira o dono (que recusa o pedido em análise). Um pedido parado há mais de 30 dias perde o documento quando a fila do clube abre, porque o projeto não tem rotina agendada. Se o pedido não entra (CNPJ inativo, por exemplo), o arquivo que já tinha subido é apagado na hora. Apagar é "melhor esforço": se falhar, sobra um arquivo sem nenhuma linha apontando para ele.
+  - O site confere os dígitos e consulta a Receita. Se ela não tem o CNPJ, o pedido não entra ("Não achamos este CNPJ na Receita"); se diz que ele não está ativo, também não ("Só entram no clube negócios com CNPJ ativo"). Sem resposta da Receita, o pedido entra assim mesmo, porque a moderação consulta de novo antes de liberar.
+  - Precisa ser dono do negócio e ter o e-mail confirmado (quando a confirmação estiver ligada). Com um pedido em análise, ou já liberado, não pede de novo.
+  - O pedido fica com o status "pendente", e o dono vê "A moderação está conferindo o seu negócio", com a data e o CNPJ. O painel do clube só mostra "Validar um cupom" a quem está liberado ou já teve oferta.
+  - Recusado ou suspenso, o dono vê o motivo e pode pedir de novo. O motivo da última decisão fica no pedido novo, para a moderação ver o que aconteceu antes.
+  - Dois envios ao mesmo tempo gravam um pedido só.
+- **A fila "Clube do Bem" da moderação** (`/moderacao?aba=clube`) lista os pedidos em análise, do mais antigo para o mais novo, e o menu mostra quantos esperam. Cada pedido traz o negócio, o dono, o CNPJ, o motivo de antes (se pediu de novo) e já a ficha da Receita, com o botão "Liberar". "Recusar" pede um motivo, que o dono vê. Depois de decidir, a moderação volta para a fila. A visão geral também mostra a fila quando há pedidos.
+- **Só a moderação libera,** pela fila ou na seção "Clube do Bem" da ficha do negócio (`/moderacao/negocios/<@>`). Na ficha, o pedido em análise aparece com o link "Consultar este CNPJ" e o "Recusar"; o campo do CNPJ já vem com o número do pedido.
+- **A liberação vale por dono.** Num negócio com dois donos, cada um precisa da própria. Ela só vale enquanto a pessoa continuar dona: quem deixa de ser dono (numa transferência, por exemplo) perde a liberação, mesmo com o registro guardado (`podeCriarOfertas`). Quando a moderação [tira um dono](#tirar-um-dono), a liberação dele fica suspensa (ou o pedido em análise, recusado) com o motivo "Deixou de ser dono do negócio", e as ofertas que ele criou e ainda valiam saem do ar.
+- **Consulta à Receita:** a moderação digita o CNPJ e clica em "Consultar na Receita". A ficha vem da BrasilAPI na hora e mostra a razão social, o nome fantasia, a situação, a cidade (comparada com a do perfil), o telefone e o e-mail que a Receita tem e o quadro de sócios. Nada da ficha é guardado.
+- **O nome da conta bate com a ficha?** Para cada dono, a tela diz se o nome da conta bate com um sócio ou, no MEI, com a razão social, que traz o nome da pessoa (`quemBateComAConta`). Quando não bate, o dono ganha ali mesmo o botão "Remover dos donos", também na fila do clube. Bate quando todas as palavras do nome da conta, pelo menos duas, aparecem no nome da ficha, sem ligar para acento, maiúsculas, ordem, nomes do meio, partículas (da, de, dos) e o CPF da razão social. É só um apoio: quem decide é a moderação.
+- **Liberar:** o botão "Liberar <nome>" só aparece com o CNPJ ativo. O servidor confere de novo o CNPJ (os dígitos e a situação "ATIVA" na Receita) e que a conta é dona. Sem resposta da Receita, não libera. Guarda só o CNPJ, sem pontuação.
+- **Status da liberação:** "pendente" (o dono pediu), "liberada", "recusada" (a moderação recusou o pedido) e "suspensa" (estava liberada). Só "liberada" cria ofertas e dá o selo. A data da liberação (`decididoEm`) é a da última mudança: num pedido em análise, é a data do pedido.
+- **Suspender:** a moderação suspende com um motivo (até 500 caracteres; sem motivo, "Sem motivo informado"). Suspender de novo não grava outra vez. As ofertas do negócio cujos cupons ainda valiam (ativas e encerradas antes do fim) ficam suspensas, e os cupons delas deixam de valer; ofertas já vencidas não mudam de status. Para liberar de novo, consulta o CNPJ e libera, e o motivo some; as ofertas suspensas não voltam, o dono cria outra.
+- **Contato trocado pelo dono:** quando o dono muda o WhatsApp, o telefone comercial, o site ou o e-mail de contato do perfil, todas as liberações do negócio ficam suspensas ("Sistema" na auditoria e "pelo sistema" na tela da moderação, com o motivo "O contato do perfil mudou"), e as ofertas cujos cupons ainda valiam (ativas e encerradas antes do fim) também. Fecha o golpe de assumir o perfil, trocar o WhatsApp e lançar um cupom. A edição feita pela moderação não suspende. O mesmo vale quando o dono [troca o @](#identidade-o--do-instagram), com o motivo "O @ do Instagram mudou".
+- **Quem vê:** só a moderação vê a liberação, o CNPJ e a ficha. O público vê o selo "Parceiro do Clube do Bem" no perfil, enquanto o negócio tiver um dono liberado.
+- **Auditoria:** `clube.pedido` (pelo dono), `clube.liberado`, `clube.recusado` e `clube.suspenso`, na mesma transação da alteração. O pedido registra o @ e o CNPJ.
+- **Avisos por e-mail:** a moderação recebe cada pedido novo, só com o negócio e o link da fila. O dono recebe a liberação (com o link do painel do clube) e a recusa (com o motivo). Veja a [seção 14](#14-avisos-por-e-mail).
+
+### Ofertas
+
+Código: regras em `src/lib/ofertas.ts` (com testes em `tests/db/ofertas.test.ts`), ações em `src/acoes/ofertas.ts` e a tela em `src/app/painel/[usuario]/clube/`.
+
+- **Quem cria:** um dono liberado, sem suspensão, num negócio do diretório (publicado e não oculto), na página **Clube do Bem** do painel do negócio (`/painel/<@>/clube`, pelo botão "Clube do Bem" no painel). Sem liberação, a página explica que o clube está em fase de convite (ou mostra o motivo da suspensão).
+- **Uma oferta valendo por vez.** Com dois envios ao mesmo tempo, só um cria: a criação trava a linha do negócio.
+- **Campos:** título (5 a 60 caracteres), tipo (desconto em %, de 1% a 100%; desconto em reais, a partir de R$ 1; ou brinde, sem valor; o valor é livre), condições (opcional, até 300), onde vale (no local, pelo WhatsApp, pelo site; pelo menos um), último dia (de hoje a 14 dias depois, 7 dias por padrão) e limite de cupons (opcional, de 1 a 10.000).
+- **Termina às 23h59 (horário de Brasília) do último dia.**
+- **Sem contato nem pagamento no texto:** o título e as condições recusam links, e-mails, números com 8 dígitos ou mais seguidos (telefone, CPF, CNPJ) e a palavra "Pix". Datas com barra ("10/11") passam. O contato é sempre o do perfil.
+- **Depois de criada, não muda.** O dono pode só encerrar antes do fim: ninguém mais gera cupom, mas quem já gerou usa até o fim previsto. Qualquer dono do negócio encerra.
+- **Números no painel:** cupons gerados (e o limite), cupons usados e a lista das últimas 20 ofertas, com a situação ("Valendo", "Terminou", "Encerrada", "Suspensa").
+- **Auditoria:** `oferta.criada` e `oferta.encerrada`.
+
+### Cupons
+
+- **No perfil,** a oferta que está valendo aparece na coluna do lado, acima do cartão de contato: título, desconto, onde vale, condições, "Termina em…" (atualiza sozinho) e, com limite, quantos cupons restam. O perfil também mostra o selo "Parceiro do Clube do Bem".
+- **Gerar:** precisa de login (e do e-mail confirmado, quando a confirmação estiver ligada). O botão diz "Favoritar e gerar cupom", com o aviso de que o negócio entra nos favoritos, ou "Gerar cupom" para quem já favoritou. Sem login, "Entre para gerar o cupom". O dono vê o link para o painel do clube, sem botão.
+- **Um cupom por pessoa por oferta.** Pedir de novo devolve o mesmo código. Dois pedidos da mesma pessoa ao mesmo tempo também.
+- **O limite vale com pedidos ao mesmo tempo:** a reserva é um UPDATE condicional na oferta, na mesma transação do cupom, então o último cupom vai para uma pessoa só. Depois, "Os cupons desta oferta acabaram".
+- **Código:** 6 caracteres, sem 0, O, 1 e I, que se confundem ao ditar. Aparece no perfil e em **Meus cupons** (`/cupons/meus`, na aba Cupons e na Conta), com o prazo.
+- **Validade:** até o fim previsto da oferta, mesmo se o dono encerrar antes ou ocultar o perfil. Com a oferta suspensa (por suspensão da liberação, troca de contato ou @ pelo dono, remoção do dono que criou a oferta ou rejeição do negócio pela moderação), o cupom não vale. Quando o negócio sai do diretório sem suspensão da oferta (oculto pelo dono), **Meus cupons** mostra o nome sem link e o aviso "Este negócio saiu do diretório. O cupom vale no balcão até o fim da oferta."
+- **Aviso fixo** no perfil e em Meus cupons: o Negócio do Bem nunca pede Pix nem pagamento para liberar cupom; o desconto vale na hora da compra, e quem garante é o negócio.
+- **No diretório,** o card de um negócio com oferta valendo ganha o selo "Cupom" (no `/explorar`, nas páginas de cidade, causa e tipo, nos favoritos e nos negócios parecidos).
+
+### Validação no balcão
+
+- Na página do clube do painel, "Validar um cupom": o dono digita o código (maiúsculas, minúsculas e hífen não importam) e vê a situação ("Válido", "Já usado em…", "Vencido" ou "Oferta suspensa"), a oferta e o **primeiro nome** de quem gerou.
+- **"Marcar como usado"** grava a hora e quem validou, e a tela confirma em verde: "Usado agora. Pode dar o desconto." O uso é único, mesmo com duas validações ao mesmo tempo: a condição fica no próprio UPDATE. Conferir de novo o mesmo código mostra "Já usado em…".
+- Só um dono do negócio do cupom valida. Um código de outro negócio aparece como "não achado".
+
+### O que fica para depois
+
+O QR code, o e-mail de fim de oferta com "Repetir oferta", o agendamento, a revisão das primeiras ofertas, o filtro "Com cupom" no `/explorar`, a denúncia de oferta e os avisos no celular.

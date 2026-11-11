@@ -27,7 +27,9 @@ import { enderecoLivre, enderecoSemInstagram } from "@/lib/endereco";
 import { semContatosDeTerceiros } from "@/lib/indicacao";
 import { normalizarUsername } from "@/lib/instagram";
 import { medir } from "@/lib/medicao-servidor";
+import { contatoMudou, suspenderPorContatoAlterado } from "@/lib/ofertas";
 import { textoDeBusca } from "@/lib/texto";
+import { trocarArroba, type ResultadoDaTroca } from "@/lib/troca-de-arroba";
 
 const LIMITE_INDICACOES_POR_DIA = 10;
 
@@ -75,9 +77,9 @@ const esquemaIndicacao = z.object({
   motivo: z.string().trim().max(600, "Use até 600 caracteres.").optional(),
 });
 
-/** Quem cadastra o próprio negócio deixa o contato dele e o telefone comercial. */
+/** Quem cadastra o próprio negócio deixa o contato dele e o WhatsApp do negócio. */
 const OBRIGATORIOS_DO_DONO = {
-  telefoneComercial: "Qual é o telefone comercial do negócio?",
+  whatsapp: "Qual é o WhatsApp do negócio?",
   emailDoDono: "Qual é o seu e-mail de contato?",
   telefoneDoDono: "Qual é o seu telefone de contato?",
 } as const;
@@ -261,6 +263,8 @@ export async function salvarEmpresa(_estado: EstadoFormulario, dados: FormData):
     await tx.empresaCausa.deleteMany({ where: { empresaId: empresa.id } });
     await tx.empresaCausa.createMany({ data: causas.map((causa) => ({ empresaId: empresa.id, causa })) });
     await auditarEdicao(tx, usuario.id, empresa, "empresa.editada", pelaModeracao);
+    // O dono trocou o contato: o Clube do Bem do negócio espera a moderação conferir de novo.
+    if (!pelaModeracao && contatoMudou(empresa, campos)) await suspenderPorContatoAlterado(tx, empresa);
   });
 
   redirect(`${voltarDe(dados, empresa)}?aviso=salvo`);
@@ -324,4 +328,36 @@ export async function enviarFotoDaHistoria(dados: FormData): Promise<{ url?: str
     console.error("Falha ao guardar a foto da história", empresa.id, erro);
     return { erro: "Não conseguimos guardar a foto agora. Tente de novo em instantes." };
   }
+}
+
+/**
+ * A moderação troca o @ do Instagram do negócio (#298). O endereço antigo redireciona para
+ * o novo. O dono não troca direto: pede, e a moderação aprova (#299, src/acoes/arroba.ts).
+ */
+export async function trocarArrobaDaEmpresa(_estado: EstadoFormulario, dados: FormData): Promise<EstadoFormulario> {
+  const { usuario, empresa } = await exigirEditor(texto(dados, "empresaId"), "/painel");
+  const valores = valoresDoFormulario(dados);
+  if (!usuario.moderador) {
+    return { erros: { instagram: "Peça a troca na seção \"@ do Instagram\" do painel: a moderação confere o perfil antes." }, valores };
+  }
+  const novo = normalizarUsername(texto(dados, "instagram"));
+  if (!novo) return { erros: { instagram: "Digite o novo @ do Instagram do negócio (ex.: @padariadobairro)." }, valores };
+
+  let resultado: ResultadoDaTroca;
+  try {
+    resultado = await db.$transaction((tx) => trocarArroba(tx, empresa, novo, { usuarioId: usuario.id, pelaModeracao: true }));
+  } catch (erro) {
+    if (!violouUnicidade(erro)) throw erro;
+    resultado = "ocupado";
+  }
+  if (resultado === "ocupado") return { erros: { instagram: `@${novo} já é de outro negócio no Negócio do Bem.` }, valores };
+  if (resultado === "mesmo") return { erros: { instagram: `@${novo} já é o @ deste negócio.` }, valores };
+
+  // Sem foto, a do novo perfil do Instagram vira a foto do negócio (nunca troca uma foto enviada).
+  if (!empresa.fotoUrl) after(() => gravarFotoDaPrevia(empresa.id, novo));
+  const voltar = voltarDe(dados, empresa)
+    .split("/")
+    .map((parte) => (parte === empresa.instagramUsername ? novo : parte))
+    .join("/");
+  redirect(`${voltar}?aviso=arroba_trocado`);
 }

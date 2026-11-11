@@ -1,4 +1,19 @@
-export function SeloStatus({ status }: { status: string }) {
+/**
+ * `verificado`: a moderação conferiu o CNPJ, o nome e o CPF do dono e o liberou no Clube do
+ * Bem (#293). Sem isso, o perfil só está "assumido": uma conta assumiu, sem conferência.
+ */
+export function SeloStatus({ status, verificado = false }: { status: string; verificado?: boolean }) {
+  if (status === "verificada" && verificado) {
+    return (
+      <span
+        title="A moderação conferiu o CNPJ e a identidade de quem cuida deste perfil."
+        className="inline-flex items-center gap-1 rounded-full bg-folha-50 px-2.5 py-1 text-xs font-semibold text-folha"
+      >
+        <span aria-hidden="true">✓</span>
+        Perfil verificado
+      </span>
+    );
+  }
   if (status === "verificada") {
     return (
       <span

@@ -120,7 +120,7 @@ beforeEach(async () => {
   contexto.usuario = null;
   contexto.cookieSessao = undefined;
   contexto.depois = [];
-  vi.stubEnv("VERCEL", "1");
+  vi.stubEnv("CLOUDFLARE_DEPLOY", "1");
   vi.stubEnv("AUTENTICACAO_PROXY_CONFIAVEL", undefined);
   erroDoOperador = vi.spyOn(console, "error").mockImplementation(() => {});
   await db.$executeRawUnsafe(`TRUNCATE "TentativaAcesso", "Usuario" CASCADE`);
@@ -186,71 +186,9 @@ describe("de onde vem o IP", () => {
     });
   });
 
-  describe("no Vercel, com o x-vercel-forwarded-for", () => {
-    it("o login usa só esse cabeçalho e ignora o x-real-ip e o x-forwarded-for", async () => {
-      const respostas = await entrarVezes(LIMITE_POR_IP + 2, (i) => ({ "x-vercel-forwarded-for": "203.0.113.7", ...forjados(i) }));
-      expect(senha.verificarSenha).toHaveBeenCalledTimes(LIMITE_POR_IP);
-      expect(respostas.map((r) => r?.erro)).toEqual(Array(LIMITE_POR_IP + 2).fill(MENSAGEM_RECUSA));
-    });
-
-    it("o cadastro usa só esse cabeçalho e ignora o x-real-ip e o x-forwarded-for", async () => {
-      const respostas = await cadastrarVezes(LIMITE_POR_IP + 2, (i) => ({ "x-vercel-forwarded-for": "203.0.113.7", ...forjados(i) }));
-      expect(senha.gerarHashSenha).toHaveBeenCalledTimes(LIMITE_POR_IP);
-      expect(respostas.map((r) => r?.erro)).toEqual(Array(2).fill(MENSAGEM_LIMITE_CADASTRO));
-    });
-  });
-
-  describe("no Vercel, sem o x-vercel-forwarded-for", () => {
+  describe("fora do Cloudflare, com AUTENTICACAO_PROXY_CONFIAVEL=1", () => {
     beforeEach(() => {
-      vi.stubEnv("NODE_ENV", "production");
-    });
-
-    it("o login é recusado antes do scrypt, mesmo com o x-forwarded-for e o x-real-ip", async () => {
-      const respostas = await entrarVezes(3, forjados);
-      await esperarRecusaSemIp(respostas, MENSAGEM_SEM_IP_ENTRAR);
-    });
-
-    it("o cadastro é recusado antes do scrypt, mesmo com o x-forwarded-for e o x-real-ip", async () => {
-      const respostas = await cadastrarVezes(3, forjados);
-      await esperarRecusaSemIp(respostas, MENSAGEM_SEM_IP_CADASTRO);
-    });
-
-    it("um x-vercel-forwarded-for que não é IP tem o mesmo resultado", async () => {
-      const respostas = await entrarVezes(3, (i) => ({ "x-vercel-forwarded-for": i % 2 ? "nao-e-ip" : "", ...forjados(i) }));
-      await esperarRecusaSemIp(respostas, MENSAGEM_SEM_IP_ENTRAR);
-    });
-  });
-
-  describe("no Vercel e com AUTENTICACAO_PROXY_CONFIAVEL=1 ao mesmo tempo", () => {
-    beforeEach(() => {
-      vi.stubEnv("AUTENTICACAO_PROXY_CONFIAVEL", "1");
-    });
-
-    it("o login conta só o x-vercel-forwarded-for: o x-forwarded-for, que muda a cada tentativa, não vale", async () => {
-      await entrarVezes(LIMITE_POR_IP + 2, (i) => ({ "x-vercel-forwarded-for": "203.0.113.7", ...forjados(i) }));
-      expect(senha.verificarSenha).toHaveBeenCalledTimes(LIMITE_POR_IP);
-    });
-
-    it("o cadastro conta só o x-vercel-forwarded-for: o x-forwarded-for, que muda a cada tentativa, não vale", async () => {
-      await cadastrarVezes(LIMITE_POR_IP + 2, (i) => ({ "x-vercel-forwarded-for": "203.0.113.7", ...forjados(i) }));
-      expect(senha.gerarHashSenha).toHaveBeenCalledTimes(LIMITE_POR_IP);
-    });
-
-    it("sem o x-vercel-forwarded-for, o x-forwarded-for válido não serve de reserva: login e cadastro são recusados em produção", async () => {
-      vi.stubEnv("NODE_ENV", "production");
-      const entradas = await entrarVezes(2, () => ({ "x-forwarded-for": "203.0.113.7" }));
-      const cadastros = await cadastrarVezes(2, () => ({ "x-forwarded-for": "203.0.113.7" }));
-      expect(entradas.map((r) => r?.erro)).toEqual(Array(2).fill(MENSAGEM_SEM_IP_ENTRAR));
-      expect(cadastros.map((r) => r?.erro)).toEqual(Array(2).fill(MENSAGEM_SEM_IP_CADASTRO));
-      expect(senha.verificarSenha).not.toHaveBeenCalled();
-      expect(senha.gerarHashSenha).not.toHaveBeenCalled();
-      expect(await db.tentativaAcesso.count()).toBe(0);
-    });
-  });
-
-  describe("fora do Vercel, com AUTENTICACAO_PROXY_CONFIAVEL=1", () => {
-    beforeEach(() => {
-      vi.stubEnv("VERCEL", undefined);
+      vi.stubEnv("CLOUDFLARE_DEPLOY", undefined);
       vi.stubEnv("AUTENTICACAO_PROXY_CONFIAVEL", "1");
     });
 
@@ -297,9 +235,11 @@ describe("de onde vem o IP", () => {
     });
   });
 
-  describe("em produção, fora do Vercel e sem proxy declarado", () => {
+  describe("em produção, fora do Cloudflare e sem proxy declarado", () => {
     beforeEach(() => {
-      vi.stubEnv("VERCEL", undefined);
+      vi.stubEnv("CLOUDFLARE_DEPLOY", undefined);
+      // O deploy antigo na Vercel não vale mais: nem com VERCEL=1 o x-vercel-forwarded-for conta.
+      vi.stubEnv("VERCEL", "1");
       vi.stubEnv("NODE_ENV", "production");
     });
 
@@ -325,7 +265,7 @@ describe("de onde vem o IP", () => {
 
   describe("em desenvolvimento, sem IP confiável", () => {
     beforeEach(() => {
-      vi.stubEnv("VERCEL", undefined);
+      vi.stubEnv("CLOUDFLARE_DEPLOY", undefined);
       vi.stubEnv("NODE_ENV", "development");
     });
 
@@ -363,7 +303,7 @@ describe("de onde vem o IP", () => {
 describe("limite por e-mail", () => {
   it("só 5 tentativas do mesmo lugar chegam ao scrypt", async () => {
     await criarUsuario("ana@exemplo.com");
-    contexto.cabecalhos = { "x-vercel-forwarded-for": "198.51.100.1" };
+    contexto.cabecalhos = { "cf-connecting-ip": "198.51.100.1" };
     const respostas = [];
     for (let i = 0; i < LIMITE_POR_EMAIL + 2; i++) respostas.push(await entrar({}, formulario("ana@exemplo.com")));
     expect(senha.verificarSenha).toHaveBeenCalledTimes(LIMITE_POR_EMAIL);
@@ -372,7 +312,7 @@ describe("limite por e-mail", () => {
 
   it("tentativas ao mesmo tempo, do mesmo lugar, também param em 5 no scrypt", async () => {
     await criarUsuario("ana@exemplo.com");
-    contexto.cabecalhos = { "x-vercel-forwarded-for": "198.51.100.1" };
+    contexto.cabecalhos = { "cf-connecting-ip": "198.51.100.1" };
     const total = LIMITE_POR_IP;
     const respostas = await Promise.all(Array.from({ length: total }, () => entrar({}, formulario("ana@exemplo.com"))));
     expect(senha.verificarSenha).toHaveBeenCalledTimes(LIMITE_POR_EMAIL);
@@ -381,10 +321,10 @@ describe("limite por e-mail", () => {
 
   it("quem erra a senha de outra pessoa não bloqueia a dona da conta, que entra de outro lugar", async () => {
     const usuario = await criarUsuario("ana@exemplo.com");
-    contexto.cabecalhos = { "x-vercel-forwarded-for": "198.51.100.1" };
+    contexto.cabecalhos = { "cf-connecting-ip": "198.51.100.1" };
     for (let i = 0; i < LIMITE_POR_EMAIL + 2; i++) await entrar({}, formulario("ana@exemplo.com"));
 
-    contexto.cabecalhos = { "x-vercel-forwarded-for": "203.0.113.50" };
+    contexto.cabecalhos = { "cf-connecting-ip": "203.0.113.50" };
     await expect(entrar({}, formulario("ana@exemplo.com", SENHA_CERTA))).rejects.toThrow("redirecionado");
     expect(criarSessao).toHaveBeenCalledExactlyOnceWith(usuario.id);
   });
@@ -392,7 +332,7 @@ describe("limite por e-mail", () => {
   it("cada lugar tem as próprias 5 tentativas para o mesmo e-mail", async () => {
     await criarUsuario("ana@exemplo.com");
     for (const ip of ["198.51.100.1", "198.51.100.2"]) {
-      contexto.cabecalhos = { "x-vercel-forwarded-for": ip };
+      contexto.cabecalhos = { "cf-connecting-ip": ip };
       for (let i = 0; i < LIMITE_POR_EMAIL + 1; i++) await entrar({}, formulario("ana@exemplo.com"));
     }
     expect(senha.verificarSenha).toHaveBeenCalledTimes(2 * LIMITE_POR_EMAIL);
@@ -400,24 +340,24 @@ describe("limite por e-mail", () => {
 });
 
 describe("o limite vale nas duas ações e vem antes do scrypt", () => {
-  const vercel = { "x-vercel-forwarded-for": "203.0.113.7" };
+  const cloudflare = { "cf-connecting-ip": "203.0.113.7" };
 
   it("o cadastro para no limite por IP sem gerar o hash e sem criar conta", async () => {
-    const respostas = await cadastrarVezes(LIMITE_POR_IP + 2, () => vercel);
+    const respostas = await cadastrarVezes(LIMITE_POR_IP + 2, () => cloudflare);
     expect(senha.gerarHashSenha).toHaveBeenCalledTimes(LIMITE_POR_IP);
     expect(respostas.map((r) => r?.erro)).toEqual(Array(2).fill(MENSAGEM_LIMITE_CADASTRO));
     expect(await db.usuario.count()).toBe(LIMITE_POR_IP);
   });
 
   it("cadastro e login dividem a cota do mesmo IP", async () => {
-    await cadastrarVezes(6, () => vercel);
-    await entrarVezes(6, () => vercel);
+    await cadastrarVezes(6, () => cloudflare);
+    await entrarVezes(6, () => cloudflare);
     expect(senha.gerarHashSenha).toHaveBeenCalledTimes(6);
     expect(senha.verificarSenha).toHaveBeenCalledTimes(LIMITE_POR_IP - 6);
   });
 
   it("cadastros ao mesmo tempo, do mesmo IP, também geram só 10 hashes", async () => {
-    contexto.cabecalhos = vercel;
+    contexto.cabecalhos = cloudflare;
     const respostas = await Promise.all(
       Array.from({ length: LIMITE_POR_IP + 5 }, (_, i) => cadastrar({}, formulario(`junto-${i}@exemplo.com`, SENHA_CERTA)).catch((erro: Error) => erro)),
     );
@@ -428,7 +368,7 @@ describe("o limite vale nas duas ações e vem antes do scrypt", () => {
 
   it("depois do limite, nem a senha certa entra: a conferência nem acontece", async () => {
     await criarUsuario("ana@exemplo.com");
-    contexto.cabecalhos = vercel;
+    contexto.cabecalhos = cloudflare;
     for (let i = 0; i < LIMITE_POR_IP; i++) await entrar({}, formulario(`outra-${i}@exemplo.com`));
     vi.clearAllMocks();
     const resposta = await entrar({}, formulario("ana@exemplo.com", SENHA_CERTA));
@@ -439,7 +379,7 @@ describe("o limite vale nas duas ações e vem antes do scrypt", () => {
 
   it("depois do limite por e-mail, nem a senha certa entra do mesmo lugar: a conferência nem acontece", async () => {
     await criarUsuario("ana@exemplo.com");
-    contexto.cabecalhos = { "x-vercel-forwarded-for": "198.51.100.1" };
+    contexto.cabecalhos = { "cf-connecting-ip": "198.51.100.1" };
     for (let i = 0; i < LIMITE_POR_EMAIL; i++) await entrar({}, formulario("ana@exemplo.com"));
     vi.clearAllMocks();
     const resposta = await entrar({}, formulario("ana@exemplo.com", SENHA_CERTA));
@@ -455,7 +395,7 @@ describe("o limite vale nas duas ações e vem antes do scrypt", () => {
     for (let i = 1; i < LIMITE_POR_EMAIL; i++) await entrar({}, formulario("ana@exemplo.com"));
     const porEmail = await entrar({}, formulario("ana@exemplo.com"));
 
-    contexto.cabecalhos = { "x-vercel-forwarded-for": "203.0.113.99" };
+    contexto.cabecalhos = { "cf-connecting-ip": "203.0.113.99" };
     for (let i = 0; i < LIMITE_POR_IP; i++) await entrar({}, formulario(`outra-${i}@exemplo.com`));
     const porIp = await entrar({}, formulario("ana@exemplo.com"));
 
@@ -466,7 +406,7 @@ describe("o limite vale nas duas ações e vem antes do scrypt", () => {
 
   it("um login certo zera a contagem do e-mail naquele lugar e abre mais 5 tentativas", async () => {
     const usuario = await criarUsuario("ana@exemplo.com");
-    contexto.cabecalhos = { "x-vercel-forwarded-for": "198.51.100.1" };
+    contexto.cabecalhos = { "cf-connecting-ip": "198.51.100.1" };
     for (let i = 0; i < LIMITE_POR_EMAIL - 1; i++) await entrar({}, formulario("ana@exemplo.com"));
     await expect(entrar({}, formulario("ana@exemplo.com", SENHA_CERTA))).rejects.toThrow("redirecionado");
     expect(criarSessao).toHaveBeenCalledExactlyOnceWith(usuario.id);
@@ -477,7 +417,7 @@ describe("o limite vale nas duas ações e vem antes do scrypt", () => {
   });
 
   it("o banco guarda só o hash do IP e do e-mail", async () => {
-    contexto.cabecalhos = vercel;
+    contexto.cabecalhos = cloudflare;
     await entrar({}, formulario("privado@exemplo.com"));
     const tentativas = await db.tentativaAcesso.findMany();
     expect(tentativas).toHaveLength(2);
@@ -492,30 +432,30 @@ describe("o limite vale nas duas ações e vem antes do scrypt", () => {
 describe("IPv6", () => {
   it("os endereços do mesmo prefixo /64 dividem a cota, mesmo com o IPv6 escrito de jeitos diferentes", async () => {
     const respostas = await entrarVezes(LIMITE_POR_IP + 2, (i) => ({
-      "x-vercel-forwarded-for": i % 2 ? `2001:db8:abcd:12::${i + 1}` : `2001:0DB8:ABCD:0012:${i + 1}:ffff:ffff:ffff`,
+      "cf-connecting-ip": i % 2 ? `2001:db8:abcd:12::${i + 1}` : `2001:0DB8:ABCD:0012:${i + 1}:ffff:ffff:ffff`,
     }));
     expect(senha.verificarSenha).toHaveBeenCalledTimes(LIMITE_POR_IP);
     expect(respostas.map((r) => r?.erro)).toEqual(Array(LIMITE_POR_IP + 2).fill(MENSAGEM_RECUSA));
     // Outro prefixo /64 tem a cota própria.
-    contexto.cabecalhos = { "x-vercel-forwarded-for": "2001:db8:abcd:13::1" };
+    contexto.cabecalhos = { "cf-connecting-ip": "2001:db8:abcd:13::1" };
     await entrar({}, formulario("outra-pessoa@exemplo.com"));
     expect(senha.verificarSenha).toHaveBeenCalledTimes(LIMITE_POR_IP + 1);
   });
 
   it("o IPv4 escrito como IPv6 divide a cota com o IPv4", async () => {
-    await entrarVezes(LIMITE_POR_IP + 2, (i) => ({ "x-vercel-forwarded-for": i % 2 ? "::ffff:203.0.113.5" : "203.0.113.5" }));
+    await entrarVezes(LIMITE_POR_IP + 2, (i) => ({ "cf-connecting-ip": i % 2 ? "::ffff:203.0.113.5" : "203.0.113.5" }));
     expect(senha.verificarSenha).toHaveBeenCalledTimes(LIMITE_POR_IP);
   });
 
   it("o cadastro também divide a cota por prefixo /64", async () => {
-    await cadastrarVezes(LIMITE_POR_IP + 2, (i) => ({ "x-vercel-forwarded-for": `2001:db8:abcd:12::${i + 1}` }));
+    await cadastrarVezes(LIMITE_POR_IP + 2, (i) => ({ "cf-connecting-ip": `2001:db8:abcd:12::${i + 1}` }));
     expect(senha.gerarHashSenha).toHaveBeenCalledTimes(LIMITE_POR_IP);
   });
 });
 
 describe("conta sem senha", () => {
   it("a conta criada pelo Google não entra com senha nenhuma, e a resposta é a mesma", async () => {
-    contexto.cabecalhos = { "x-vercel-forwarded-for": "203.0.113.7" };
+    contexto.cabecalhos = { "cf-connecting-ip": "203.0.113.7" };
     await db.usuario.create({ data: { nome: "Pessoa do Google", email: "google@exemplo.com", googleId: "google-1" } });
 
     expect((await entrar({}, formulario("google@exemplo.com", "")))?.erro).toBe(MENSAGEM_RECUSA);
@@ -528,7 +468,7 @@ describe("conta sem senha", () => {
 
 describe("telefone no cadastro", () => {
   it("guarda o telefone com o 55 do Brasil", async () => {
-    contexto.cabecalhos = { "x-vercel-forwarded-for": "203.0.113.7" };
+    contexto.cabecalhos = { "cf-connecting-ip": "203.0.113.7" };
     await expect(cadastrar({}, formulario("nova@exemplo.com", SENHA_CERTA))).rejects.toThrow("redirecionado");
     expect((await db.usuario.findUniqueOrThrow({ where: { email: "nova@exemplo.com" } })).telefone).toBe("5511991488052");
   });
@@ -537,7 +477,7 @@ describe("telefone no cadastro", () => {
     ["sem telefone", "", "Informe seu telefone com DDD."],
     ["com telefone sem DDD", "99148-8052", "Digite o telefone com DDD (ex.: 11 99148-8052)."],
   ])("%s, não cria a conta e mostra o erro no campo", async (_caso, telefone, mensagem) => {
-    contexto.cabecalhos = { "x-vercel-forwarded-for": "203.0.113.7" };
+    contexto.cabecalhos = { "cf-connecting-ip": "203.0.113.7" };
     const dados = formulario("nova@exemplo.com", SENHA_CERTA);
     dados.set("telefone", telefone);
 
@@ -550,7 +490,7 @@ describe("telefone no cadastro", () => {
 });
 
 describe("trocar a senha no painel", () => {
-  const vercel = { "x-vercel-forwarded-for": "198.51.100.1" };
+  const cloudflare = { "cf-connecting-ip": "198.51.100.1" };
   const NOVA_SENHA = "nova-senha-123";
   const MENSAGEM_LIMITE = "Muitas tentativas seguidas. Espere alguns minutos e tente de novo.";
 
@@ -561,7 +501,7 @@ describe("trocar a senha no painel", () => {
   async function logar(email: string) {
     const usuario = await criarUsuario(email);
     contexto.usuario = { id: usuario.id, nome: usuario.nome, email, moderador: false, emailConfirmado: true };
-    contexto.cabecalhos = vercel;
+    contexto.cabecalhos = cloudflare;
     return usuario;
   }
 
@@ -669,7 +609,7 @@ describe("trocar a senha no painel", () => {
 
   it("divide a cota do IP com o login e o cadastro", async () => {
     await logar("ana@exemplo.com");
-    await entrarVezes(LIMITE_POR_IP, () => vercel);
+    await entrarVezes(LIMITE_POR_IP, () => cloudflare);
     vi.clearAllMocks();
     expect((await trocar(SENHA_CERTA))?.erro).toBe(MENSAGEM_LIMITE);
     expect(senha.verificarSenha).not.toHaveBeenCalled();
@@ -693,7 +633,7 @@ describe("trocar a senha no painel", () => {
   it("a conta sem senha (do Google) não troca por aqui: ela cria a senha pelo link", async () => {
     const usuario = await db.usuario.create({ data: { nome: "Pessoa do Google", email: "google@exemplo.com", googleId: "google-1" } });
     contexto.usuario = { id: usuario.id, nome: usuario.nome, email: usuario.email, moderador: false, emailConfirmado: true };
-    contexto.cabecalhos = vercel;
+    contexto.cabecalhos = cloudflare;
 
     expect((await trocar(SENHA_CERTA))?.erros?.senhaAtual).toBe("Senha atual incorreta.");
     expect(await senhaGravada(usuario.id)).toBeNull();

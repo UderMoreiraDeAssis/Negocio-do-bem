@@ -260,7 +260,7 @@ A página inicial juntava apresentação, busca, filtros de causas e a lista de 
 
 - **A página inicial ficou para começar:** o número de negócios cadastrados em destaque, a busca "O que você procura?" + "Onde?", atalhos e os tipos de negócio com seus totais.
 - **O diretório ganhou endereço próprio, `/explorar`.** Ele abre ao buscar ou ao escolher um tipo, com os filtros ao lado (tipo, causas, só perfis assumidos), grade ou lista e paginação numerada.
-- **Os filtros são links, não um formulário.** Cada opção é um link para a URL com aquele filtro trocado (`mudarFiltro`, em `src/lib/diretorio.ts`). Assim funciona sem JavaScript e toda busca pode ser compartilhada. Só a ordenação usa um `<select>` com JavaScript.
+- **Os filtros são links, não um formulário.** Cada opção é um link para a URL com aquele filtro trocado (`mudarFiltro`, em `src/lib/diretorio.ts`). Assim funciona antes de o JavaScript carregar e toda busca pode ser compartilhada. A ordenação também: é um menu (`<details>`) com um link para cada ordem. Com o JavaScript desligado, o conteúdo dentro de `<Suspense>` não aparece, porque um script é que o revela.
 - **Cada opção mostra quantos negócios aparecem ao marcá-la.** São poucas consultas por página: um `groupBy` por categoria ignorando os tipos marcados, e um `groupBy` das causas entre os resultados.
 - **O "Onde?" sugere só lugares com negócios** (`listarCidades`). A lista é pequena e vai pronta para o navegador. O texto escolhido ("Recife, PE") vai na URL e o servidor o interpreta, então digitar à mão também funciona.
 
@@ -449,6 +449,14 @@ Quem esquecia a senha só voltava pelo "Entrar por link" e continuava sem senha,
 - **A conta sem senha cria a primeira pelo link.** A conta criada pelo Google não tem senha atual para digitar, e criar uma só com a sessão aberta daria a senha a quem roubou o cookie. O painel manda o mesmo link de "Esqueci minha senha" para o e-mail da conta, que serve também para quem esqueceu a senha atual.
 - **Um e-mail avisa de toda troca** (`avisarSenhaTrocada`), porque é o que permite notar uma invasão. Gasta a cota do Resend, mas trocas de senha são raras.
 
+### 31 de outubro: o projeto da Vercel é excluído ([#206](https://github.com/fabs-reis/Negocio-do-bem/issues/206))
+
+Depois da troca, o Google ainda mostrava o `negociodobem.vercel.app` nos resultados, com a página "deployment paused" da Vercel no lugar do site. O projeto `negocio_do_bem` foi excluído da Vercel.
+
+- **O `negociodobem.vercel.app` responde 404.** Sem o projeto, não há como redirecioná-lo para o `www`. Foram pedidas ao Google as remoções das páginas principais desse endereço, para os resultados antigos saírem mais rápido.
+- **Na equipe da Vercel ficaram só armazenamentos, sem projeto conectado:** o Neon antigo de produção (só para leitura, apagado depois, em 7 de novembro) e o Blob das fotos antigas, como reserva; o Neon dos previews (`negocio-do-bem-preview`), que os previews do Cloudflare ainda usam; e um Blob de teste.
+- **O código deixou de ler o que vinha do deploy da Vercel:** o `vercel.live` da CSP dos previews, o `VERCEL_PROJECT_PRODUCTION_URL` do endereço do site, o `VERCEL_URL` do link por e-mail, o `x-vercel-forwarded-for` do limite de tentativas e o branch, o commit e a região da aba "Sistema". Nada disso valia no Cloudflare. Ficaram só o `VERCEL_ENV` e o `VERCEL` no seed, que continua se recusando a rodar com variáveis de produção copiadas da Vercel.
+
 ### 31 de outubro: cadastros, indicações e contatos no Analytics ([#203](https://github.com/fabs-reis/Negocio-do-bem/issues/203))
 
 O Analytics contava visitas, mas não dizia quantas pessoas criavam conta, quantos negócios eram indicados nem de onde vinham as pessoas que faziam isso. A lista dos eventos está na [seção de medição das regras de negócio](regras-de-negocio.md#medição-de-visitas).
@@ -507,6 +515,19 @@ Desde a mudança para o Cloudflare, em 31/10, o site não carregava o Google Ana
 - **A variável era lida no build.** O `NEXT_PUBLIC_GA_ID` estava só na Vercel. O Next põe as variáveis `NEXT_PUBLIC_` no código durante o build, e a casca estática do layout também é gerada ali. No Cloudflare, ela precisa estar nas variáveis de build da produção (Workers Builds), e não nas de runtime do Worker.
 - **Os previews continuam sem Analytics.** As variáveis de build dos previews ficam em outra aba do painel, sem o ID.
 
+### 1º de novembro: favoritos ([#248](https://github.com/fabs-reis/Negocio-do-bem/issues/248))
+
+É a primeira parte do Clube do Bem, em que negócios vão oferecer cupons por pouco tempo a quem chega pelo site. Favoritar o negócio vai ser a condição para gerar o cupom, então veio primeiro. As regras estão em [Favoritos](regras-de-negocio.md#favoritos).
+
+- **Dentro do site, não no Instagram.** O site não lê o Instagram, então não teria como saber quem segue quem lá. Dentro do site, a condição do cupom pode ser conferida.
+- **Coração, e não "Seguir".** O PR começou com um botão "Seguir" e trocou pelo coração antes do merge: ele combina com o tom do projeto ("gosto deste negócio e quero apoiar") e cabe no canto dos cards, então dá para favoritar direto do diretório. No perfil, o coração vem com o texto "Favoritar", para não ser lido como "curtir", que faria esperar um número de curtidas. Os avisos de ofertas, quando vierem, ficam num sininho à parte e desligado por padrão: quem favorita só pelo desconto não passa a receber notificação sem pedir.
+- **Sem sair da página.** O coração é um formulário com `useActionState`: o toque não recarrega a página nem a leva para o topo, o que importa no meio do diretório. Como a ação é uma Server Action, o React envia o formulário mesmo antes de o JavaScript da página carregar.
+- **O número aparece no perfil, mas não vira ranking.** O perfil mostra quantas pessoas favoritaram, como prova de que a comunidade gosta do negócio, e nada aparece com zero, para um negócio novo não ficar exposto. O número fica fora dos cards e não muda a ordem do diretório: aí um negócio ganharia destaque só por ter mais favoritos. Ninguém vê quem favoritou, nem o dono: o clube não entrega lista de clientes.
+- **Negócio sem dono também pode ser favoritado.** Quando o dono assumir o perfil, já encontra pessoas que gostam do negócio, e isso é um bom motivo para ele reivindicar.
+- **Sem e-mail confirmado.** Favoritar não publica nada, então só precisa de login.
+- **A página é `/favoritos`, e não `/painel/favoritos`.** Dentro de `/painel`, um caminho fixo esconderia o painel de um negócio cujo @ fosse `favoritos`, porque `/painel/<@>` é o painel de cada negócio.
+- **Duas migrações.** A tabela nasceu como `EmpresaSeguidor` e já tinha chegado ao banco dos previews quando virou `EmpresaFavorita`. Por isso a segunda migração só renomeia a tabela, em vez de editar a primeira.
+
 ### 2 de novembro: embaixadores do bem ([#250](https://github.com/fabs-reis/Negocio-do-bem/issues/250))
 
 Influenciadores que levam o projeto para a cidade ou o estado deles ganharam uma faixa na página inicial, a página `/embaixadores` e um bloco na página da cidade. O visual foi combinado num canvas antes do código. As regras estão em [Embaixadores do bem](regras-de-negocio.md#19-embaixadores-do-bem).
@@ -539,7 +560,117 @@ O perfil só contava quem é o negócio, em texto simples e com os botões todos
 - **Negócios parecidos** da mesma cidade no fim da página (`negociosParecidos`).
 - **O que está vazio some:** nenhum bloco em branco para o visitante.
 
+### 6 de novembro: liberação para o Clube do Bem ([#248](https://github.com/fabs-reis/Negocio-do-bem/issues/248))
+
+Para criar ofertas com cupom, ser dono não basta: qualquer conta assume um perfil sem dono na hora, e um cupom num negócio assumido por outra pessoa vira golpe ("pague pelo Pix para garantir o desconto"). As regras estão em [Clube do Bem](regras-de-negocio.md#20-clube-do-bem).
+
+- **Só CNPJ, por enquanto.** O CNPJ dá uma ficha pública na Receita, com a situação e o quadro de sócios. A moderação vê se o negócio existe, se está ativo e se o nome da conta bate com um sócio. Autônomos sem CNPJ e profissões regulamentadas precisam de outro caminho (vídeo, indicação de embaixador, registro no conselho) e ficaram para depois.
+- **A moderação libera, o dono não pede.** O lançamento é com donos convidados, e a moderação conversa com cada um. O pedido feito pelo próprio dono, com um código na bio do Instagram, fica para quando o clube abrir.
+- **A ficha não é guardada.** É consultada na hora, a cada vez. A razão social do MEI traz o CPF da pessoa, então nem a auditoria leva a razão social: só o @, o nome da conta e o CNPJ.
+- **Por dono, e só enquanto for dono.** A liberação não passa para outro dono do mesmo negócio, e quem perde o perfil numa transferência perde a liberação sem precisar de outra ação.
+
+
+### 6 de novembro: ofertas e cupons do Clube do Bem ([#248](https://github.com/fabs-reis/Negocio-do-bem/issues/248))
+
+Com a liberação pronta, o dono liberado cria uma oferta curta, quem visita gera o cupom e o dono valida no balcão. As regras estão em [Clube do Bem](regras-de-negocio.md#20-clube-do-bem).
+
+- **Prazo curto e sem edição.** Até 15 dias, terminando às 23h59 de Brasília. Uma oferta publicada obriga o negócio a cumprir (CDC, art. 30), então ela não muda depois de criada: o dono encerra e cria outra. Quem já gerou o cupom usa até o fim previsto.
+- **Desconto livre.** O plano previa revisar na moderação as ofertas acima de 50%; sem a fila de revisão, a primeira versão travou o desconto em 50%. Em 06/11 ficou decidido deixar o valor livre (até 100%, ou qualquer valor em reais): quem conhece o negócio é o dono, e as proteções contra golpe estão no texto da oferta, no aviso contra Pix e na suspensão quando o contato muda.
+- **O texto não leva contato nem pagamento.** Link, telefone, e-mail, documento e "Pix" são recusados no título e nas condições, e todo cupom repete que o site nunca pede Pix. O golpe mais provável no clube é pedir pagamento antecipado "para garantir o desconto".
+- **Trocar o contato suspende o clube.** É o outro lado do golpe: assumir um perfil, trocar o WhatsApp e lançar um cupom. A suspensão automática usa a mesma liberação da moderação, que confere de novo antes de liberar.
+- **Concorrência pelo banco.** O último cupom e a validação dupla se resolvem com UPDATE condicional (`cuponsGerados < limite`, `usadoEm IS NULL`), e a oferta única por negócio com `SELECT ... FOR UPDATE` na linha do negócio. Os testes disparam os pedidos ao mesmo tempo.
+- **Gerar o cupom favorita.** É a condição combinada na issue, num toque só, e o botão avisa antes.
+- **O dono vê só o primeiro nome** de quem gerou o cupom, para conferir no balcão. O clube não entrega lista de clientes.
+- **O coração acompanha o servidor.** Gerar o cupom favorita o negócio e volta ao mesmo perfil, só com o `?aviso=`. O coração guardava o próprio estado (`useActionState`) e continuava vazio; agora ele recomeça quando o valor que vem do servidor muda (uma `key` com o estado).
+- **Ficou para depois:** o filtro "Com cupom" no diretório (o selo nos cards já mostra), o QR code, o e-mail com "Repetir oferta" e a denúncia de oferta.
+
+### 6 de novembro: a página do Clube do Bem ([#284](https://github.com/fabs-reis/Negocio-do-bem/issues/284))
+
+Sem uma explicação, o dono não sabia como criar a oferta nem conferir o cupom, e quem compra não sabia que precisava de conta nem que o negócio vê o primeiro nome. `/clube-do-bem` é um passo a passo com prints, no formato do `/instalacao`.
+
+- **Dois caminhos na mesma página.** "Quero usar um cupom" e "Tenho um negócio" levam às duas seções. Numa página só, quem compra também vê como o dono confere o cupom, e o dono vê o que o cliente vê.
+- **Prints de verdade, ao contrário do `/instalacao`.** As telas são as do próprio site, que a gente controla, então não envelhecem com uma versão do sistema. Foram tiradas no tamanho de celular (390 px, densidade 2) com o Chrome sem janela, com os dados de exemplo do seed, e ficam em `public/prints/clube-do-bem/` em WebP (cerca de 350 KB ao todo). Largura e altura de cada uma estão na página, para nada pular enquanto carrega. A pasta não se chama `clube-do-bem` para não disputar o endereço com a página.
+- **`Passo` e `Passos` foram para `src/components/Passos.tsx`,** para servir aos dois tutoriais. Na página do clube, o título do passo é `h3`, porque as seções já usam `h2`.
+- **Mudou a tela, troque o print.** O texto cita os botões pelo nome ("Favoritar e gerar cupom", "Marcar como usado"), e as regras citadas (15 dias, primeiro nome, contato trocado) são as da [seção 20](regras-de-negocio.md#20-clube-do-bem).
+
+
+### 6 de novembro: o dono pede a verificação do Clube do Bem ([#286](https://github.com/fabs-reis/Negocio-do-bem/issues/286))
+
+Antes, a moderação precisava conseguir o CNPJ com cada dono e digitar na ficha do negócio. Agora o dono informa o CNPJ no painel, e o pedido cai numa fila da moderação, que já abre com a ficha da Receita. As regras estão em [Liberação para o clube](regras-de-negocio.md#liberação-para-o-clube).
+
+- **Sem migração.** O pedido usa a mesma linha da liberação (`LiberacaoClube`), com dois status novos, "pendente" e "recusada". O `status` já era texto, e o `decididoEm` passou a ser a data da última mudança. Assim, cada dono continua com uma linha por negócio, e liberar um pedido é o mesmo `upsert` de antes.
+- **A Receita barra cedo, mas não trava.** Um CNPJ que a Receita diz não estar ativo nem entra na fila. Se a BrasilAPI não responde, o pedido entra assim mesmo: a moderação consulta de novo antes de liberar, e a liberação continua exigindo a Receita.
+- **O motivo de antes fica.** Quem foi recusado ou suspenso pede de novo, e o motivo da última decisão continua na linha, para a moderação ver ("Da última vez: …"). Um golpista suspenso que pede de novo aparece com o motivo da suspensão.
+- **A ficha da Receita virou um componente** (`src/app/moderacao/FichaDaReceita.tsx`), usado na fila e na ficha do negócio. Na fila, "Liberar" e "Recusar" voltam para a fila (`voltar=fila`).
+- **O dono não vê a ficha.** Ele só fica sabendo se o CNPJ está ativo. O quadro de sócios e a comparação do nome continuam só com a moderação.
+- **CNPJ inexistente é recusado na hora.** `buscarNaReceita` separa o 404 da BrasilAPI ("Não achamos este CNPJ na Receita") da consulta que falhou, que deixa o pedido entrar. O `consultarCnpj` continua devolvendo `null` nos dois casos, para quem já o usava.
+- **A página `/clube-do-bem` mudou junto:** o passo 1 do dono troca o aviso de "fase de convite" por três prints, com a caixa do painel, o formulário do CNPJ e o pedido em análise. O CNPJ dos prints (12.345.678/9999-66) tem os dígitos certos e não existe na Receita.
+
+### 7 de novembro: verificação do negócio com nome e CPF ([#293](https://github.com/fabs-reis/Negocio-do-bem/issues/293))
+
+A ideia: assumir o perfil continua imediato, e a **verificação** vem em seguida, no painel, com o CNPJ, o nome completo e o CPF. Aprovada, ela dá o selo "Perfil verificado" e libera o clube num passo só. As regras estão em [Liberação para o clube](regras-de-negocio.md#liberação-para-o-clube). Esta é a parte 1; o documento (RG ou CNH, num bucket R2 privado) é a parte 2.
+
+- **Migração pequena:** duas colunas em `LiberacaoClube`, `nomeCompleto` e `cpfMascarado`. O pedido do clube já era a linha certa para a verificação.
+- **O CPF inteiro nunca é guardado.** A Receita mostra do sócio só os 6 dígitos do meio (`***325350**`, conferido numa consulta real), então é só isso que dá para comparar, e é só isso que o banco guarda. A moderação vê "os dígitos do meio batem com um sócio", sem o número. O servidor nunca devolve o CPF num formulário com erro (`valores` leva só o CNPJ e o nome); ele só continua no campo porque o navegador mantém o que foi digitado.
+- **O selo "Perfil verificado" é derivado, sem campo novo:** é o perfil que tem um dono liberado (o mesmo critério do "Parceiro do Clube do Bem"). Assim a suspensão e a remoção do dono tiram o selo sozinhas, e não há dois estados para manter em sincronia. Nas listas do diretório, o selo continua "Perfil assumido"; fica para outra issue, porque pede a consulta da liberação em cada card.
+- **O formulário de assumir encolheu:** saíram CNPJ, site e contato (a moderação usa o e-mail da conta). Pedidos antigos mantêm o que enviaram.
+
+### 7 de novembro: o documento da verificação ([#293](https://github.com/fabs-reis/Negocio-do-bem/issues/293), parte 2)
+
+A foto do RG ou da CNH entra no pedido de verificação. As regras estão em [Liberação para o clube](regras-de-negocio.md#liberação-para-o-clube).
+
+- **Bucket novo e privado, não o das fotos.** O `negocio-do-bem-documentos` (e o `negocio-do-bem-preview-documentos`, para os previews) não tem domínio público. As fotos do site são públicas por desenho; um documento de identidade nunca pode ser. O binding `DOCUMENTOS` fica no `wrangler.jsonc`, na produção e nos previews.
+- **O banco guarda só a chave.** Um nome aleatório (`<32 hex>.jpg`) que não leva a lugar nenhum sozinho. Só a rota `/moderacao/documentos/<pedido>/<n>` lê o arquivo, depois de conferir a moderação a cada acesso, e responde 404 para o resto.
+- **Apagar é parte do desenho, não uma limpeza futura.** O documento some quando a moderação decide. Como o projeto não tem rotina agendada, o prazo de 30 dias roda quando a fila abre. Foi o que deu para garantir sem criar uma rotina nova.
+- **O arquivo sobe antes do pedido.** Se o pedido não entra, a ação apaga o que já tinha subido, para um CNPJ inativo não deixar documento órfão.
+- **O limite das Server Actions subiu de 4 MB para 11 MB** (dois arquivos de 5 MB). Cada ação continua conferindo o tamanho dos seus arquivos, e o das fotos segue 3 MB.
+- **Em desenvolvimento,** os arquivos ficam em `.documentos-privados/` (fora de `public/` e no `.gitignore`).
+
+### 7 de novembro: a moderação tira um dono ([#292](https://github.com/fabs-reis/Negocio-do-bem/issues/292))
+
+Nos primeiros testes do clube em produção, a conta que assumiu um perfil não batia com a única sócia na Receita, e a moderação não tinha como tirar o acesso: só aprovando outra pessoa no modo "transferir". Agora cada dono tem o botão "Remover dos donos". As regras estão em [Tirar um dono](regras-de-negocio.md#tirar-um-dono).
+
+- **Sem migração.** O pedido aprovado da pessoa ganha o status `revogada`, e o motivo vai no `motivoRecusa`, que o painel e a ficha da conta já mostravam. O `status` já era texto.
+- **O pedido revogado é a memória da remoção.** Ele impede a aprovação na hora de um pedido novo da mesma pessoa para o mesmo negócio, nos três caminhos (dados do negócio, "Aprovar os N pedidos sem dono" e Entrar com Instagram). Sem isso, quem foi tirado de um negócio sem outros donos assumiria de novo no minuto seguinte. Os donos de hoje vieram todos de um pedido aprovado.
+- **O perfil volta a `indicada` quando fica sem dono.** Antes o selo "Perfil assumido" nunca voltava atrás, mas um perfil sem dono com o selo escondia o botão "Sou o dono" de quem é dono de verdade.
+- **Só as ofertas da pessoa saem do ar.** A suspensão da liberação pela moderação tira todas as ofertas do negócio, mas aqui o problema é a pessoa: a oferta de outro dono liberado continua.
+- **A remoção trava a linha do negócio** (`FOR NO KEY UPDATE`) antes de contar os donos que sobraram. Assim, duas remoções ao mesmo tempo, ou uma remoção e uma aprovação, não deixam um perfil sem dono marcado como assumido.
+- **Confirmação no servidor também.** A caixa "Confirmo" é `required` no HTML, e a ação confere `confirmo=sim` de novo, porque uma Server Action pode ser chamada sem o formulário.
+- **A transferência continua como era.** Quem sai dos donos numa transferência não recebe e-mail, e as ofertas que criou não são suspensas. Fica para outra issue, se a moderação precisar.
+
+### 7 de novembro: o dono pede a troca do @, e a moderação aprova ([#299](https://github.com/fabs-reis/Negocio-do-bem/issues/299))
+
+O [#298](https://github.com/fabs-reis/Negocio-do-bem/issues/298) deixou o dono trocar o @ direto no painel, com o endereço antigo levando ao novo. No mesmo dia, um negócio entrou com o @ errado (`@fabsreis` em vez de `@ofabsreis`), e a conversa sobre como corrigir mostrou o risco da troca direta. Agora o dono pede, e a moderação aprova numa fila nova. As regras estão em [Pedido de troca do @](regras-de-negocio.md#pedido-de-troca-do-).
+
+- **Pedido, e não troca direta.** O dono pode ter assumido o perfil só com os dados do negócio, sem provar que controla o Instagram. Com a troca direta, ele poderia pôr o @ de outro negócio que ainda não está no site. A fila mostra o que a Meta enxerga do @ novo (nome, site e seguidores), para a moderação conferir sem sair da tela.
+- **A troca aprovada é a do #298.** O pedido só decide quando ela acontece: a aprovação chama `trocarArroba` como troca da moderação, com o redirecionamento do endereço antigo e sem suspender o Clube do Bem, porque a moderação já conferiu o @. A troca direta continua na edição do perfil pela moderação.
+- **Tabela própria (`TrocaDeArroba`).** Guarda o @ de antes e o pedido, quem pediu e quem decidiu. Um negócio pode ter vários pedidos ao longo do tempo, e o histórico fica na tabela, não só na auditoria.
+- **Um pedido em análise por negócio.** O pedido trava a linha do negócio (`FOR NO KEY UPDATE`) antes de contar os pedidos em análise, como na cota de indicações.
+- **A aprovação confere de novo** se o @ do negócio ainda é o do pedido e se o @ novo continua livre, na mesma transação que troca o @.
+- **Os IDs do Instagram saem na troca.** `instagramUserId` e `instagramIgsid` eram da conta do @ antigo; mantê-los ligaria o negócio a uma conta que não é mais a dele.
+
 ---
+
+### 7 de novembro: menu do celular e aba de cupons ([#308](https://github.com/fabs-reis/Negocio-do-bem/issues/308))
+
+Quem instalou o app não tem a barra do navegador, e o menu ficava atrás de um ícone no topo: os cupons ficavam escondidos e o dono não achava onde validar. As regras estão em [A navegação no celular](regras-de-negocio.md#17-o-site-como-app).
+
+- **Barra no rodapé, não menu no topo.** É o padrão dos apps e fica ao alcance do polegar. O desenho foi aprovado antes de codar, em telas feitas à parte. A barra é um componente de cliente (`BarraInferior`) só para marcar a aba ativa com `usePathname`; quem decide o perfil (comprador ou dono) é o servidor (`NavegacaoMobile`), dentro de um `<Suspense>`, porque lê a sessão e o banco.
+- **Dois perfis de barra.** O botão Validar só aparece para o dono liberado no clube: para os demais seria um botão que leva a uma explicação. A liberação e o fato de ainda ser dono vêm de `negociosDoClube`.
+- **`/cupons` virou a lista de ofertas.** Antes era "Meus cupons", que foi para `/cupons/meus`. As ofertas valendo usam `condicaoDeOfertaPublica`, a mesma regra do perfil (aprovado e não oculto), para a lista nunca mostrar o que o perfil esconde.
+- **"Pegar cupom" na lista** usa a mesma ação do perfil (`gerarCupomAcao`), com um campo `origem` para voltar a Meus cupons em vez de ao perfil. Uma regra só para gerar cupom.
+- **Validar tem tela própria,** mas o painel do clube continua validando. O cartão do cupom conferido (`CupomConferido`) virou um componente dos dois lugares, e a ação `usarCupomAcao` volta para a tela de onde o dono veio.
+- **`viewportFit: "cover"`** no layout: sem ele o iPhone não informa a área do botão home, e a barra ficaria por cima dele.
+
+### 7 de novembro: a conta nova vem com o contato do cadastro ([#317](https://github.com/fabs-reis/Negocio-do-bem/issues/317))
+
+Quem cadastrava o próprio negócio sem ter conta digitava o e-mail e o telefone duas vezes: na etapa "Como a gente fala com você?" e de novo no `/cadastrar`. As regras estão em [Cadastro e login](regras-de-negocio.md#cadastro-e-login).
+
+- **O mesmo rascunho do navegador, e não a URL.** O cadastro já guardava as respostas em `ndb:cadastro` antes de mandar a pessoa criar a conta. O formulário da conta lê esse rascunho, e nenhum dado pessoal vai no endereço, onde ficaria no histórico e nos logs de acesso.
+- **A leitura do aparelho virou um módulo só** (`src/components/rascunho-no-aparelho.ts`), usado pelo cadastro por etapas e pelos formulários da conta. A chave e o caminho de volta (`VOLTA_AO_CADASTRO`) ficam em `src/lib/rascunho-do-cadastro.ts`, junto com a regra (`voltaAoCadastro` e `contatoDoRascunho`), que tem testes em `tests/unit/`.
+- **Sem remontar o formulário.** O rascunho só existe depois da hidratação. Os campos são não controlados, e o React atualiza o `defaultValue`: o campo ainda intocado mostra o valor novo, e o que a pessoa já digitou fica.
+- **O nome não vem.** O cadastro pede o nome do negócio, não o da pessoa. Um campo de nome no cadastro só mudaria a digitação de lugar.
+- **Pelo Google, só o telefone.** O e-mail da conta é o que o Google verificou, e a regra de quem veio do cadastro usa o `voltar` guardado no `CadastroGoogle`.
 
 ## 4. Arquitetura
 
@@ -559,9 +690,9 @@ O perfil só contava quem é o negócio, em texto simples e com os botões todos
 
 A autenticação é feita no próprio projeto (`src/lib/auth/`), com e-mail, senha (scrypt), link por e-mail e sessão em cookie. Isso evita depender de um serviço externo para algo simples.
 
-O scrypt que protege as senhas custa ~32 MB de memória por conferência, então login e cadastro têm limite de tentativas por IP e por e-mail, conferido antes dele (`src/lib/auth/tentativas.ts`). A contagem fica numa tabela do Postgres (`TentativaAcesso`), e não na memória, porque no Vercel o site roda em várias instâncias. Cada tentativa é somada num `INSERT ... ON CONFLICT DO UPDATE` só, que também abre a janela nova quando a anterior venceu: assim, tentativas simultâneas não zeram a contagem umas das outras. Um serviço próprio para contadores (Upstash, Vercel KV) traria mais uma dependência e mais uma variável.
+O scrypt que protege as senhas custa ~32 MB de memória por conferência, então login e cadastro têm limite de tentativas por IP e por e-mail, conferido antes dele (`src/lib/auth/tentativas.ts`). A contagem fica numa tabela do Postgres (`TentativaAcesso`), e não na memória, porque o site roda em várias instâncias do Worker. Cada tentativa é somada num `INSERT ... ON CONFLICT DO UPDATE` só, que também abre a janela nova quando a anterior venceu: assim, tentativas simultâneas não zeram a contagem umas das outras. Um serviço próprio para contadores (como o Upstash) traria mais uma dependência e mais uma variável.
 
-O limite por IP só vale com um IP confiável. No Cloudflare, `ipDoCabecalho` usa apenas `cf-connecting-ip` quando `CLOUDFLARE_DEPLOY=1`. No Vercel, usa apenas `x-vercel-forwarded-for`. Em outra hospedagem, usa o último `x-forwarded-for` apenas com `AUTENTICACAO_PROXY_CONFIAVEL=1`. Quando não há IP confiável, em produção as ações de login, cadastro e senha são recusadas antes do scrypt e o log orienta a configuração. Em desenvolvimento e nos testes não há limite por IP, mas o limite por e-mail continua. Não há contador de IP compartilhado.
+O limite por IP só vale com um IP confiável. No Cloudflare, `ipDoCabecalho` usa apenas `cf-connecting-ip` quando `CLOUDFLARE_DEPLOY=1`. Em outra hospedagem, usa o último `x-forwarded-for` apenas com `AUTENTICACAO_PROXY_CONFIAVEL=1`. Quando não há IP confiável, em produção as ações de login, cadastro e senha são recusadas antes do scrypt e o log orienta a configuração. Em desenvolvimento e nos testes não há limite por IP, mas o limite por e-mail continua. Não há contador de IP compartilhado.
 
 O IP passa por `normalizarIp` antes de virar chave do contador. O IPv4 escrito como IPv6 (`::ffff:203.0.113.5`) volta a ser IPv4. Os endereços IPv6 viram o prefixo /64, porque quem recebe uma rede IPv6 escolhe qualquer endereço dela a cada requisição: sem isso, cada endereço abriria um contador novo, e o limite por IP não valeria contra quem tem IPv6. A contrapartida é que uma rede /64 inteira, como a de uma casa, divide uma cota só. Um prefixo maior que /64 (como um /56) ainda tem um contador para cada /64, e o cadastro só tem o limite por IP.
 
@@ -573,7 +704,11 @@ O e-mail nunca dá permissão, nem depois de confirmado: as contas antigas não 
 
 Toda resposta leva cabeçalhos de segurança (`headers()` no `next.config.ts`):
 
-- **`Content-Security-Policy`:** scripts, estilos, imagens e conexões só do próprio site e do Google Analytics. As imagens podem vir também do domínio das fotos no R2 (`NEXT_PUBLIC_R2_PUBLIC_URL`). Nos previews, também do `vercel.live`, a barra de comentários do Vercel. `frame-ancestors 'none'` impede que outro site embuta as páginas num iframe (clickjacking), e `form-action 'self'` impede formulários de enviar dados para fora.
+- **`Content-Security-Policy`:** scripts, estilos, imagens e conexões só do próprio site, do Google Analytics e do Cloudflare Web Analytics.
+  - **Google Analytics:** o `connect-src` libera também `*.google.com`, porque o GA4 manda parte dos envios para `www.google.com/g/collect`. O [guia de CSP do Google](https://developers.google.com/tag-platform/security/guides/csp) pede isso mesmo sem os recursos de anúncios.
+  - **Cloudflare Web Analytics:** o script `static.cloudflareinsights.com` e os envios para `cloudflareinsights.com`. O Cloudflare injeta esse script na resposta, e sem a liberação o navegador o barrava em todas as páginas (issue #289).
+  - **Fotos e previews:** as imagens podem vir também do domínio das fotos no R2 (`NEXT_PUBLIC_R2_PUBLIC_URL`).
+  - **Embutir e enviar para fora:** `frame-ancestors 'none'` impede que outro site embuta as páginas num iframe (clickjacking), e `form-action 'self'` impede formulários de enviar dados para fora.
 - **Sem nonce:** a CSP aceita scripts inline (`'unsafe-inline'`), como o script do tema no `layout.tsx` e os do próprio Next. Uma CSP com nonce obriga toda página a ser renderizada a cada acesso e é incompatível com o Partial Prerendering, que o projeto usa com o Cache Components. Ficaríamos sem pré-render e sem cache na CDN.
 - **`Strict-Transport-Security`** (2 anos), **`X-Frame-Options: DENY`** (para navegadores antigos), **`X-Content-Type-Options: nosniff`**, **`Referrer-Policy: strict-origin-when-cross-origin`** (sites abertos a partir do perfil não recebem o endereço completo) e **`Permissions-Policy`** (sem câmera, microfone, localização, pagamento, USB nem `browsing-topics`).
 
@@ -620,6 +755,8 @@ erDiagram
     Usuario ||--o{ Sessao : "tem"
     Usuario ||--o{ EmpresaMembro : "é dono via"
     Empresa ||--o{ EmpresaMembro : "tem donos"
+    Usuario ||--o{ EmpresaFavorita : "favorita"
+    Empresa ||--o{ EmpresaFavorita : "é favorita de"
     Empresa ||--o{ EmpresaCausa : "abraça"
     Empresa ||--o{ Depoimento : "recebe"
     Empresa ||--o{ Reivindicacao : "é pedida em"
@@ -640,10 +777,11 @@ Decisões do esquema:
   - uma conta do Google por conta do site (`googleId`);
   - um ID de conta do Instagram por negócio;
   - um depoimento por pessoa por negócio;
+  - um favorito por pessoa por negócio;
   - um código de DM único (só nos pedidos antigos).
 - **O que acontece ao apagar** (não há tela para isso hoje, só direto no banco):
-  - **uma conta:** apaga as sessões, os vínculos de dono, os pedidos de reivindicação e os depoimentos dela. Os negócios que ela indicou, as decisões que tomou e os registros de auditoria ficam, sem o autor;
-  - **um negócio:** apaga as causas, os donos, os depoimentos e os pedidos ligados a ele.
+  - **uma conta:** apaga as sessões, os vínculos de dono, os favoritos dela, os pedidos de reivindicação e os depoimentos dela. Os negócios que ela indicou, as decisões que tomou e os registros de auditoria ficam, sem o autor;
+  - **um negócio:** apaga as causas, os donos, os favoritos, os depoimentos e os pedidos ligados a ele.
 
 ---
 
@@ -688,7 +826,7 @@ No cliente, os formulários com `useActionState` usam `enviarSemLimpar` (`src/co
 - **Os dados do banco não usam `use cache`,** para estarem sempre atualizados.
 - `usuarioAtual()` usa o `cache` do React: a sessão é lida uma vez por requisição, mesmo que vários componentes perguntem.
 - **Quando algo falha no servidor**, como o banco fora do ar ([#141](https://github.com/fabs-reis/Negocio-do-bem/issues/141)), três peças evitam a tela padrão do Next, em inglês:
-  - `src/app/error.tsx` fica no lugar da página, com "Tentar de novo" (o `retry()` do Next), um link para o início e o código do erro (o `digest`, que acha a mensagem nos logs do Vercel). O cabeçalho e o rodapé continuam na tela;
+  - `src/app/error.tsx` fica no lugar da página, com "Tentar de novo" (o `retry()` do Next), um link para o início e o código do erro (o `digest`, que acha a mensagem nos logs do Worker). O cabeçalho e o rodapé continuam na tela;
   - o `error.tsx` não cobre o layout do mesmo nível, e o menu da conta, que lê a sessão no banco, fica no layout. Por isso o `MenuUsuario` vai dentro do `ProtecaoDoMenu` (`catchError` do Next), que mostra o "Entrar" se a leitura falhar;
   - `src/app/global-error.tsx` é o último recurso, para uma falha no próprio layout. Ele substitui a página inteira e por isso traz o `<html>`, as fontes, o CSS e o script do tema.
 
@@ -705,11 +843,11 @@ Erros que podem ser mostrados para a pessoa usam uma classe própria (`ErroReivi
 ### Interface
 
 - **Componentes de formulário:** `Campo` (rótulo, ajuda e erro), `BotaoEnviar` (mostra "Enviando…"), `Aviso`.
-- **Classes de `globals.css`:** `.botao`, `.botao-coral`, `.botao-claro`, `.cartao`, `.campo`, `.link` e `.historia`. Prefira essas classes a repetir utilitários do Tailwind.
-- **Cores do tema:** `papel`, `superficie`, `tinta`, `suave`, `linha`, `coral` e `folha`. Para algo que só muda no escuro, use a variante `escuro:`.
+- **Classes de `globals.css`:** `.botao`, `.botao-coral`, `.botao-claro`, `.cartao`, `.campo`, `.link` e `.historia`. Prefira essas classes a repetir utilitários do Tailwind. O `.cartao` não tem borda no claro, só a sombra `shadow-cartao`; no escuro a sombra some e a borda volta. O que flutua (barra do celular) usa `shadow-flutuante`.
+- **Cores do tema:** `papel` (fundo, branco quente), `superficie` (cards, campos, menus), `areia` (o creme da marca, para faixas, chips, blocos dentro de cards e botões leves), `tinta`, `suave`, `linha`, `coral` e `folha`. Coral é para ação; folha, para causas e selos. Para algo que só muda no escuro, use a variante `escuro:`.
 - **Cores da marca:** `marca-laranja`, `marca-verde`, `marca-marrom` e `marca-creme` são as do manual e não mudam no escuro. Use para a marca, não para a interface. O logo é o componente `Logo`, e a altura vem do `className`.
 - **Cor fixa nunca:** `bg-white` e afins não mudam no modo escuro. Use `superficie`.
-- **Tipografia:** textos longos usam a fonte serifada (Newsreader), e a interface usa a Inter.
+- **Tipografia:** títulos e números usam `font-display` (Bricolage Grotesque); a interface e o texto corrido usam a Inter. A serifada (Newsreader, `font-serif`) fica para a palavra de destaque em itálico dos títulos, citações, depoimentos e a história do negócio. As imagens de compartilhamento ainda usam a Newsreader.
 
 ---
 
@@ -759,8 +897,9 @@ npm run typecheck
 | Peça | Onde | Observação |
 | --- | --- | --- |
 | Site | Cloudflare Workers, adaptador OpenNext | Produção na branch `main`; previews para `stage` e PRs. |
-| Banco de produção | PlanetScale Postgres (PS-5, nó único), São Paulo, criado e cobrado pelo Cloudflare | O Worker conecta pelo Hyperdrive `negocio-do-bem` (cache desligado, até 8 conexões; o PS-5 tem 25). O build usa a `DATABASE_URL`, direta e com `?sslmode=verify-full`. O Neon antigo ficou só para leitura, como reserva. |
-| Banco dos previews | Projeto Neon separado (da integração do Vercel) | Não compartilha credenciais de produção. Configure em Worker Previews. |
+| Banco de produção | PlanetScale Postgres (PS-5, nó único), São Paulo, criado e cobrado pelo Cloudflare | O Worker conecta pelo Hyperdrive `negocio-do-bem` (cache desligado, até 8 conexões; o PS-5 tem 25). O build usa a `DATABASE_URL`, direta e com `?sslmode=verify-full`. O Neon antigo, que ficou só para leitura como reserva depois da troca, foi apagado em 7 de novembro. |
+| Banco dos previews | Projeto Neon `negocio-do-bem-preview`, da integração do Vercel (plano Launch, cobrado por uso; custa centavos por mês) | Não compartilha credenciais de produção. O console do Neon abre pela Vercel (Storage → o banco → "Open in Neon"). Não use o "Delete Neon" da integração: ele apaga também este banco. |
+| Reserva na Vercel | Vercel Blob das fotos antigas, na equipe da Vercel | Sem projeto conectado desde 31/10, quando o projeto da Vercel foi excluído. O site não mostra mais endereços do Blob; ele fica só como reserva da cópia para o R2. |
 | Domínio | `www.negociodobem.com` como domínio personalizado do Worker | O domínio sem `www` passa pelo proxy do Cloudflare e uma regra de redirecionamento da zona manda para o `www` (301, com caminho e consulta). |
 | Fotos | Cloudflare R2 | Bucket privado para cache; bucket de uploads servido por domínio próprio em produção. Em POC, pode usar a Public Development URL (`r2.dev`), que expõe os objetos publicamente e tem limite de requisições. Configure buckets separados para produção e previews. |
 | Medição | Google Analytics 4 | `NEXT_PUBLIC_GA_ID` só nas variáveis de build da produção. |

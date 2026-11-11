@@ -22,7 +22,9 @@
   },
   "r2_buckets": [
     { "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "negocio-do-bem-cache" },
-    { "binding": "UPLOADS", "bucket_name": "negocio-do-bem-fotos" }
+    { "binding": "UPLOADS", "bucket_name": "negocio-do-bem-fotos" },
+    // Privado, sem domínio público: os documentos da verificação (#293). Só a moderação lê.
+    { "binding": "DOCUMENTOS", "bucket_name": "negocio-do-bem-documentos" }
   ],
   // O Worker de produção fala com o banco pelo Hyperdrive (#177), com o cache de
   // consultas desligado no painel. Os previews não herdam este binding e seguem
@@ -38,7 +40,8 @@
   "previews": {
     "r2_buckets": [
       { "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "negocio-do-bem-preview-cache" },
-      { "binding": "UPLOADS", "bucket_name": "negocio-do-bem-preview-fotos" }
+      { "binding": "UPLOADS", "bucket_name": "negocio-do-bem-preview-fotos" },
+      { "binding": "DOCUMENTOS", "bucket_name": "negocio-do-bem-preview-documentos" }
     ],
     "vars": {
       "DEPLOY_ENV": "preview",
@@ -56,7 +59,8 @@
       "vars": { "DEPLOY_ENV": "preview", "CLOUDFLARE_DEPLOY": "1" },
       "r2_buckets": [
         { "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "negocio-do-bem-preview-cache" },
-        { "binding": "UPLOADS", "bucket_name": "negocio-do-bem-preview-fotos" }
+        { "binding": "UPLOADS", "bucket_name": "negocio-do-bem-preview-fotos" },
+      { "binding": "DOCUMENTOS", "bucket_name": "negocio-do-bem-preview-documentos" }
       ]
     }
   },
