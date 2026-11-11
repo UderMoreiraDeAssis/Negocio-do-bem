@@ -1,18 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { connection } from "next/server";
 import { AbasDoRanking } from "@/components/AbasDoRanking";
 import { BuscaDiretorio } from "@/components/BuscaDiretorio";
+import { CarrosselDeCidades, type SlideDeCidade } from "@/components/CarrosselDeCidades";
 import { Contador } from "@/components/Contador";
 import { EmpresaCard, type EmpresaResumo } from "@/components/EmpresaCard";
 import { FaixaEmbaixadores } from "@/components/FaixaEmbaixadores";
 import { FotoEmpresa } from "@/components/FotoEmpresa";
 import { IconeCategoria } from "@/components/IconeCategoria";
 import { JsonLd } from "@/components/JsonLd";
-import { listarCidades, maisQueridos, resumoDoDiretorio } from "@/lib/consultas";
+import { destaquesDaVitrine, listarCidades, maisQueridos, resumoDoDiretorio } from "@/lib/consultas";
 import { hrefCidade, hrefDiretorio } from "@/lib/diretorio";
 import { CATEGORIAS } from "@/lib/dominio";
-import { ehFotoDoSite } from "@/lib/fotos";
 import { fotoDaCidade } from "@/lib/fotos-das-cidades";
 import { DESCRICAO_DO_SITE, jsonLdDoSite, metadadosDaPagina } from "@/lib/seo";
 
@@ -20,6 +21,7 @@ export const metadata: Metadata = metadadosDaPagina({ descricao: DESCRICAO_DO_SI
 
 const CIDADES_NA_INICIAL = 12;
 const CIDADES_COM_FOTO = 4;
+const CIDADES_NA_VITRINE = 5;
 
 // Atalhos de "Experimente:": levam direto para o diretório já filtrado.
 const ATALHOS = [
@@ -134,43 +136,27 @@ async function BuscaComCidades() {
 }
 
 /**
- * A foto da cidade com mais negócios (entre as que têm foto) e, por cima, até dois dos
- * mais queridos com foto. Sem nenhuma cidade com foto, não aparece.
+ * As fotos das cidades com mais negócios (entre as que têm foto), em carrossel, e por
+ * cima dois negócios sorteados a cada visita, com mais chance para os mais queridos
+ * (ver destaquesDaVitrine). Sem nenhuma cidade com foto, não aparece.
  */
 async function Vitrine() {
-  const [cidades, { maisFavoritados, maisDepoimentos }] = await Promise.all([listarCidades(), maisQueridos()]);
-  const cidade = [...cidades]
+  // O sorteio é por pedido: nunca na publicação.
+  await connection();
+  const [cidades, destaques] = await Promise.all([listarCidades(), destaquesDaVitrine()]);
+  const slides: SlideDeCidade[] = [...cidades]
     .sort((a, b) => b.total - a.total)
-    .map((c) => ({ ...c, foto: fotoDaCidade(c.cidade, c.uf) }))
-    .find((c) => c.foto);
-  if (!cidade?.foto) return null;
-  const vistos = new Set<string>();
-  const destaques = [...maisFavoritados, ...maisDepoimentos]
-    .filter((e) => ehFotoDoSite(e.fotoUrl) && !vistos.has(e.id) && vistos.add(e.id))
-    .slice(0, 2);
+    .flatMap((c) => {
+      const foto = fotoDaCidade(c.cidade, c.uf);
+      return foto
+        ? [{ cidade: c.cidade, uf: c.uf, total: c.total, href: hrefCidade(c.cidade, c.uf), src: foto.src, srcPequena: foto.srcPequena, largura: foto.largura, alt: foto.alt }]
+        : [];
+    })
+    .slice(0, CIDADES_NA_VITRINE);
+  if (slides.length === 0) return null;
   return (
     <div className="relative min-w-0">
-      <Link href={hrefCidade(cidade.cidade, cidade.uf)} className="group relative block overflow-hidden rounded-[1.75rem] lg:ml-[9%]">
-        {/* As fotos já estão reduzidas, em dois tamanhos (ver scripts/fotos-das-cidades.ts). */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={cidade.foto.src}
-          srcSet={`${cidade.foto.srcPequena} 800w, ${cidade.foto.src} ${cidade.foto.largura}w`}
-          sizes="(min-width: 64rem) 30rem, calc(100vw - 2rem)"
-          alt={cidade.foto.alt}
-          fetchPriority="high"
-          className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-[1.03] sm:aspect-[16/9] lg:aspect-[4/4.4]"
-        />
-        <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
-        <span className="absolute bottom-5 left-5 text-white">
-          <span className="block font-display text-2xl font-bold tracking-tight">
-            {cidade.cidade}, {cidade.uf}
-          </span>
-          <span className="text-sm text-white/85">
-            {cidade.total.toLocaleString("pt-BR")} {cidade.total === 1 ? "negócio do bem" : "negócios do bem"}
-          </span>
-        </span>
-      </Link>
+      <CarrosselDeCidades cidades={slides} />
       {destaques.map((empresa, i) => (
         <Link
           key={empresa.id}

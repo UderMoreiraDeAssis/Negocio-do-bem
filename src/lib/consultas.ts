@@ -4,8 +4,10 @@ import type { EstadoFavorito } from "@/components/CoracaoFavorito";
 import type { UsuarioSessao } from "@/lib/auth/sessao";
 import { db, type Prisma } from "@/lib/db";
 import { interpretarLocal, slugCidade, type CidadeComNegocios, type FiltrosDiretorio, type Local, type Ordem } from "@/lib/diretorio";
+import { ehFotoDoSite } from "@/lib/fotos";
 import { nomeOficial } from "@/lib/municipios";
 import { condicaoDeOfertaAtiva } from "@/lib/ofertas";
+import { sortearComPeso } from "@/lib/sorteio";
 import { normalizarTexto } from "@/lib/texto";
 
 export const POR_PAGINA = 18;
@@ -331,3 +333,36 @@ export const maisQueridos = cache(async (limite = LIMITE_DO_RANKING) => {
   ]);
   return { maisFavoritados, maisDepoimentos };
 });
+
+const OUTROS_PARA_COMPLETAR = 40;
+
+/**
+ * Os negócios que aparecem por cima da foto na página inicial, sorteados a cada visita.
+ * Só entram negócios do diretório com foto. Primeiro sorteia entre os que têm algum
+ * favorito ou depoimento publicado, com chance proporcional à soma dos dois; se não der
+ * para preencher, completa com outros com foto, entre os mais recentes, todos com a
+ * mesma chance. Não usa cache: cada pedido sorteia de novo.
+ */
+export async function destaquesDaVitrine(quantos = 2, aleatorio: () => number = Math.random) {
+  const COM_FOTO = { ...NO_DIRETORIO, fotoUrl: { not: null } } satisfies Prisma.EmpresaWhereInput;
+  const queridos = await db.empresa.findMany({
+    where: { ...COM_FOTO, OR: [{ favoritos: { some: {} } }, { depoimentos: { some: { status: "publicado" } } }] },
+    select: { id: true, fotoUrl: true, _count: { select: { favoritos: true, depoimentos: { where: { status: "publicado" } } } } },
+  });
+  const ids = sortearComPeso(
+    queridos.filter((e) => ehFotoDoSite(e.fotoUrl)).map((e) => ({ item: e.id, peso: e._count.favoritos + e._count.depoimentos })),
+    quantos,
+    aleatorio,
+  );
+  if (ids.length < quantos) {
+    const outros = await db.empresa.findMany({
+      where: { ...COM_FOTO, id: { notIn: queridos.map((e) => e.id) } },
+      select: { id: true, fotoUrl: true },
+      orderBy: { criadoEm: "desc" },
+      take: OUTROS_PARA_COMPLETAR,
+    });
+    const comFoto = outros.filter((e) => ehFotoDoSite(e.fotoUrl)).map((e) => ({ item: e.id, peso: 1 }));
+    ids.push(...sortearComPeso(comFoto, quantos - ids.length, aleatorio));
+  }
+  return negociosNaOrdem(ids);
+}

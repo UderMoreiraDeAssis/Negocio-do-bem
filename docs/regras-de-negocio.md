@@ -879,7 +879,7 @@ Código: `src/acoes/depoimentos.ts`, `decidirDenuncia` em `src/acoes/moderacao.t
 
 ## 11. Diretório e busca
 
-Código: filtros e "Onde?" em `src/lib/diretorio.ts`, consultas em `src/lib/consultas.ts` (`resumoDoDiretorio`, `listarCidades`, `buscarDiretorio`, `maisQueridos`), páginas `src/app/page.tsx` e `src/app/explorar/page.tsx`.
+Código: filtros e "Onde?" em `src/lib/diretorio.ts`, consultas em `src/lib/consultas.ts` (`resumoDoDiretorio`, `listarCidades`, `buscarDiretorio`, `maisQueridos`, `destaquesDaVitrine`, com o sorteio em `src/lib/sorteio.ts`), o carrossel em `src/components/CarrosselDeCidades.tsx`, páginas `src/app/page.tsx` e `src/app/explorar/page.tsx`.
 
 - **Quem aparece:** só negócios com `moderacao = "aprovada"` e `oculta = false`. Os números da página inicial contam os mesmos negócios.
 
@@ -887,7 +887,7 @@ Código: filtros e "Onde?" em `src/lib/diretorio.ts`, consultas em `src/lib/cons
 
 A ordem, de cima para baixo:
 
-- **Primeira tela:** um selo com quantos negócios há e em quantas cidades, o título, a busca e os atalhos. Ao lado (embaixo, no celular), a foto da cidade com mais negócios entre as que têm foto, com o nome e o total, levando à página da cidade. Por cima da foto, até dois dos mais queridos que têm foto (o segundo só no computador). Sem cidade com foto, a foto não aparece.
+- **Primeira tela:** um selo com quantos negócios há e em quantas cidades, o título, a busca e os atalhos. Ao lado (embaixo, no celular), um carrossel com as fotos das 5 cidades com mais negócios entre as que têm foto, cada uma com o nome e o total, levando à página da cidade. Troca sozinho a cada 5 segundos, para com o mouse em cima ou com o foco dentro, e pode ser trocado pelos pontos; para quem pediu menos movimento no sistema, só troca pelos pontos. Por cima das fotos, dois negócios sorteados a cada visita (o segundo só no computador). Só entram negócios do diretório com foto do site. O sorteio é primeiro entre os que têm algum favorito ou depoimento publicado, com chance proporcional à soma dos dois (quem tem 4 aparece, em média, quatro vezes mais que quem tem 1); se faltar gente, completa com outros com foto, entre os 40 mais recentes, todos com a mesma chance. Sem cidade com foto, a vitrine não aparece.
 - **A busca** tem dois campos, "O que você procura?" e "Onde?", e leva ao diretório.
 - **"Experimente:"** tem atalhos fixos para um tipo de negócio e algumas causas.
 - **Os números:** quantos negócios (subindo até o total ao abrir a página, direto no total para quem pede menos movimento no sistema), cidades, estados e perfis assumidos.
