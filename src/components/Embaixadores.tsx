@@ -23,7 +23,7 @@ export function RostoDoEmbaixador({ embaixador, className }: { embaixador: Rosto
   return (
     <span
       aria-hidden="true"
-      className={`grid shrink-0 place-items-center rounded-full bg-gradient-to-br font-serif font-semibold ${paletaDe(embaixador.instagramUsername)} ${className}`}
+      className={`grid shrink-0 place-items-center rounded-full bg-gradient-to-br font-display font-semibold ${paletaDe(embaixador.instagramUsername)} ${className}`}
     >
       {iniciais(embaixador.nome)}
     </span>
@@ -46,18 +46,18 @@ export function CartaoEmbaixador({ embaixador }: { embaixador: EmbaixadorNoSite 
       <Link href={embaixador.href} className="group flex items-center gap-4">
         <RostoDoEmbaixador embaixador={embaixador} className="h-16 w-16 text-xl ring-2 ring-coral ring-offset-[3px] ring-offset-superficie" />
         <div className="min-w-0">
-          <h2 className="font-serif text-xl leading-tight font-semibold group-hover:text-coral-700">{embaixador.nome}</h2>
+          <h2 className="font-display text-xl leading-tight font-semibold group-hover:text-coral-700">{embaixador.nome}</h2>
           <p className="mt-0.5 text-sm break-all text-suave">@{embaixador.instagramUsername}</p>
         </div>
       </Link>
       {embaixador.seguidores && (
         <p className="text-sm text-suave">
-          <strong className="font-serif text-2xl font-semibold text-tinta">{embaixador.seguidores}</strong> seguidores no Instagram
+          <strong className="font-display text-2xl font-semibold text-tinta">{embaixador.seguidores}</strong> seguidores no Instagram
         </p>
       )}
       <Link
         href={embaixador.destino.href}
-        className="mt-auto flex min-h-11 items-center justify-between gap-3 rounded-2xl bg-papel px-3.5 py-3 transition hover:bg-coral-50"
+        className="mt-auto flex min-h-11 items-center justify-between gap-3 rounded-2xl bg-areia px-3.5 py-3 transition hover:bg-coral-50"
       >
         <span className="flex min-w-0 items-center gap-2.5">
           <IconeLugar className="h-5 w-5 shrink-0 text-coral-700" />
@@ -84,7 +84,7 @@ export function EmbaixadoresDaCidade({ embaixadores }: { embaixadores: Embaixado
         <RostoDoEmbaixador embaixador={principal} className="h-15 w-15 text-xl ring-2 ring-coral ring-offset-[3px] ring-offset-superficie" />
         <div className="min-w-0 flex-[1_1_12rem]">
           <p className="text-xs font-semibold tracking-[0.12em] text-coral-700 uppercase">{tituloNaCidade(principal)}</p>
-          <p className="mt-0.5 font-serif text-xl font-semibold">{principal.nome}</p>
+          <p className="mt-0.5 font-display text-xl font-semibold">{principal.nome}</p>
           <p className="text-sm text-suave">
             @{principal.instagramUsername}
             {principal.seguidores && ` · ${principal.seguidores} seguidores`}

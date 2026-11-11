@@ -49,7 +49,7 @@ export async function Depoimentos({ filtros }: { filtros: FiltrosModeracao }) {
                 {d.texto}
               </blockquote>
               {d.resposta && (
-                <p className="rounded-2xl bg-papel p-3 text-sm whitespace-pre-line">
+                <p className="rounded-2xl bg-areia p-3 text-sm whitespace-pre-line">
                   <span className="font-semibold">Resposta do negócio:</span> {d.resposta}
                 </p>
               )}

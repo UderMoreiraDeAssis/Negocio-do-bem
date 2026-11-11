@@ -5,6 +5,8 @@
 
 @theme {
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  /* Títulos e números. A serifada fica para a palavra de destaque, citações e a história. */
+  --font-display: "Bricolage Grotesque Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Newsreader Variable", ui-serif, Georgia, serif;
 
   /* Cores do manual da marca (src/lib/marca.ts). Não mudam no modo escuro: o
@@ -14,19 +16,26 @@
   --color-marca-marrom: #2d251d;
   --color-marca-creme: #f9f3eb;
 
-  /* Tema: o creme da marca como papel, o marrom como tinta e o laranja (coral) como destaque. */
-  --color-papel: #f9f3eb;
-  /* Fundo de cards, campos e menus: quase branco no claro, quase preto no escuro. */
-  --color-superficie: #fffdf9;
-  --color-tinta: #2d251d;
-  --color-suave: #6e6357;
-  --color-linha: #eadfd0;
-  --color-coral-50: #fdefe8;
+  /* Tema (novo visual, #331): branco quente como papel, o marrom como tinta, o laranja
+     (coral) para ação e o verde (folha) para causas e selos. A areia é o creme da marca,
+     usada em faixas, chips e botões leves. */
+  --color-papel: #fcfaf7;
+  /* Fundo de cards, campos e menus: branco no claro, quase preto no escuro. */
+  --color-superficie: #ffffff;
+  --color-areia: #f5f0e9;
+  --color-tinta: #221c16;
+  --color-suave: #6d645b;
+  --color-linha: #ebe4db;
+  --color-coral-50: #fdeee7;
   --color-coral-100: #fbdccd;
   --color-coral: #e45c32;
   --color-coral-700: #b9401d;
-  --color-folha-50: #e8f3ec;
+  --color-folha-50: #e6f2eb;
   --color-folha: #2b7e53;
+
+  /* Sombras no lugar de bordas: leve nos cards, mais alta no que flutua (barra do celular, menus). */
+  --shadow-cartao: 0 1px 2px rgb(34 28 22 / 0.05), 0 8px 24px -12px rgb(34 28 22 / 0.14);
+  --shadow-flutuante: 0 2px 4px rgb(34 28 22 / 0.06), 0 24px 48px -20px rgb(34 28 22 / 0.28);
 }
 
 /*
@@ -36,17 +45,18 @@
  */
 [data-tema="escuro"] {
   color-scheme: dark;
-  --color-papel: #17120e;
-  --color-superficie: #221b15;
-  --color-tinta: #f9f3eb;
-  --color-suave: #a99c8e;
-  --color-linha: #3a3029;
-  --color-coral-50: #331f18;
+  --color-papel: #131110;
+  --color-superficie: #1c1916;
+  --color-areia: #221e1a;
+  --color-tinta: #f6f1ea;
+  --color-suave: #a59b90;
+  --color-linha: #2f2a25;
+  --color-coral-50: #33201a;
   --color-coral-100: #4a2a1f;
-  --color-coral: #ec6a43;
+  --color-coral: #ef6c43;
   --color-coral-700: #f4936f;
-  --color-folha-50: #17281e;
-  --color-folha: #74c493;
+  --color-folha-50: #16281e;
+  --color-folha: #6fc493;
 
   --color-sky-50: #0f2230;
   --color-sky-100: #163246;
@@ -73,6 +83,12 @@
   --color-orange-50: #2e1c10;
 }
 
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
 body {
   background: var(--color-papel);
   color: var(--color-tinta);
@@ -92,13 +108,14 @@ body {
     @apply inline-flex items-center justify-center gap-2 rounded-full bg-coral px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-coral-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral disabled:cursor-not-allowed disabled:opacity-60;
   }
   .botao-claro {
-    @apply inline-flex items-center justify-center gap-2 rounded-full border border-linha bg-superficie px-5 py-2.5 text-sm font-semibold text-tinta transition hover:border-tinta/30 hover:bg-papel focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-areia px-5 py-2.5 text-sm font-semibold text-tinta transition hover:bg-linha focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral disabled:cursor-not-allowed disabled:opacity-60;
   }
   .botao-pequeno {
     @apply px-3.5 py-1.5 text-xs;
   }
+  /* Sem borda no claro, só a sombra leve; no escuro a sombra some e a borda volta. */
   .cartao {
-    @apply rounded-3xl border border-linha bg-superficie;
+    @apply rounded-3xl border border-transparent bg-superficie shadow-cartao escuro:border-linha escuro:shadow-none;
   }
   .rotulo {
     @apply mb-1.5 block text-sm font-medium text-tinta;

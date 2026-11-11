@@ -92,9 +92,9 @@ beforeEach(async () => {
   await limparBanco();
   contexto.cookies.clear();
   contexto.depois.length = 0;
-  contexto.cabecalhos = { "x-vercel-forwarded-for": "203.0.113.7" };
+  contexto.cabecalhos = { "cf-connecting-ip": "203.0.113.7" };
   contexto.usuario = null;
-  vi.stubEnv("VERCEL", "1");
+  vi.stubEnv("CLOUDFLARE_DEPLOY", "1");
   vi.mocked(enviarEmail).mockClear();
   criarSessao.mockClear();
 });
@@ -298,7 +298,7 @@ describe("pedirRedefinicaoDeSenha", () => {
   it(`cada conta recebe no máximo ${LIMITE_LINKS_POR_HORA} links por hora, mesmo de IPs diferentes`, async () => {
     await criarConta();
     for (let i = 0; i < LIMITE_LINKS_POR_HORA + 3; i++) {
-      contexto.cabecalhos = { "x-vercel-forwarded-for": `203.0.113.${10 + i}` };
+      contexto.cabecalhos = { "cf-connecting-ip": `203.0.113.${10 + i}` };
       await redirecionou(pedirRedefinicaoDeSenha({}, dadosEmail("ana@exemplo.com")));
       await rodarDepois();
     }

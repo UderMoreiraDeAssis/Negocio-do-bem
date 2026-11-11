@@ -49,7 +49,7 @@ export function EscolhaDoAparelho() {
             </span>
           )}
           <Icone className={`h-14 w-14 sm:h-16 sm:w-16 ${corDoIcone}`} />
-          <span className="mt-4 font-serif text-2xl font-semibold sm:text-3xl">{nome}</span>
+          <span className="mt-4 font-display text-2xl font-semibold sm:text-3xl">{nome}</span>
           <span className="mt-1 text-sm text-suave">{detalhe}</span>
           <span className="mt-4 text-sm font-semibold text-coral-700">Ver o passo a passo&nbsp;→</span>
         </Link>

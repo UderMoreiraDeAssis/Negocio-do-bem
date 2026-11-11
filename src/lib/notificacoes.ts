@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import { enviarEmail, envioLigado } from "@/lib/email";
 import { hrefModeracao } from "@/lib/moderacao/filtros";
 import { ENDERECO_DO_SITE, NOME_DO_SITE } from "@/lib/seo";
+import { comPontoFinal } from "@/lib/texto";
 
 export function primeiroNome(nome: string): string {
   return nome.trim().split(/\s+/)[0] || nome;
@@ -68,6 +69,78 @@ export async function avisarDecisaoDaReivindicacao(reivindicacaoId: string): Pro
   }
 }
 
+/** Para a moderação: um dono pediu a troca do @ do negócio. */
+export async function avisarNovaTrocaDeArroba(empresaId: string): Promise<void> {
+  if (!envioLigado()) return;
+  const troca = await db.trocaDeArroba.findFirst({
+    where: { empresaId, status: "pendente" },
+    include: { empresa: { select: { nome: true } } },
+  });
+  if (!troca) return;
+  await avisarModeracao(
+    `Pedido de troca do @: @${troca.arrobaAntigo} → @${troca.arrobaNovo}`,
+    corpo(
+      `Um dono de ${troca.empresa.nome} pediu para trocar o @ do negócio de @${troca.arrobaAntigo} para @${troca.arrobaNovo}.`,
+      `Confira o perfil no Instagram e decida na fila:\n${ENDERECO_DO_SITE}${hrefModeracao("arroba")}`,
+    ),
+  );
+}
+
+/** Para o dono: a moderação aprovou ou recusou a troca do @ que ele pediu. */
+export async function avisarDecisaoDaTrocaDeArroba(empresaId: string, usuarioId: string): Promise<void> {
+  if (!envioLigado()) return;
+  const troca = await db.trocaDeArroba.findFirst({
+    where: { empresaId, usuarioId, status: { in: ["aprovada", "recusada"] } },
+    orderBy: { decididoEm: "desc" },
+    include: { usuario: { select: { nome: true, email: true } }, empresa: { select: { nome: true, instagramUsername: true } } },
+  });
+  if (!troca) return;
+  const { usuario, empresa } = troca;
+  const ola = `Olá, ${primeiroNome(usuario.nome)}!`;
+  if (troca.status === "aprovada") {
+    await enviarEmail({
+      para: usuario.email,
+      assunto: `${empresa.nome} agora é @${troca.arrobaNovo}`,
+      texto: corpo(
+        ola,
+        `A moderação aprovou a troca do @ de ${empresa.nome}: agora é @${troca.arrobaNovo}.`,
+        `O endereço da página mudou junto, e o antigo continua levando para o novo:\n${ENDERECO_DO_SITE}/empresas/${empresa.instagramUsername}`,
+      ),
+    });
+  } else {
+    await enviarEmail({
+      para: usuario.email,
+      assunto: `A troca do @ de ${empresa.nome} não foi aprovada`,
+      texto: corpo(
+        ola,
+        `A moderação analisou o pedido para trocar o @ de ${empresa.nome} para @${troca.arrobaNovo} e não aprovou desta vez.`,
+        `Motivo: ${comPontoFinal(troca.motivo ?? "não informado")}`,
+        `Você pode pedir de novo no painel:\n${ENDERECO_DO_SITE}/painel/${empresa.instagramUsername}#arroba`,
+      ),
+    });
+  }
+}
+
+/** Para quem deixou de ser dono: a moderação tirou a conta dos donos do negócio, com o motivo. */
+export async function avisarDonoRemovido(empresaId: string, usuarioId: string, motivo: string): Promise<void> {
+  if (!envioLigado()) return;
+  const [usuario, empresa] = await Promise.all([
+    db.usuario.findUnique({ where: { id: usuarioId }, select: { nome: true, email: true } }),
+    db.empresa.findUnique({ where: { id: empresaId }, select: { nome: true, instagramUsername: true } }),
+  ]);
+  if (!usuario || !empresa) return;
+  await enviarEmail({
+    para: usuario.email,
+    assunto: `Você não é mais dono de ${empresa.nome} no ${NOME_DO_SITE}`,
+    texto: corpo(
+      `Olá, ${primeiroNome(usuario.nome)}!`,
+      `A moderação tirou a sua conta dos donos do perfil de ${empresa.nome} (@${empresa.instagramUsername}). Você não edita mais o perfil, e as ofertas que você criou no Clube do Bem saíram do ar.`,
+      `Motivo: ${comPontoFinal(motivo)}`,
+      `Se você é dono deste negócio, responda este e-mail ou peça o perfil de novo. A moderação vai analisar o pedido:\n${ENDERECO_DO_SITE}/empresas/${empresa.instagramUsername}/reivindicar`,
+    ),
+  });
+}
+
 /** Para a moderação: um pedido de reivindicação ficou na fila para ela decidir. */
 export async function avisarNovaReivindicacao(empresaId: string): Promise<void> {
   if (!envioLigado()) return;
@@ -80,6 +153,59 @@ export async function avisarNovaReivindicacao(empresaId: string): Promise<void> 
       `Veja na fila de reivindicações:\n${ENDERECO_DO_SITE}${hrefModeracao("reivindicacoes")}`,
     ),
   );
+}
+
+/** Para a moderação: um dono pediu a verificação do negócio para o Clube do Bem. */
+export async function avisarNovoPedidoDoClube(empresaId: string): Promise<void> {
+  if (!envioLigado()) return;
+  const empresa = await db.empresa.findUnique({ where: { id: empresaId }, select: { nome: true, instagramUsername: true } });
+  if (!empresa) return;
+  await avisarModeracao(
+    `Novo pedido do Clube do Bem: @${empresa.instagramUsername}`,
+    corpo(
+      `Um dono de ${empresa.nome} (@${empresa.instagramUsername}) pediu a verificação do negócio para criar ofertas no Clube do Bem.`,
+      `Confira o CNPJ na fila do clube:\n${ENDERECO_DO_SITE}${hrefModeracao("clube")}`,
+    ),
+  );
+}
+
+/** Para o dono: a moderação liberou ou recusou o pedido dele no Clube do Bem. */
+export async function avisarDecisaoDoClube(empresaId: string, usuarioId: string): Promise<void> {
+  if (!envioLigado()) return;
+  const liberacao = await db.liberacaoClube.findUnique({
+    where: { empresaId_usuarioId: { empresaId, usuarioId } },
+    include: {
+      usuario: { select: { nome: true, email: true } },
+      empresa: { select: { nome: true, instagramUsername: true } },
+    },
+  });
+  if (!liberacao) return;
+  const { usuario, empresa } = liberacao;
+  const painel = `${ENDERECO_DO_SITE}/painel/${empresa.instagramUsername}/clube`;
+  const ola = `Olá, ${primeiroNome(usuario.nome)}!`;
+
+  if (liberacao.status === "liberada") {
+    await enviarEmail({
+      para: usuario.email,
+      assunto: `${empresa.nome} está no Clube do Bem`,
+      texto: corpo(
+        ola,
+        `A moderação conferiu o CNPJ de ${empresa.nome} (@${empresa.instagramUsername}), e você já pode criar ofertas no Clube do Bem.`,
+        `Crie a primeira no painel do clube:\n${painel}`,
+      ),
+    });
+  } else if (liberacao.status === "recusada") {
+    await enviarEmail({
+      para: usuario.email,
+      assunto: `Seu pedido do Clube do Bem para ${empresa.nome} não foi aprovado`,
+      texto: corpo(
+        ola,
+        `A moderação analisou o pedido de ${empresa.nome} (@${empresa.instagramUsername}) para o Clube do Bem e não aprovou desta vez.`,
+        `Motivo: ${liberacao.motivo ?? "não informado."}`,
+        `Você pode corrigir e pedir de novo no painel do clube:\n${painel}`,
+      ),
+    });
+  }
 }
 
 /** Para a moderação: um depoimento foi denunciado. */

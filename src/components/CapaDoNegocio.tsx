@@ -19,7 +19,7 @@ export function CapaDoNegocio({ cidade, uf }: { cidade: string; uf: string }) {
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={ICONE_CREME} alt="" className="h-20 w-auto sm:h-28" />
-      <p className="max-w-[12rem] font-serif text-2xl leading-tight font-semibold text-marca-creme sm:max-w-xs sm:text-4xl">
+      <p className="max-w-[12rem] font-display text-2xl leading-tight font-semibold text-marca-creme sm:max-w-xs sm:text-4xl">
         Compre de quem faz o bem.
       </p>
     </div>

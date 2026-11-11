@@ -1,4 +1,4 @@
-// Rotina de fotos de perfil: roda no computador de quem cuida do projeto, não no Vercel.
+// Rotina de fotos de perfil: roda no computador de quem cuida do projeto, não no Worker.
 //
 // 1. Pergunta ao site quais negócios estão sem foto (GET /api/fotos-instagram).
 // 2. Para cada um, usa a foto da pasta manual (fotos-manuais/<@>.jpg|png|webp), se

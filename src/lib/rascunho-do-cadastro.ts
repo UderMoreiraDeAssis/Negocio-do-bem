@@ -39,3 +39,29 @@ export function lerRascunho(dados: unknown): Rascunho | null {
   }
   return Object.keys(rascunho).length > 0 ? rascunho : null;
 }
+
+/** Onde o rascunho fica no navegador (`localStorage`). */
+export const CHAVE_DO_RASCUNHO = "ndb:cadastro";
+
+/** Para onde a pessoa volta depois de entrar ou criar a conta no meio do cadastro. */
+export const VOLTA_AO_CADASTRO = "/participar?continuar=1#cadastro";
+
+/** Se quem entra ou cria a conta veio do cadastro por etapas: o `voltar` leva de volta a ele. */
+export function voltaAoCadastro(voltar: string): boolean {
+  try {
+    const destino = new URL(voltar, "http://origem.invalid");
+    return destino.origin === "http://origem.invalid" && destino.pathname === "/participar" && destino.searchParams.get("continuar") === "1";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * O contato que a pessoa deu no cadastro, para começar o formulário da conta:
+ * o e-mail e o telefone de quem cadastrou como dono. Quem só indicou não deu
+ * contato. Os valores são só o começo: a pessoa muda o que quiser.
+ */
+export function contatoDoRascunho(rascunho: Rascunho | null): { email: string; telefone: string } {
+  if (rascunho?.souDono !== "sim") return { email: "", telefone: "" };
+  return { email: rascunho.emailDoDono?.trim() ?? "", telefone: rascunho.telefoneDoDono?.trim() ?? "" };
+}

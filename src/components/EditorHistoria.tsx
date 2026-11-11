@@ -262,7 +262,7 @@ function Botao({
       // Sem roubar o foco do editor, para a formatação valer no trecho selecionado.
       onMouseDown={(evento) => evento.preventDefault()}
       className={`min-w-9 rounded-lg px-2.5 py-1.5 text-sm transition disabled:opacity-40 ${
-        ativo ? "bg-tinta text-papel" : "text-tinta hover:bg-papel"
+        ativo ? "bg-tinta text-papel" : "text-tinta hover:bg-areia"
       }`}
       {...props}
     >

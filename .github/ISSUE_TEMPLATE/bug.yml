@@ -1,0 +1,56 @@
+name: Reportar bug
+description: Algo não funciona como deveria
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Antes de abrir, confira se já existe uma issue sobre o mesmo assunto.
+        Não inclua dados sensíveis nem dados reais de pessoas ou negócios.
+        Falhas de segurança devem seguir a [política de segurança](https://github.com/fabs-reis/Negocio-do-bem/security/policy), sem issue pública.
+  - type: textarea
+    id: comportamento
+    attributes:
+      label: O que acontece hoje
+      description: Descreva o problema e, se souber, quem é afetado.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduzir
+    attributes:
+      label: Como reproduzir
+      description: Liste os passos que levam ao problema. Se não conseguir reproduzir, conte em que situação aconteceu.
+      placeholder: |
+        1. Abra a página...
+        2. Faça...
+        3. Observe...
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Resultado esperado e escopo
+      description: Se souber, explique o que deveria acontecer e o que fica fora do escopo.
+  - type: textarea
+    id: aceite
+    attributes:
+      label: Critérios de aceite
+      description: Opcional para quem reporta. A triagem pode completar os resultados observáveis que indicam a correção.
+      placeholder: "- [ ] O problema não acontece mais ao seguir os passos informados."
+  - type: textarea
+    id: evidencias
+    attributes:
+      label: Evidências e ambiente
+      description: Prints, vídeo, mensagem de erro, endereço da página, navegador e dispositivo, quando disponíveis. Use apenas dados fictícios.
+  - type: textarea
+    id: dependencias
+    attributes:
+      label: Dependências e trabalhos relacionados
+      description: Informe issues, PRs, sobreposições ou bloqueios. Se não souber, escreva "Nenhum conhecido".
+  - type: checkboxes
+    id: assumir
+    attributes:
+      label: Quero assumir esta issue
+      description: Marcar interesse não atribui a issue automaticamente. A PM confirma o encaminhamento na triagem e no GitHub Project.
+      options:
+        - label: Sim. Vou registrar meu interesse na issue e abrir um Draft PR quando começar.

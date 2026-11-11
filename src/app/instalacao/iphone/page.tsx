@@ -60,14 +60,14 @@ export default function InstalacaoIphone() {
 
       <div className="mt-12 grid gap-4 sm:grid-cols-2">
         <div className="rounded-3xl bg-coral-50 p-6">
-          <h2 className="font-serif text-lg font-semibold text-coral-700">Importante: entre na sua conta de novo</h2>
+          <h2 className="font-display text-lg font-semibold text-coral-700">Importante: entre na sua conta de novo</h2>
           <p className="mt-2 text-sm leading-relaxed">
             No iPhone, o app guarda o login separado do Safari. Na primeira vez que abrir o app, entre na sua conta outra
             vez, pelo Google ou com e-mail e senha. O “link por e-mail” sempre abre no Safari.
           </p>
         </div>
         <div className="cartao p-6">
-          <h2 className="font-serif text-lg font-semibold">Usa outro navegador?</h2>
+          <h2 className="font-display text-lg font-semibold">Usa outro navegador?</h2>
           <p className="mt-2 text-sm leading-relaxed text-suave">
             No Chrome do iPhone, o caminho é parecido: Compartilhar, na barra de endereço, e depois Adicionar à Tela de
             Início. Se não encontrar, abra o site no Safari.

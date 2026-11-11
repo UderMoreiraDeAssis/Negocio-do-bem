@@ -25,7 +25,7 @@ export default function PaginaLink(props: PageProps<"/link">) {
 function Moldura({ titulo, texto, children }: { titulo: string; texto: ReactNode; children: ReactNode }) {
   return (
     <>
-      <h1 className="text-center font-serif text-4xl font-semibold tracking-tight">{titulo}</h1>
+      <h1 className="text-center font-display text-4xl font-semibold tracking-tight">{titulo}</h1>
       <div className="cartao mt-8 space-y-6 p-6 sm:p-8">
         <p className="leading-relaxed text-suave">{texto}</p>
         {children}

@@ -145,12 +145,10 @@ export async function redefinirSenhaComLink(token: string, novaSenha: string): P
 /**
  * Endereço que vai no e-mail. Vem da configuração e nunca do cabeçalho Host da
  * requisição: quem forjasse o Host receberia no próprio site o link de outra pessoa.
- * Nos previews do Vercel, o link aponta para o próprio preview; em Cloudflare,
- * APP_URL é configurado para o endereço canônico.
+ * A base é o APP_URL do ambiente, como nos outros links absolutos.
  */
 export function urlDoLink(token: string): string {
-  const base = process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : ENDERECO_DO_SITE;
-  return `${base}/api/link?t=${token}`;
+  return `${ENDERECO_DO_SITE}/api/link?t=${token}`;
 }
 
 /**

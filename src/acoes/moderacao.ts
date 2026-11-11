@@ -6,9 +6,18 @@ import { registrarAuditoria } from "@/lib/auditoria";
 import { exigirModerador } from "@/lib/auth/sessao";
 import { db } from "@/lib/db";
 import { texto } from "@/lib/formulario";
-import { comAviso, destinoNaModeracao } from "@/lib/moderacao/filtros";
-import { avisarDecisaoDaReivindicacao } from "@/lib/notificacoes";
-import { aprovar, aprovarPendentesSemDono, ErroReivindicacao, recusar, type ModoAprovacao } from "@/lib/reivindicacao";
+import { comAviso, destinoNaModeracao, hrefModeracao } from "@/lib/moderacao/filtros";
+import { apagarDocumentosDaLiberacao } from "@/lib/clube";
+import { avisarDecisaoDaReivindicacao, avisarDonoRemovido } from "@/lib/notificacoes";
+import { suspenderOfertasQueValem } from "@/lib/ofertas";
+import {
+  aprovar,
+  aprovarPendentesSemDono,
+  ErroReivindicacao,
+  recusar,
+  removerDono as tirarDosDonos,
+  type ModoAprovacao,
+} from "@/lib/reivindicacao";
 
 function voltar(aba: string, aviso: string): never {
   redirect(`/moderacao?aba=${aba}&aviso=${aviso}`);
@@ -85,6 +94,9 @@ export async function moderarEmpresa(dados: FormData): Promise<void> {
       where: { id: texto(dados, "empresaId") },
       data: { moderacao: decisao },
     });
+    if (decisao === "rejeitada") {
+      await suspenderOfertasQueValem(tx, { empresaId: empresa.id });
+    }
     await registrarAuditoria(tx, {
       usuarioId: moderador.id,
       acao: decisao === "aprovada" ? "empresa.aprovada" : "empresa.rejeitada",
@@ -96,6 +108,31 @@ export async function moderarEmpresa(dados: FormData): Promise<void> {
   const destino = destinoNaModeracao(dados.get("voltar"));
   if (destino) redirect(comAviso(destino, "feito"));
   voltar(aba, "feito");
+}
+
+/** Volta para a seção de donos da ficha do negócio ou, com `voltar=fila`, para a fila do clube. */
+function voltarDosDonos(dados: FormData, username: string, aviso: string): never {
+  if (texto(dados, "voltar") === "fila") redirect(`${hrefModeracao("clube", { aviso })}#pedidos`);
+  redirect(`/moderacao/negocios/${username}?aviso=${aviso}#donos`);
+}
+
+/**
+ * Tira uma conta dos donos do negócio, com o motivo, que a pessoa recebe por e-mail. Só
+ * com a confirmação marcada. As regras estão em `removerDono` (src/lib/reivindicacao.ts).
+ */
+export async function removerDono(dados: FormData): Promise<void> {
+  const moderador = await exigirModerador("acao");
+  const empresa = await db.empresa.findUnique({ where: { id: texto(dados, "empresaId") }, select: { id: true, instagramUsername: true } });
+  if (!empresa) redirect("/moderacao?aba=negocios");
+  if (texto(dados, "confirmo") !== "sim") voltarDosDonos(dados, empresa.instagramUsername, "dono_sem_confirmacao");
+  const usuarioId = texto(dados, "usuarioId");
+  const motivo = texto(dados, "motivo").trim().slice(0, 500) || "Sem motivo informado";
+  const resultado = await tirarDosDonos({ empresaId: empresa.id, usuarioId, moderadorId: moderador.id, motivo });
+  if (!resultado?.removido) voltarDosDonos(dados, empresa.instagramUsername, "dono_ja_removido");
+  // Um pedido do clube em análise foi recusado junto: o documento dele não fica guardado.
+  await apagarDocumentosDaLiberacao(empresa.id, usuarioId);
+  after(() => avisarDonoRemovido(empresa.id, usuarioId, motivo));
+  voltarDosDonos(dados, empresa.instagramUsername, "dono_removido");
 }
 
 export async function decidirDenuncia(dados: FormData): Promise<void> {

@@ -15,11 +15,11 @@ import { INDEXAVEL, urlAbsoluta } from "@/lib/seo";
 // tipo e pelo sitemap.
 export default function robots(): MetadataRoute.Robots {
   if (!INDEXAVEL) {
-    // Previews do Vercel: nada entra no índice, para não competir com a produção.
+    // Previews: nada entra no índice, para não competir com a produção.
     return { rules: { userAgent: "*", disallow: "/" } };
   }
   return {
-    rules: { userAgent: "*", allow: "/", disallow: ["/painel", "/moderacao", "/api/", "/explorar?"] },
+    rules: { userAgent: "*", allow: "/", disallow: ["/painel", "/favoritos", "/cupons", "/moderacao", "/api/", "/explorar?"] },
     sitemap: urlAbsoluta("/sitemap.xml"),
   };
 }

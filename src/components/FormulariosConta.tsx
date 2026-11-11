@@ -15,6 +15,8 @@ import {
 import { Aviso } from "@/components/Aviso";
 import { BotaoEnviar } from "@/components/BotaoEnviar";
 import { enviarSemLimpar } from "@/components/envio";
+import { useRascunhoDoAparelho } from "@/components/rascunho-no-aparelho";
+import { contatoDoRascunho, voltaAoCadastro } from "@/lib/rascunho-do-cadastro";
 
 function valorTexto(valores: Record<string, string | string[]> | undefined, campo: string): string {
   const v = valores?.[campo];
@@ -101,12 +103,27 @@ export function FormPedirLink({ voltar }: { voltar: string }) {
   );
 }
 
+/**
+ * Quem cria a conta no meio do cadastro de um negócio já deu o e-mail e o telefone
+ * de contato. Eles vêm do rascunho deste aparelho, logo depois da hidratação.
+ */
+function useContatoDoCadastro(voltar: string) {
+  return contatoDoRascunho(useRascunhoDoAparelho(voltaAoCadastro(voltar)));
+}
+
 export function FormCadastro({ voltar }: { voltar: string }) {
   const [estado, acao, pendente] = useActionState(cadastrar, undefined);
+  const doCadastro = useContatoDoCadastro(voltar);
   const erros = estado?.erros ?? {};
+  // Depois de um envio, valem os valores enviados. Antes, o contato do cadastro:
+  // o campo ainda intocado mostra o valor novo quando ele chega.
+  const valor = (campo: "email" | "telefone") => (estado ? valorTexto(estado.valores, campo) : doCadastro[campo]);
   return (
     <form action={acao} onSubmit={enviarSemLimpar(acao)} className="space-y-4">
       <input type="hidden" name="voltar" value={voltar} />
+      {!estado && (doCadastro.email || doCadastro.telefone) && (
+        <p className="text-sm text-suave">Trouxemos o contato que você deu no cadastro do negócio. Pode mudar.</p>
+      )}
       <div>
         <label htmlFor="nome" className="rotulo">
           Seu nome
@@ -118,10 +135,10 @@ export function FormCadastro({ voltar }: { voltar: string }) {
         <label htmlFor="email" className="rotulo">
           E-mail
         </label>
-        <input id="email" name="email" type="email" autoComplete="email" required defaultValue={valorTexto(estado?.valores, "email")} className="campo" aria-invalid={!!erros.email} />
+        <input id="email" name="email" type="email" autoComplete="email" required defaultValue={valor("email")} className="campo" aria-invalid={!!erros.email} />
         {erros.email && <p className="erro-campo">{erros.email}</p>}
       </div>
-      <CampoTelefone valor={valorTexto(estado?.valores, "telefone")} erro={erros.telefone} />
+      <CampoTelefone valor={valor("telefone")} erro={erros.telefone} />
       <div>
         <label htmlFor="senha" className="rotulo">
           Senha
@@ -143,16 +160,21 @@ export function FormCadastro({ voltar }: { voltar: string }) {
   );
 }
 
-/** O passo que falta para quem cria conta pelo Google: o telefone. */
-export function FormTelefoneGoogle({ email }: { email: string }) {
+/**
+ * O passo que falta para quem cria conta pelo Google: o telefone. O e-mail é sempre
+ * o do Google; do cadastro do negócio, só o telefone vem preenchido.
+ */
+export function FormTelefoneGoogle({ email, voltar }: { email: string; voltar: string }) {
   const [estado, acao, pendente] = useActionState(concluirCadastroGoogle, undefined);
+  const { telefone } = useContatoDoCadastro(voltar);
   const erros = estado?.erros ?? {};
   return (
     <form action={acao} onSubmit={enviarSemLimpar(acao)} className="space-y-4">
       <p className="text-sm text-suave">
         Conta do Google: <strong className="font-semibold break-all text-tinta">{email}</strong>
       </p>
-      <CampoTelefone valor={valorTexto(estado?.valores, "telefone")} erro={erros.telefone} />
+      {!estado && telefone && <p className="text-sm text-suave">Trouxemos o telefone que você deu no cadastro do negócio. Pode mudar.</p>}
+      <CampoTelefone valor={estado ? valorTexto(estado.valores, "telefone") : telefone} erro={erros.telefone} />
       {estado?.erro && <Aviso tipo="erro">{estado.erro}</Aviso>}
       <BotaoEnviar pendente={pendente} className="botao-coral w-full" enviando="Criando conta…">
         Criar conta

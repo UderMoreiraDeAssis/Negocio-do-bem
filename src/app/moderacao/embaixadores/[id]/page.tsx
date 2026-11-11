@@ -43,7 +43,7 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/moderacao/emb
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">Embaixador</p>
-            <h1 className="mt-1 font-serif text-4xl font-semibold tracking-tight">{embaixador.nome}</h1>
+            <h1 className="mt-1 font-display text-4xl font-semibold tracking-tight">{embaixador.nome}</h1>
             <p className="text-suave">
               <a href={linkPerfil(embaixador.instagramUsername)} target="_blank" rel="noopener noreferrer" className="link">
                 @{embaixador.instagramUsername} ↗
@@ -65,7 +65,7 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/moderacao/emb
       </div>
 
       <section className="cartao space-y-4 p-6 sm:p-8">
-        <h2 className="font-serif text-2xl font-semibold">Foto</h2>
+        <h2 className="font-display text-2xl font-semibold">Foto</h2>
         <FormFoto
           empresa={fotoDe(embaixador)}
           voltar={`/moderacao/embaixadores/${embaixador.id}`}
@@ -75,7 +75,7 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/moderacao/emb
       </section>
 
       <section className="cartao space-y-4 p-6 sm:p-8">
-        <h2 className="font-serif text-2xl font-semibold">Seguidores</h2>
+        <h2 className="font-display text-2xl font-semibold">Seguidores</h2>
         <p className="text-suave">
           {embaixador.seguidores === null ? (
             "Ainda sem número: o cartão aparece sem os seguidores."

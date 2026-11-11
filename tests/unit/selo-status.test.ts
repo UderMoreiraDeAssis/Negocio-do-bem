@@ -8,6 +8,7 @@ import { SeloStatus } from "@/components/SeloStatus";
 import { lerFiltros, ORDENS } from "@/lib/diretorio";
 
 const empresa: EmpresaResumo = {
+  id: "empresa-exemplo",
   instagramUsername: "cafe_exemplo",
   nome: "Café Exemplo",
   fotoUrl: null,

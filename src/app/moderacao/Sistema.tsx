@@ -19,24 +19,6 @@ export async function Sistema() {
           <dd className="break-all">{local.endereco}</dd>
           <dt className="text-suave">Buscadores</dt>
           <dd>{local.indexavel ? "Podem indexar o site" : "Bloqueados (só a produção entra na busca)"}</dd>
-          {local.branch && (
-            <>
-              <dt className="text-suave">Branch</dt>
-              <dd className="font-mono">{local.branch}</dd>
-            </>
-          )}
-          {local.commit && (
-            <>
-              <dt className="text-suave">Commit</dt>
-              <dd className="font-mono">{local.commit}</dd>
-            </>
-          )}
-          {local.regiao && (
-            <>
-              <dt className="text-suave">Região</dt>
-              <dd className="font-mono">{local.regiao}</dd>
-            </>
-          )}
         </dl>
       </section>
 

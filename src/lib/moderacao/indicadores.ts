@@ -92,13 +92,15 @@ async function numerosDasReivindicacoes() {
 /** Os blocos de números do topo da visão geral. */
 export async function resumoDoPainel(agora = new Date()) {
   const semanaPassada = new Date(agora.getTime() - 7 * DIA);
-  const [negocios, contas, depoimentos, reivindicacoes] = await Promise.all([
+  const [negocios, contas, depoimentos, reivindicacoes, pedidosDoClube, trocasDeArroba] = await Promise.all([
     numerosDosNegocios(semanaPassada),
     numerosDasContas(agora, semanaPassada),
     numerosDosDepoimentos(semanaPassada),
     numerosDasReivindicacoes(),
+    db.liberacaoClube.count({ where: { status: "pendente" } }),
+    db.trocaDeArroba.count({ where: { status: "pendente" } }),
   ]);
-  return { negocios, contas, depoimentos, reivindicacoes };
+  return { negocios, contas, depoimentos, reivindicacoes, pedidosDoClube, trocasDeArroba };
 }
 
 /** Quantos negócios, contas, depoimentos e pedidos entraram em cada uma das últimas semanas. */

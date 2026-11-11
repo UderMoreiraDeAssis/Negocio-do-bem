@@ -47,6 +47,8 @@ export const STATUS_REIVINDICACAO: Record<string, string> = {
   recusada: "Recusada",
   expirada: "Expirada",
   cancelada: "Cancelada",
+  // A moderação tirou a pessoa dos donos depois de aprovar.
+  revogada: "Removida pela moderação",
 };
 
 export const MODERACAO_EMPRESA: Record<string, string> = {
@@ -89,11 +91,16 @@ export const ACOES_AUDITORIA: Record<string, string> = {
   "empresa.foto_removida": "Removeu a foto do próprio negócio",
   "empresa.foto_removida_pela_moderacao": "Removeu a foto pela moderação",
   "empresa.foto_do_instagram": "Colocou a foto do Instagram",
+  "empresa.arroba_pedido": "Pediu a troca do @ do negócio",
+  "empresa.arroba_trocado": "Trocou o @ do próprio negócio",
+  "empresa.arroba_trocado_pela_moderacao": "Trocou o @ pela moderação",
+  "empresa.arroba_recusado": "Recusou a troca do @ do negócio",
   "empresa.ocultada": "Tirou o próprio negócio do diretório",
   "empresa.reexibida": "Devolveu o próprio negócio ao diretório",
   "reivindicacao.aprovada": "Aprovou um pedido de reivindicação",
   "reivindicacao.aprovada_com_transferencia": "Aprovou um pedido e transferiu o negócio",
   "reivindicacao.recusada": "Recusou um pedido de reivindicação",
+  "empresa.dono_removido": "Tirou um dono do negócio",
   "depoimento.mantido": "Manteve um depoimento denunciado",
   "depoimento.removido": "Removeu um depoimento denunciado",
   "usuario.senha_trocada": "Trocou a própria senha no painel",
@@ -106,6 +113,13 @@ export const ACOES_AUDITORIA: Record<string, string> = {
   "embaixador.foto_trocada": "Trocou a foto de um embaixador",
   "embaixador.foto_removida": "Removeu a foto de um embaixador",
   "embaixador.foto_do_instagram": "Colocou a foto do Instagram num embaixador",
+  "clube.pedido": "Pediu a verificação para o Clube do Bem",
+  "clube.documento_visto": "Abriu o documento de um pedido do Clube do Bem",
+  "clube.liberado": "Liberou um dono para o Clube do Bem",
+  "clube.recusado": "Recusou um pedido do Clube do Bem",
+  "clube.suspenso": "Suspendeu um dono do Clube do Bem",
+  "oferta.criada": "Criou uma oferta do Clube do Bem",
+  "oferta.encerrada": "Encerrou uma oferta do Clube do Bem",
 };
 
 /** A caixa de e-mail do projeto, para quem quer falar com a equipe (ex.: ser embaixador). */

@@ -13,7 +13,7 @@ export function AvisoSemConexao() {
 
   // A região fica sempre na página, para o leitor de tela anunciar quando o texto aparece.
   return (
-    <div role="status" className="pointer-events-none fixed inset-x-4 bottom-4 z-40 mx-auto max-w-md">
+    <div role="status" className="pointer-events-none fixed inset-x-4 bottom-28 z-40 sm:bottom-4 mx-auto max-w-md">
       {semConexao && (
         <p className="rounded-2xl bg-tinta px-4 py-3 text-center text-sm text-papel shadow-lg">
           Sem conexão. O que você pediu continua assim que a internet voltar.
