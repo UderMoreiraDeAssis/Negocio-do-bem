@@ -81,13 +81,16 @@ export async function editarMotivoIndicacao(_estado: EstadoFormulario, dados: Fo
   const resultado = z.string().trim().max(600, "Use até 600 caracteres.").safeParse(texto(dados, "motivo"));
   if (!resultado.success) return { erros: { motivo: "Use até 600 caracteres." }, valores };
   const empresa = await db.$transaction(async (tx) => {
+    const existente = await tx.empresa.findUnique({ where: { id: texto(dados, "empresaId") }, select: { id: true } });
+    if (!existente) return null;
     const atualizada = await tx.empresa.update({
-      where: { id: texto(dados, "empresaId") }, data: { motivoIndicacao: resultado.data || null },
+      where: { id: existente.id }, data: { motivoIndicacao: resultado.data || null },
     });
     await registrarAuditoria(tx, {
       usuarioId: moderador.id, acao: "empresa.motivo_editado", alvoTipo: "empresa", alvoId: atualizada.id,
     });
     return atualizada;
   });
+  if (!empresa) redirect("/moderacao?aba=negocios");
   redirect(`/moderacao/negocios/${empresa.instagramUsername}?aviso=salvo`);
 }

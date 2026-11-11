@@ -461,8 +461,9 @@ Código: `src/acoes/correcoes.ts`, `/empresas/<endereço>/corrigir` e fila **Cor
 - Cada conta pode enviar **10 avisos em 24 horas**, contando também os encerrados. A cota e o envio usam a mesma transação, com trava na conta, inclusive para envios simultâneos.
 - O aviso, a fonte e a identidade de quem avisou são privados, visíveis só para a moderação. Enviar não altera o perfil nem concede propriedade.
 - A fila mostra os 50 pendentes mais antigos. A moderação abre **Editar perfil**, corrige o que for necessário e encerra o aviso como **corrigido** ou **sem mudança**. Se o negócio ganhar dono depois do aviso, a moderação ainda pode analisá-lo.
+- O banco aceita somente os estados **pendente**, **corrigido** e **sem_mudanca**, inclusive em gravações fora das ações.
 - Duas decisões simultâneas não sobrescrevem uma à outra: só a primeira encerra; a outra recebe “já tinha sido decidida”. A decisão guarda revisor e data.
-- A edição pela moderação permite editar ou apagar o motivo da indicação de qualquer negócio, com limite de 600 caracteres. Vazio remove o texto.
+- A edição pela moderação permite editar ou apagar o motivo da indicação de qualquer negócio, com limite de 600 caracteres. Vazio remove o texto. Se o negócio não existe mais, volta para a lista de negócios sem gravar auditoria.
 - Envio, decisão e edição do motivo gravam auditoria na mesma transação; falha na auditoria desfaz a operação. A auditoria referencia o aviso, sem copiar o conteúdo privado.
 
 ### Editar qualquer perfil

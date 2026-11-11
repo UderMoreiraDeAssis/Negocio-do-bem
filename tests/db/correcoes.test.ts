@@ -145,6 +145,15 @@ describe("decisões e edição pela moderação", () => {
     expect((await db.correcaoPerfil.findUniqueOrThrow({ where: { id: aviso.id } })).status).toBe("pendente");
   });
 
+  it.each(["inexistente", "excluído"])("volta para negócios ao editar o motivo de um perfil %s", async (caso) => {
+    acesso.token = "moderador";
+    const id = caso === "inexistente" ? "empresa-inexistente" : empresaId;
+    if (caso === "excluído") await db.empresa.delete({ where: { id: empresaId } });
+    await expect(editarMotivoIndicacao(undefined, formulario({ empresaId: id, motivo: "Motivo corrigido" })))
+      .rejects.toThrow("redirect:/moderacao?aba=negocios");
+    expect(await db.registroAuditoria.count()).toBe(0);
+  });
+
   it("edita e apaga o motivo, registrando cada mudança", async () => {
     acesso.token = "moderador";
     for (const motivo of ["Motivo corrigido", ""]) {
