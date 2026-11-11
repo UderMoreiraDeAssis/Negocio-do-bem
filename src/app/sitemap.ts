@@ -43,6 +43,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: urlAbsoluta("/cidades"), lastModified: ultimaMudanca },
     { url: urlAbsoluta("/embaixadores") },
     { url: urlAbsoluta("/sobre") },
+    { url: urlAbsoluta("/clube-do-bem") },
     { url: urlAbsoluta("/participar") },
     { url: urlAbsoluta("/instalacao") },
     { url: urlAbsoluta("/instalacao/android") },

@@ -227,7 +227,7 @@ function contatosCompletos(dados: FormData) {
 }
 
 describe("cadastro do próprio negócio", () => {
-  it("pede o telefone comercial e o e-mail e o telefone de contato do dono", async () => {
+  it("pede o WhatsApp do negócio e o e-mail e o telefone de contato do dono", async () => {
     await criarUsuarioLogado();
     const dados = formulario("dono.sem.contato");
     dados.set("souDono", "sim");
@@ -235,7 +235,7 @@ describe("cadastro do próprio negócio", () => {
     const { estado } = await enviar(dados);
 
     expect(estado?.erros).toMatchObject({
-      telefoneComercial: expect.any(String),
+      whatsapp: expect.any(String),
       emailDoDono: expect.any(String),
       telefoneDoDono: expect.any(String),
     });

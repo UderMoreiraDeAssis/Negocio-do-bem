@@ -24,7 +24,7 @@ export default function Cidades() {
         <span aria-hidden="true">/</span>
         <span aria-current="page">Cidades</span>
       </nav>
-      <h1 className="mt-6 font-serif text-4xl leading-tight font-semibold tracking-tight text-balance sm:text-5xl">
+      <h1 className="mt-6 font-display text-4xl leading-tight font-semibold tracking-tight text-balance sm:text-5xl">
         Negócios do bem por cidade
       </h1>
       <p className="mt-4 max-w-2xl text-lg leading-relaxed text-pretty text-suave">
@@ -45,7 +45,7 @@ async function PorEstado() {
   if (estados.length === 0) {
     return (
       <div className="cartao mt-10 px-6 py-14 text-center">
-        <p className="font-serif text-2xl">Ainda não há negócios no diretório.</p>
+        <p className="font-display text-2xl">Ainda não há negócios no diretório.</p>
         <Link href="/participar" className="botao-coral mt-6">
           Indicar um negócio
         </Link>
@@ -56,13 +56,13 @@ async function PorEstado() {
     <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {estados.map((uf) => (
         <section key={uf} className="cartao p-5">
-          <h2 className="font-serif text-xl font-semibold">{NOMES_UF[uf as Uf]}</h2>
+          <h2 className="font-display text-xl font-semibold">{NOMES_UF[uf as Uf]}</h2>
           <ul className="mt-3 flex flex-col gap-1">
             {porUf.get(uf)!.map((cidade) => (
               <li key={cidade.cidade}>
                 <Link
                   href={hrefCidade(cidade.cidade, cidade.uf)}
-                  className="flex items-center justify-between gap-3 rounded-xl px-2 py-1.5 transition hover:bg-papel"
+                  className="flex items-center justify-between gap-3 rounded-xl px-2 py-1.5 transition hover:bg-areia"
                 >
                   <span className="font-medium">{cidade.cidade}</span>
                   <span className="text-sm text-suave tabular-nums">

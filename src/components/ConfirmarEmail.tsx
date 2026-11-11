@@ -11,7 +11,7 @@ export function ConfirmarEmail({ email, para, voltar }: { email: string; para: s
   return (
     <div className="cartao space-y-4 p-6 sm:p-8">
       <div>
-        <p className="font-serif text-2xl">Confirme seu e-mail para {para}</p>
+        <p className="font-display text-2xl">Confirme seu e-mail para {para}</p>
         <p className="mt-2 leading-relaxed text-suave">
           Precisamos saber que <strong className="font-semibold break-all text-tinta">{email}</strong> é seu. Se você
           acabou de criar a conta, o link já está na sua caixa de entrada. Se não está, peça um aqui.

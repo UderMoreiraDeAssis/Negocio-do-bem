@@ -11,7 +11,7 @@ import { exigirUsuario } from "@/lib/auth/sessao";
 import { db } from "@/lib/db";
 import { METODOS_REIVINDICACAO, MODERACAO_EMPRESA, STATUS_REIVINDICACAO } from "@/lib/dominio";
 import { rotuloDoInstagram } from "@/lib/endereco";
-import { formatarData } from "@/lib/texto";
+import { formatarData, formatarFavoritos } from "@/lib/texto";
 import { FORA_DA_BUSCA } from "@/lib/seo";
 
 export const metadata: Metadata = { title: "Meu painel", robots: FORA_DA_BUSCA };
@@ -19,7 +19,7 @@ export const metadata: Metadata = { title: "Meu painel", robots: FORA_DA_BUSCA }
 export default function Painel(props: PageProps<"/painel">) {
   return (
     <div className="mx-auto max-w-4xl px-4 pt-12 sm:px-6">
-      <h1 className="font-serif text-4xl font-semibold tracking-tight">Meu painel</h1>
+      <h1 className="font-display text-4xl font-semibold tracking-tight">Meu painel</h1>
       <Suspense fallback={<div className="mt-8 h-80 animate-pulse rounded-3xl bg-superficie" />}>
         <Conteudo searchParams={props.searchParams} />
       </Suspense>
@@ -31,8 +31,9 @@ const CORES_STATUS: Record<string, string> = {
   pendente: "bg-amber-50 text-amber-800",
   aprovada: "bg-folha-50 text-folha",
   recusada: "bg-coral-50 text-coral-700",
-  expirada: "bg-papel text-suave",
-  cancelada: "bg-papel text-suave",
+  revogada: "bg-coral-50 text-coral-700",
+  expirada: "bg-areia text-suave",
+  cancelada: "bg-areia text-suave",
   rejeitada: "bg-coral-50 text-coral-700",
 };
 
@@ -46,7 +47,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/painel">, "searchPara
   const [empresas, reivindicacoes, indicacoes, conta] = await Promise.all([
     db.empresaMembro.findMany({
       where: { usuarioId: usuario.id },
-      include: { empresa: true },
+      include: { empresa: { include: { _count: { select: { favoritos: true } } } } },
       orderBy: { criadoEm: "asc" },
     }),
     db.reivindicacao.findMany({
@@ -74,7 +75,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/painel">, "searchPara
       )}
 
       <section>
-        <h2 className="font-serif text-2xl font-semibold">Meus negócios</h2>
+        <h2 className="font-display text-2xl font-semibold">Meus negócios</h2>
         {empresas.length === 0 ? (
           <div className="cartao mt-4 p-6 text-suave">
             Você ainda não assumiu um perfil de negócio.{" "}
@@ -94,8 +95,10 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/painel">, "searchPara
                 <div className="flex items-center gap-3">
                   <Monograma nome={empresa.nome} chave={empresa.instagramUsername} />
                   <div className="min-w-0">
-                    <p className="line-clamp-2 break-words font-serif text-xl font-semibold">{empresa.nome}</p>
-                    <p className="text-sm text-suave">{rotuloDoInstagram(empresa.instagramUsername)}</p>
+                    <p className="line-clamp-2 break-words font-display text-xl font-semibold">{empresa.nome}</p>
+                    <p className="text-sm text-suave">
+                      {rotuloDoInstagram(empresa.instagramUsername)} · {formatarFavoritos(empresa._count.favoritos)}
+                    </p>
                   </div>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -119,7 +122,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/painel">, "searchPara
 
       {reivindicacoes.length > 0 && (
         <section>
-          <h2 className="font-serif text-2xl font-semibold">Minhas solicitações de reivindicação</h2>
+          <h2 className="font-display text-2xl font-semibold">Minhas solicitações de reivindicação</h2>
           <ul className="cartao mt-4 divide-y divide-linha">
             {reivindicacoes.map((r) => (
               <li key={r.id} className="flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -130,7 +133,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/painel">, "searchPara
                   <p className="text-sm text-suave">
                     {METODOS_REIVINDICACAO[r.metodo]} · {formatarData(r.criadoEm)}
                   </p>
-                  {r.status === "recusada" && r.motivoRecusa && (
+                  {(r.status === "recusada" || r.status === "revogada") && r.motivoRecusa && (
                     <p className="mt-1 text-sm text-coral-700">Motivo: {r.motivoRecusa}</p>
                   )}
                 </div>
@@ -142,7 +145,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/painel">, "searchPara
       )}
 
       <section>
-        <h2 className="font-serif text-2xl font-semibold">Minhas indicações</h2>
+        <h2 className="font-display text-2xl font-semibold">Minhas indicações</h2>
         {indicacoes.length === 0 ? (
           <p className="mt-4 text-suave">
             Você ainda não indicou nenhum negócio.{" "}
@@ -165,7 +168,7 @@ async function Conteudo({ searchParams }: Pick<PageProps<"/painel">, "searchPara
       </section>
 
       <section>
-        <h2 className="font-serif text-2xl font-semibold">Minha conta</h2>
+        <h2 className="font-display text-2xl font-semibold">Minha conta</h2>
         <div className="cartao mt-4 space-y-6 p-6">
           {conta?.senhaHash ? (
             <>

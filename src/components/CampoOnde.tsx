@@ -40,10 +40,10 @@ export function CampoOnde({ cidades, valorInicial }: { cidades: CidadeComNegocio
 
   return (
     <div className="relative min-w-0 flex-[2_1_15rem]">
-      <label className="flex cursor-text items-center gap-3.5 rounded-2xl bg-papel px-4 py-3 transition focus-within:bg-coral-50">
+      <label className="relative flex cursor-text items-center gap-3.5 rounded-full px-5 py-2.5 transition before:absolute before:inset-y-3 before:left-0 before:hidden before:w-px before:bg-linha focus-within:bg-areia sm:before:block">
         <IconePino />
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className="text-xs font-semibold text-suave">Onde?</span>
+          <span className="text-xs font-semibold text-tinta">Onde?</span>
           <input
             name="onde"
             value={texto}
@@ -62,7 +62,7 @@ export function CampoOnde({ cidades, valorInicial }: { cidades: CidadeComNegocio
             aria-expanded={sugestoes.length > 0}
             aria-controls={lista}
             aria-activedescendant={sugestoes.length > 0 ? `${lista}-${destacada}` : undefined}
-            className="w-full border-0 bg-transparent p-0 text-[17px] text-tinta placeholder:text-suave focus:outline-none"
+            className="w-full truncate border-0 bg-transparent p-0 text-base text-tinta placeholder:text-suave focus:outline-none"
           />
         </span>
         {texto && (
@@ -103,7 +103,7 @@ export function CampoOnde({ cidades, valorInicial }: { cidades: CidadeComNegocio
             onMouseMove={() => setAtiva(i)}
             className={`flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-2.5 ${i === destacada ? "bg-coral-50" : ""}`}
           >
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-papel text-coral-700">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-areia text-coral-700">
               {sugestao.tipo === "cidade" ? <IconePino /> : <IconeMapa />}
             </span>
             <span className="min-w-0 flex-1 text-[15px]">
@@ -127,7 +127,7 @@ export function CampoOnde({ cidades, valorInicial }: { cidades: CidadeComNegocio
 
 function IconePino() {
   return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-coral-700" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-suave" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11ZM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
     </svg>
   );

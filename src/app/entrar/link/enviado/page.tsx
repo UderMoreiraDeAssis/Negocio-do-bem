@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Confira seu e-mail", robots: FORA_DA
 export default function LinkEnviado() {
   return (
     <div className="mx-auto max-w-md px-4 pt-16 sm:px-6">
-      <h1 className="text-center font-serif text-4xl font-semibold tracking-tight">Confira seu e-mail</h1>
+      <h1 className="text-center font-display text-4xl font-semibold tracking-tight">Confira seu e-mail</h1>
       <div className="cartao mt-8 space-y-4 p-6 leading-relaxed text-suave sm:p-8">
         <p>
           Se houver uma conta com o e-mail que você digitou, mandamos um link para entrar. Ele vale por 15 minutos e uma

@@ -10,7 +10,7 @@ function configurar(variaveis: Record<string, string>) {
 let fetchFalso: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
-  configurar({ RESEND_API_KEY: "", EMAIL_REMETENTE: "", EMAIL_RESPOSTA: "", VERCEL_ENV: "" });
+  configurar({ RESEND_API_KEY: "", EMAIL_REMETENTE: "", EMAIL_RESPOSTA: "", DEPLOY_ENV: "", VERCEL_ENV: "" });
   fetchFalso = vi.fn(async () => new Response(JSON.stringify({ id: "abc" }), { status: 200 }));
   vi.stubGlobal("fetch", fetchFalso);
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -34,12 +34,12 @@ describe("envioLigado", () => {
   it("liga com a chave e o remetente, no computador e na produção", () => {
     configurar({ RESEND_API_KEY: "re_teste", EMAIL_REMETENTE: "Negócio do Bem <avisos@exemplo.com>" });
     expect(envioLigado()).toBe(true);
-    configurar({ VERCEL_ENV: "production" });
+    configurar({ DEPLOY_ENV: "production" });
     expect(envioLigado()).toBe(true);
   });
 
-  it("fica desligado nos previews do Vercel, mesmo configurado", () => {
-    configurar({ RESEND_API_KEY: "re_teste", EMAIL_REMETENTE: "Negócio do Bem <avisos@exemplo.com>", VERCEL_ENV: "preview" });
+  it("fica desligado nos previews, mesmo configurado", () => {
+    configurar({ RESEND_API_KEY: "re_teste", EMAIL_REMETENTE: "Negócio do Bem <avisos@exemplo.com>", DEPLOY_ENV: "preview" });
     expect(envioLigado()).toBe(false);
   });
 });

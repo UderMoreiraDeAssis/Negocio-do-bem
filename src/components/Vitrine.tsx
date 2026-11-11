@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { EmpresaCard, type EmpresaResumo } from "@/components/EmpresaCard";
 import { JsonLd } from "@/components/JsonLd";
+import { usuarioAtual } from "@/lib/auth/sessao";
+import { coracoesDaLista } from "@/lib/consultas";
 import type { Migalha } from "@/lib/seo";
 
 /**
@@ -11,8 +13,10 @@ import type { Migalha } from "@/lib/seo";
  * entrada da busca. A `capa` (a foto da cidade, o perfil do embaixador) fica ao lado
  * do título na tela larga e em cima dele no celular. O `destaque` (os embaixadores
  * da cidade) vem logo abaixo da introdução, e o `tituloDaLista`, acima dos negócios.
+ * O login devolve quem favoritar sem ter entrado para esta mesma página, a última
+ * das migalhas.
  */
-export function Vitrine({
+export async function Vitrine({
   migalhas,
   rotulo,
   titulo,
@@ -39,10 +43,11 @@ export function Vitrine({
   jsonLd: object;
   children?: ReactNode;
 }) {
+  const coracoes = await coracoesDaLista(await usuarioAtual(), itens.map((empresa) => empresa.id), migalhas.at(-1)?.caminho ?? "/explorar");
   const cabecalho = (
     <div>
       <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">{rotulo}</p>
-      <h1 className="mt-2 font-serif text-4xl leading-tight font-semibold tracking-tight text-balance sm:text-5xl">{titulo}</h1>
+      <h1 className="mt-2 font-display text-4xl leading-tight font-semibold tracking-tight text-balance sm:text-5xl">{titulo}</h1>
       <div className="mt-4 max-w-2xl text-lg leading-relaxed text-pretty text-suave">{introducao}</div>
       {destaque && <div className="mt-6 max-w-2xl">{destaque}</div>}
     </div>
@@ -78,10 +83,10 @@ export function Vitrine({
         <div className="mt-6">{cabecalho}</div>
       )}
 
-      {tituloDaLista && <h2 className="mt-12 font-serif text-3xl font-semibold tracking-tight text-balance">{tituloDaLista}</h2>}
+      {tituloDaLista && <h2 className="mt-12 font-display text-3xl font-semibold tracking-tight text-balance">{tituloDaLista}</h2>}
       <div className={`${tituloDaLista ? "mt-3" : "mt-8"} flex flex-wrap items-center justify-between gap-3 border-b border-linha pb-3.5`}>
         <p className="text-suave">
-          <strong className="font-serif text-2xl font-semibold text-tinta">{total.toLocaleString("pt-BR")}</strong>{" "}
+          <strong className="font-display text-2xl font-semibold text-tinta">{total.toLocaleString("pt-BR")}</strong>{" "}
           {total === 1 ? "negócio no diretório" : "negócios no diretório"}
         </p>
         {total > 0 && (
@@ -94,12 +99,12 @@ export function Vitrine({
       {itens.length > 0 ? (
         <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {itens.map((empresa) => (
-            <EmpresaCard key={empresa.instagramUsername} empresa={empresa} />
+            <EmpresaCard key={empresa.instagramUsername} empresa={empresa} favorito={coracoes(empresa.id)} />
           ))}
         </div>
       ) : (
         <div className="cartao mt-5 px-6 py-14 text-center">
-          <p className="font-serif text-2xl">Ainda não há negócios aqui no diretório.</p>
+          <p className="font-display text-2xl">Ainda não há negócios aqui no diretório.</p>
           <p className="mx-auto mt-2 max-w-md text-suave">Conhece algum? Indique e ajude a comunidade a encontrá-lo.</p>
           <Link href="/participar" className="botao-coral mt-6">
             Indicar um negócio
@@ -127,13 +132,13 @@ export function Atalhos({ titulo, itens }: { titulo: string; itens: Atalho[] }) 
   if (itens.length === 0) return null;
   return (
     <section>
-      <h2 className="font-serif text-2xl font-semibold tracking-tight">{titulo}</h2>
+      <h2 className="font-display text-2xl font-semibold tracking-tight">{titulo}</h2>
       <ul className="mt-4 flex flex-wrap gap-2">
         {itens.map((item) => (
           <li key={item.chave}>
             <Link
               href={item.href}
-              className="inline-flex items-center gap-2 rounded-full border border-linha bg-superficie px-3.5 py-1.5 text-sm font-medium transition hover:border-tinta/40"
+              className="inline-flex items-center gap-2 rounded-full bg-areia px-3.5 py-1.5 text-sm font-medium transition hover:bg-linha"
             >
               {item.rotulo}
               {item.total !== undefined && <span className="text-xs text-suave tabular-nums">{item.total}</span>}

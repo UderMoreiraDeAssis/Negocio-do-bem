@@ -23,7 +23,7 @@ export default function ErroGeral({ error, retry }: { error: unknown; retry: () 
         <Link href="/" aria-label="Negócio do Bem — início">
           <Logo className="h-12" />
         </Link>
-        <h1 className="mt-10 font-serif text-3xl font-semibold">O site não abriu agora</h1>
+        <h1 className="mt-10 font-display text-3xl font-semibold">O site não abriu agora</h1>
         <p className="mt-2 max-w-md text-suave">Tivemos um problema do nosso lado. Tente de novo daqui a pouco.</p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <button type="button" onClick={() => retry()} className="botao">

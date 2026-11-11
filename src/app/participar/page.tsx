@@ -75,7 +75,7 @@ export default function Participar(props: PageProps<"/participar">) {
             <span aria-hidden="true">🌱</span>
             <span>Para quem tem ou conhece um negócio do bem</span>
           </p>
-          <h1 className="mt-5 font-serif text-5xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-6xl">
+          <h1 className="mt-5 font-display text-5xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-6xl">
             Que bom que você chegou.
           </h1>
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-suave text-pretty sm:text-xl">
@@ -99,7 +99,7 @@ export default function Participar(props: PageProps<"/participar">) {
       </Suspense>
 
       <section className="mt-16">
-        <h2 className="font-serif text-3xl font-semibold tracking-tight sm:text-4xl">O que a gente promete</h2>
+        <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">O que a gente promete</h2>
         <ul className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {PROMESSAS.map((promessa) => (
             <li key={promessa.titulo} className="cartao p-5 leading-relaxed">
@@ -111,7 +111,7 @@ export default function Participar(props: PageProps<"/participar">) {
       </section>
 
       <section className="mt-16">
-        <h2 className="font-serif text-3xl font-semibold tracking-tight sm:text-4xl">Dúvidas de quem está chegando</h2>
+        <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">Dúvidas de quem está chegando</h2>
         <dl className="mt-6 space-y-3">
           {DUVIDAS.map((duvida) => (
             <div key={duvida.pergunta} className="cartao p-5">
@@ -123,7 +123,7 @@ export default function Participar(props: PageProps<"/participar">) {
       </section>
 
       <section className="mt-16 rounded-3xl bg-tinta px-6 py-10 text-papel sm:px-10">
-        <p className="max-w-2xl font-serif text-2xl leading-snug text-balance sm:text-3xl">
+        <p className="max-w-2xl font-display text-2xl leading-snug text-balance sm:text-3xl">
           Comprar de quem faz o bem muda o bairro, a cidade e o país. Com você aqui, isso fica mais forte.
         </p>
         {/* Link comum, e não o Link do Next: o navegador leva o foco ao campo do @. */}
@@ -163,7 +163,7 @@ async function BoaCompanhia() {
   if (total === 0) return null;
   return (
     <div className="flex flex-[1_1_18rem] items-center rounded-3xl border border-coral/20 bg-coral-50 p-7">
-      <p className="font-serif text-2xl leading-snug text-tinta text-balance">{boaCompanhia(total, cidades)}</p>
+      <p className="font-display text-2xl leading-snug text-tinta text-balance">{boaCompanhia(total, cidades)}</p>
     </div>
   );
 }
@@ -200,7 +200,7 @@ async function QuemJaEstaAqui() {
   if (negocios.length === 0) return null;
   return (
     <section className="mt-16">
-      <h2 className="font-serif text-3xl font-semibold tracking-tight sm:text-4xl">Quem já está aqui</h2>
+      <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">Quem já está aqui</h2>
       <ul className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {negocios.map((negocio) => (
           <li key={negocio.instagramUsername}>

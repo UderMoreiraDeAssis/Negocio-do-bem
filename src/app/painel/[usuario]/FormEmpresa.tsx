@@ -49,7 +49,7 @@ export function FormEmpresa({ empresa, voltar }: { empresa: DadosEmpresa; voltar
       <input type="hidden" name="voltar" value={voltar} />
 
       <section className="cartao space-y-5 p-6 sm:p-8">
-        <h2 className="font-serif text-2xl font-semibold">Informações</h2>
+        <h2 className="font-display text-2xl font-semibold">Informações</h2>
         <Campo id="nome" rotulo="Nome do negócio" erro={erros.nome}>
           <input id="nome" name="nome" required maxLength={80} defaultValue={valor("nome")} className="campo" />
         </Campo>
@@ -73,18 +73,18 @@ export function FormEmpresa({ empresa, voltar }: { empresa: DadosEmpresa; voltar
 
       <section className="cartao space-y-5 p-6 sm:p-8">
         <div>
-          <h2 className="font-serif text-2xl font-semibold">Contato</h2>
+          <h2 className="font-display text-2xl font-semibold">Contato</h2>
           <p className="mt-1 text-sm text-suave">O que você preencher vira botão no perfil.</p>
         </div>
-        <Campo id="telefoneComercial" rotulo="Telefone comercial" erro={erros.telefoneComercial}>
-          <input id="telefoneComercial" name="telefoneComercial" type="tel" maxLength={30} placeholder="(11) 3333-4444" defaultValue={valor("telefoneComercial")} className="campo" />
+        <Campo id="whatsapp" rotulo="WhatsApp" erro={erros.whatsapp}>
+          <input id="whatsapp" name="whatsapp" type="tel" maxLength={30} placeholder="(11) 99999-9999" defaultValue={valor("whatsapp")} className="campo" />
         </Campo>
         <Campo id="site" rotulo="Site" erro={erros.site}>
           <input id="site" name="site" maxLength={200} placeholder="www.meunegocio.com.br" defaultValue={valor("site")} className="campo" />
         </Campo>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Campo id="whatsapp" rotulo="WhatsApp" erro={erros.whatsapp}>
-            <input id="whatsapp" name="whatsapp" type="tel" maxLength={30} placeholder="(11) 99999-9999" defaultValue={valor("whatsapp")} className="campo" />
+          <Campo id="telefoneComercial" rotulo="Telefone comercial" erro={erros.telefoneComercial}>
+            <input id="telefoneComercial" name="telefoneComercial" type="tel" maxLength={30} placeholder="(11) 3333-4444" defaultValue={valor("telefoneComercial")} className="campo" />
           </Campo>
           <Campo id="emailContato" rotulo="E-mail de contato" erro={erros.emailContato}>
             <input id="emailContato" name="emailContato" type="email" maxLength={200} placeholder="contato@meunegocio.com.br" defaultValue={valor("emailContato")} className="campo" />
@@ -94,7 +94,7 @@ export function FormEmpresa({ empresa, voltar }: { empresa: DadosEmpresa; voltar
 
       <section className="cartao space-y-5 p-6 sm:p-8">
         <div>
-          <h2 className="font-serif text-2xl font-semibold">Contato do dono</h2>
+          <h2 className="font-display text-2xl font-semibold">Contato do dono</h2>
           <p className="mt-1 text-sm text-suave">Não aparece no perfil: só os donos e a moderação veem.</p>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -109,7 +109,7 @@ export function FormEmpresa({ empresa, voltar }: { empresa: DadosEmpresa; voltar
 
       <section className="cartao space-y-4 p-6 sm:p-8">
         <div>
-          <h2 className="font-serif text-2xl font-semibold">Causas que vocês abraçam</h2>
+          <h2 className="font-display text-2xl font-semibold">Causas que vocês abraçam</h2>
           <p className="mt-1 text-sm text-suave">Elas viram selos no perfil e filtros na busca. Marque só o que é verdade no dia a dia.</p>
         </div>
         <SeletorCausas key={causas.join()} selecionadas={causas} />
@@ -118,10 +118,10 @@ export function FormEmpresa({ empresa, voltar }: { empresa: DadosEmpresa; voltar
       <section className="cartao p-6 sm:p-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-serif text-2xl font-semibold">Nossa história</h2>
+            <h2 className="font-display text-2xl font-semibold">Nossa história</h2>
             <p className="mt-1 text-sm text-suave">Como tudo começou, o que move vocês, quem faz acontecer.</p>
           </div>
-          <div className="flex rounded-full bg-papel p-1 text-sm" role="tablist">
+          <div className="flex rounded-full bg-areia p-1 text-sm" role="tablist">
             {(["escrever", "ver"] as const).map((opcao) => (
               <button
                 key={opcao}
@@ -157,7 +157,7 @@ export function FormEmpresa({ empresa, voltar }: { empresa: DadosEmpresa; voltar
       {estado?.erro && <Aviso tipo="erro">{estado.erro}</Aviso>}
       {estado?.erros && Object.keys(estado.erros).length > 0 && <Aviso tipo="erro">Confira os campos destacados acima.</Aviso>}
 
-      <div className="sticky bottom-4 z-10 flex justify-end">
+      <div className="sticky bottom-28 z-10 flex justify-end sm:bottom-4">
         <BotaoEnviar pendente={pendente} className="botao-coral px-8 py-3 text-base shadow-lg shadow-coral/20" enviando="Salvando…">
           Salvar alterações
         </BotaoEnviar>

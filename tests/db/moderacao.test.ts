@@ -146,7 +146,16 @@ describe("resumoDoPainel", () => {
       contas: { total: 4, moderacao: 1, donos: 1, novas: 2, comSessao: 1, semAtividade: 2 },
       depoimentos: { publicados: 2, removidos: 1, denunciados: 1, respondidos: 1, novos: 3 },
       reivindicacoes: { total: 2, pendentes: 1, aprovadas: 1, recusadas: 0 },
+      pedidosDoClube: 0,
+      trocasDeArroba: 0,
     });
+  });
+
+  it("conta os pedidos do Clube do Bem em análise", async () => {
+    const [empresa, usuario] = await Promise.all([db.empresa.findFirstOrThrow(), db.usuario.findFirstOrThrow()]);
+    await db.liberacaoClube.create({ data: { empresaId: empresa.id, usuarioId: usuario.id, cnpj: "11222333000181", status: "pendente" } });
+
+    expect((await resumoDoPainel(agora)).pedidosDoClube).toBe(1);
   });
 });
 

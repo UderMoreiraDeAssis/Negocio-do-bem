@@ -174,7 +174,7 @@ describe("envio do link", () => {
   });
 
   it("na produção sem envio configurado, o link não vai para o log", async () => {
-    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("DEPLOY_ENV", "production");
     vi.mocked(envioLigado).mockReturnValueOnce(false);
     const log = vi.spyOn(console, "info").mockImplementation(() => {});
     await enviarLink(await criarConta(), "entrar", "abc");
@@ -182,9 +182,8 @@ describe("envio do link", () => {
     expect(log).not.toHaveBeenCalled();
   });
 
-  it("nos previews, o link aponta para o próprio preview", () => {
-    vi.stubEnv("VERCEL_ENV", "preview");
-    vi.stubEnv("VERCEL_URL", "negocio-do-bem-git-teste.vercel.app");
-    expect(urlDoLink("abc")).toBe("https://negocio-do-bem-git-teste.vercel.app/api/link?t=abc");
+  it("nos previews, o link usa o endereço configurado, como na produção", () => {
+    vi.stubEnv("DEPLOY_ENV", "preview");
+    expect(urlDoLink("abc")).toBe(`${ENDERECO_DO_SITE}/api/link?t=abc`);
   });
 });
