@@ -6,7 +6,6 @@ import {
   useEffect,
   useRef,
   useState,
-  useSyncExternalStore,
   useTransition,
   type FormEvent,
   type KeyboardEvent,
@@ -21,10 +20,11 @@ import { CamposEndereco } from "@/components/CamposEndereco";
 import { ConfirmarEmail } from "@/components/ConfirmarEmail";
 import { enviarSemLimpar } from "@/components/envio";
 import { Monograma } from "@/components/Monograma";
+import { apagarRascunhoDoAparelho, guardarRascunhoNoAparelho, useRascunhoDoAparelho } from "@/components/rascunho-no-aparelho";
 import { SeletorCausas } from "@/components/SeletorCausas";
 import { CATEGORIAS } from "@/lib/dominio";
 import { enviarEvento, type TipoDeCadastro } from "@/lib/medicao";
-import { lerRascunho, type Rascunho } from "@/lib/rascunho-do-cadastro";
+import { lerRascunho, VOLTA_AO_CADASTRO as CONTINUAR, type Rascunho } from "@/lib/rascunho-do-cadastro";
 
 // O cadastro por etapas: uma pergunta por vez. Todas as etapas ficam montadas num
 // formulário só, e só a atual aparece: voltar não perde nada, e o envio final é o
@@ -57,30 +57,13 @@ const ETAPA_DO_CAMPO: Record<string, Etapa> = {
   complemento: "onde",
   resumo: "onde",
   motivo: "causas",
+  whatsapp: "contatos",
   telefoneComercial: "contatos",
   site: "contatos",
-  whatsapp: "contatos",
   emailContato: "contatos",
   emailDoDono: "voce",
   telefoneDoDono: "voce",
 };
-
-/** O rascunho no aparelho, enquanto a pessoa entra, cria a conta ou confirma o e-mail. */
-const CHAVE_LOCAL = "ndb:cadastro";
-const CONTINUAR = "/participar?continuar=1#cadastro";
-
-function lerDoAparelho(): string | null {
-  try {
-    return window.localStorage.getItem(CHAVE_LOCAL);
-  } catch {
-    return null;
-  }
-}
-
-function assinarAparelho(aviso: () => void) {
-  window.addEventListener("storage", aviso);
-  return () => window.removeEventListener("storage", aviso);
-}
 
 function valoresDo(formulario: HTMLFormElement): Rascunho {
   const dados = new FormData(formulario);
@@ -110,15 +93,7 @@ type Props = {
 
 export function CadastroPorEtapas({ conta, instagramInicial, donoInicial, continuar, instagramDoProjeto }: Props) {
   // Quem volta do login ou do cadastro, neste aparelho, continua de onde parou.
-  const doAparelho = useSyncExternalStore(assinarAparelho, lerDoAparelho, () => null);
-  const inicial = (() => {
-    if (!continuar || !doAparelho) return null;
-    try {
-      return lerRascunho(JSON.parse(doAparelho));
-    } catch {
-      return null;
-    }
-  })();
+  const inicial = useRascunhoDoAparelho(continuar);
 
   const [etapaEscolhida, setEtapa] = useState<Etapa | null>(null);
   const [ramoEscolhido, setRamo] = useState<Ramo | null>(null);
@@ -248,9 +223,9 @@ export function CadastroPorEtapas({ conta, instagramInicial, donoInicial, contin
       if (valor("resumo").length < 10) erros.resumo = "Escreva uma frase sobre o negócio.";
     }
     if (etapa === "contatos") {
-      if (!valor("telefoneComercial")) erros.telefoneComercial = "Qual é o telefone comercial do negócio?";
-      else if (!telefoneValido(valor("telefoneComercial"))) erros.telefoneComercial = "Confira o número, com o DDD.";
-      if (valor("whatsapp") && !telefoneValido(valor("whatsapp"))) erros.whatsapp = "Confira o número, com o DDD.";
+      if (!valor("whatsapp")) erros.whatsapp = "Qual é o WhatsApp do negócio?";
+      else if (!telefoneValido(valor("whatsapp"))) erros.whatsapp = "Confira o número, com o DDD.";
+      if (valor("telefoneComercial") && !telefoneValido(valor("telefoneComercial"))) erros.telefoneComercial = "Confira o número, com o DDD.";
       if (emailInvalido("emailContato")) erros.emailContato = "Esse e-mail não parece certo.";
     }
     if (etapa === "voce") {
@@ -289,21 +264,12 @@ export function CadastroPorEtapas({ conta, instagramInicial, donoInicial, contin
   /** Antes de ir para o login, o cadastro ou o e-mail, as respostas ficam neste aparelho. */
   function guardarNoAparelho(valores?: Rascunho) {
     const rascunho = valores ?? (formulario.current ? valoresDo(formulario.current) : null);
-    if (!rascunho) return;
-    try {
-      window.localStorage.setItem(CHAVE_LOCAL, JSON.stringify(rascunho));
-    } catch {
-      // Sem armazenamento (navegação privada), a pessoa preenche de novo depois de entrar.
-    }
+    if (rascunho) guardarRascunhoNoAparelho(rascunho);
   }
 
   const enviar = enviarSemLimpar(acao);
   function aoEnviar(evento: FormEvent<HTMLFormElement>) {
-    try {
-      window.localStorage.removeItem(CHAVE_LOCAL);
-    } catch {
-      // Nada a limpar.
-    }
+    apagarRascunhoDoAparelho();
     enviar(evento);
   }
 
@@ -460,23 +426,23 @@ export function CadastroPorEtapas({ conta, instagramInicial, donoInicial, contin
 
         {dono && (
           <>
-            <Secao etapa="contatos" atual={etapa} titulo="Como os clientes falam com o negócio?" subtitulo="Tudo isso vira botão no perfil. Só o telefone comercial é obrigatório.">
-              <Campo id="telefoneComercial" rotulo="Telefone comercial" erro={erro("telefoneComercial")}>
+            <Secao etapa="contatos" atual={etapa} titulo="Como os clientes falam com o negócio?" subtitulo="Tudo isso vira botão no perfil. Só o WhatsApp é obrigatório.">
+              <Campo id="whatsapp" rotulo="WhatsApp" erro={erro("whatsapp")}>
                 <input
-                  id="telefoneComercial"
-                  name="telefoneComercial"
+                  id="whatsapp"
+                  name="whatsapp"
                   type="tel"
                   maxLength={30}
-                  placeholder="(11) 3333-4444"
-                  defaultValue={inicial?.telefoneComercial ?? ""}
-                  onChange={() => limpar("telefoneComercial")}
-                  aria-invalid={erro("telefoneComercial") ? true : undefined}
+                  placeholder="(11) 99999-9999"
+                  defaultValue={inicial?.whatsapp ?? ""}
+                  onChange={() => limpar("whatsapp")}
+                  aria-invalid={erro("whatsapp") ? true : undefined}
                   className="campo"
                 />
               </Campo>
               <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Campo id="whatsapp" rotulo="WhatsApp (opcional)" erro={erro("whatsapp")}>
-                  <input id="whatsapp" name="whatsapp" type="tel" maxLength={30} placeholder="(11) 99999-9999" defaultValue={inicial?.whatsapp ?? ""} onChange={() => limpar("whatsapp")} className="campo" />
+                <Campo id="telefoneComercial" rotulo="Telefone comercial (opcional)" erro={erro("telefoneComercial")}>
+                  <input id="telefoneComercial" name="telefoneComercial" type="tel" maxLength={30} placeholder="(11) 3333-4444" defaultValue={inicial?.telefoneComercial ?? ""} onChange={() => limpar("telefoneComercial")} className="campo" />
                 </Campo>
                 <Campo id="emailContato" rotulo="E-mail do negócio (opcional)" erro={erro("emailContato")}>
                   <input id="emailContato" name="emailContato" type="email" maxLength={200} placeholder="contato@negocio.com.br" defaultValue={inicial?.emailContato ?? ""} onChange={() => limpar("emailContato")} className="campo" />
@@ -523,7 +489,7 @@ export function CadastroPorEtapas({ conta, instagramInicial, donoInicial, contin
         )}
 
         <Secao etapa="fim" atual={etapa} titulo={conta.logado ? "Revise e publique" : "Falta pouco: entre ou crie sua conta"}>
-          <dl className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-x-4 gap-y-1.5 rounded-2xl bg-papel p-4 text-sm">
+          <dl className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-x-4 gap-y-1.5 rounded-2xl bg-areia p-4 text-sm">
             <dt className="text-suave">Instagram</dt>
             <dd className="truncate">{semInstagram ? "Sem Instagram" : `@${(procura?.instagram ?? visto.instagram ?? arroba).replace(/^@+/, "")}`}</dd>
             <dt className="text-suave">Nome</dt>
@@ -536,8 +502,8 @@ export function CadastroPorEtapas({ conta, instagramInicial, donoInicial, contin
             <dd>{!visto.causas?.length ? "nenhuma" : visto.causas.length === 1 ? "1 marcada" : `${visto.causas.length} marcadas`}</dd>
             {dono && (
               <>
-                <dt className="text-suave">Telefone comercial</dt>
-                <dd className="truncate">{visto.telefoneComercial ?? "—"}</dd>
+                <dt className="text-suave">WhatsApp</dt>
+                <dd className="truncate">{visto.whatsapp ?? "—"}</dd>
                 <dt className="text-suave">Seu contato</dt>
                 <dd className="truncate">{[visto.emailDoDono, visto.telefoneDoDono].filter(Boolean).join(" · ") || "—"}</dd>
               </>
@@ -640,7 +606,7 @@ function Secao({
       <h2
         id={`etapa-${etapa}`}
         tabIndex={-1}
-        className="font-serif text-3xl leading-tight font-semibold tracking-tight text-balance outline-none"
+        className="font-display text-3xl leading-tight font-semibold tracking-tight text-balance outline-none"
       >
         {titulo}
       </h2>
@@ -688,7 +654,7 @@ function Escolha({
         {previa ? (
           <Cartao nome={previa.nome ?? `@${procura.instagram}`} instagram={procura.instagram} foto={previa.foto} linha="Prévia do Instagram" />
         ) : (
-          <p className="rounded-2xl bg-papel p-4 text-sm leading-relaxed text-suave">
+          <p className="rounded-2xl bg-areia p-4 text-sm leading-relaxed text-suave">
             Não conseguimos ver a prévia de @{procura.instagram}. Confira se o @ está certo. Contas pessoais não aparecem, e
             tudo bem.
           </p>
@@ -733,7 +699,7 @@ function Escolha({
 function EscolhaSemInstagram({ aoEscolher, aoVoltarAoArroba }: { aoEscolher: (ramo: Ramo) => void; aoVoltarAoArroba: () => void }) {
   return (
     <>
-      <p className="rounded-2xl bg-papel p-4 text-sm leading-relaxed text-suave">
+      <p className="rounded-2xl bg-areia p-4 text-sm leading-relaxed text-suave">
         Tudo bem não ter Instagram. O perfil fica no Negócio do Bem com um endereço feito do nome e da cidade, e o dono
         pode colocar uma foto depois.
       </p>
@@ -750,7 +716,7 @@ function EscolhaSemInstagram({ aoEscolher, aoVoltarAoArroba }: { aoEscolher: (ra
 
 function Cartao({ nome, instagram, foto, linha }: { nome: string; instagram: string; foto: string | null; linha: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-papel p-4">
+    <div className="flex items-center gap-3 rounded-2xl bg-areia p-4">
       {foto ? (
         // A foto chega pronta: do site ou em data URL, da prévia do Instagram.
         // eslint-disable-next-line @next/next/no-img-element

@@ -23,7 +23,7 @@ export default function FichaDaConta(props: PageProps<"/moderacao/contas/[id]">)
   );
 }
 
-const TOM_DO_PEDIDO: Record<string, Tom> = { pendente: "atencao", aprovada: "bom", recusada: "alerta" };
+const TOM_DO_PEDIDO: Record<string, Tom> = { pendente: "atencao", aprovada: "bom", recusada: "alerta", revogada: "alerta" };
 
 async function Conteudo({ params }: Pick<PageProps<"/moderacao/contas/[id]">, "params">) {
   await exigirModerador();
@@ -50,7 +50,7 @@ async function Conteudo({ params }: Pick<PageProps<"/moderacao/contas/[id]">, "p
         </Link>
         <div>
           <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">Ficha da conta</p>
-          <h1 className="mt-1 flex flex-wrap items-center gap-3 font-serif text-4xl font-semibold tracking-tight">
+          <h1 className="mt-1 flex flex-wrap items-center gap-3 font-display text-4xl font-semibold tracking-tight">
             {conta.nome}
             {conta.papel === "moderador" && <Etiqueta tom="info">Moderação</Etiqueta>}
           </h1>
@@ -81,7 +81,7 @@ async function Conteudo({ params }: Pick<PageProps<"/moderacao/contas/[id]">, "p
         </p>
         <nav aria-label="Resumo da conta" className="flex flex-wrap gap-2">
           {numeros.map((n) => (
-            <a key={n.ancora} href={`#${n.ancora}`} className="rounded-full border border-linha bg-superficie px-3.5 py-1.5 text-sm hover:border-tinta/30">
+            <a key={n.ancora} href={`#${n.ancora}`} className="rounded-full bg-areia px-3.5 py-1.5 text-sm hover:bg-linha">
               {n.texto}
             </a>
           ))}
@@ -170,7 +170,11 @@ async function Conteudo({ params }: Pick<PageProps<"/moderacao/contas/[id]">, "p
                   </>
                 )}
               </p>
-              {r.motivoRecusa && <p className="mt-1 text-coral-700">Motivo da recusa: {r.motivoRecusa}</p>}
+              {r.motivoRecusa && (
+                <p className="mt-1 text-coral-700">
+                  {r.status === "revogada" ? "Motivo da remoção" : "Motivo da recusa"}: {r.motivoRecusa}
+                </p>
+              )}
             </div>
             <Etiqueta tom={TOM_DO_PEDIDO[r.status] ?? "neutro"}>{STATUS_REIVINDICACAO[r.status] ?? r.status}</Etiqueta>
           </li>
@@ -179,7 +183,7 @@ async function Conteudo({ params }: Pick<PageProps<"/moderacao/contas/[id]">, "p
 
       <section id="auditoria" className="scroll-mt-6">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-          <h2 className="font-serif text-2xl font-semibold">Auditoria</h2>
+          <h2 className="font-display text-2xl font-semibold">Auditoria</h2>
           <Link href={hrefModeracao("auditoria", { pessoa: conta.id })} className="link text-sm">
             Tudo o que esta conta fez
           </Link>
@@ -232,7 +236,7 @@ function Secao({
 }) {
   return (
     <section id={id} className="scroll-mt-6">
-      <h2 className="font-serif text-2xl font-semibold">{titulo}</h2>
+      <h2 className="font-display text-2xl font-semibold">{titulo}</h2>
       {descricao && <p className="mt-1 text-sm text-suave">{descricao}</p>}
       {children.length === 0 ? (
         <p className="cartao mt-4 p-6 text-sm text-suave">{vazio}</p>
@@ -260,7 +264,7 @@ function LinhaDeNegocio({
       <FotoEmpresa empresa={empresa} />
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <Link href={`/empresas/${empresa.instagramUsername}`} className="font-serif text-lg font-semibold hover:text-coral-700">
+          <Link href={`/empresas/${empresa.instagramUsername}`} className="font-display text-lg font-semibold hover:text-coral-700">
             {empresa.nome}
           </Link>
           <EtiquetasDoNegocio empresa={empresa} />

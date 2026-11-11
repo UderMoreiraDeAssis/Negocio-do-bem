@@ -16,7 +16,7 @@ export async function MenuUsuario() {
   const primeiroNome = usuario.nome.split(" ")[0];
   return (
     <details className="group relative sm:ml-1">
-      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-full border border-linha bg-superficie py-1 pr-1 pl-1 text-sm sm:pr-3 transition hover:border-tinta/20 [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-full bg-areia py-1 pr-1 pl-1 text-sm sm:pr-3 transition hover:bg-linha [&::-webkit-details-marker]:hidden">
         <span className="grid h-7 w-7 place-items-center rounded-full bg-coral-50 text-xs font-bold text-coral-700">
           {primeiroNome?.[0]?.toUpperCase()}
         </span>
@@ -24,16 +24,22 @@ export async function MenuUsuario() {
       </summary>
       <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-2xl border border-linha bg-superficie p-1.5 text-sm shadow-lg shadow-tinta/5">
         <p className="truncate px-3 pt-2 pb-1 text-xs text-suave">{usuario.email}</p>
-        <Link href="/painel" className="block rounded-xl px-3 py-2 hover:bg-papel">
+        <Link href="/painel" className="block rounded-xl px-3 py-2 hover:bg-areia">
           Meu painel
         </Link>
+        <Link href="/favoritos" className="block rounded-xl px-3 py-2 hover:bg-areia">
+          Favoritos
+        </Link>
+        <Link href="/cupons/meus" className="block rounded-xl px-3 py-2 hover:bg-areia">
+          Meus cupons
+        </Link>
         {usuario.moderador && (
-          <Link href="/moderacao" className="block rounded-xl px-3 py-2 hover:bg-papel">
+          <Link href="/moderacao" className="block rounded-xl px-3 py-2 hover:bg-areia">
             Moderação
           </Link>
         )}
         <form action={sair}>
-          <button type="submit" className="block w-full rounded-xl px-3 py-2 text-left text-suave hover:bg-papel hover:text-tinta">
+          <button type="submit" className="block w-full rounded-xl px-3 py-2 text-left text-suave hover:bg-areia hover:text-tinta">
             Sair
           </button>
         </form>

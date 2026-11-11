@@ -7,7 +7,8 @@ import { EmpresaLinha } from "@/components/EmpresaLinha";
 import { IconeCategoria } from "@/components/IconeCategoria";
 import { Paginacao } from "@/components/Paginacao";
 import { buscarCausa, CAUSAS, GRUPOS, type GrupoCausa } from "@/lib/causas";
-import { buscarDiretorio } from "@/lib/consultas";
+import { usuarioAtual } from "@/lib/auth/sessao";
+import { buscarDiretorio, coracoesDaLista } from "@/lib/consultas";
 import {
   alternar,
   hrefDiretorio,
@@ -64,12 +65,13 @@ export default function Explorar(props: PageProps<"/explorar">) {
 async function Diretorio({ searchParams }: Pick<PageProps<"/explorar">, "searchParams">) {
   const filtros = lerFiltros(await searchParams);
   const resultado = await buscarDiretorio(filtros);
+  const coracoes = await coracoesDaLista(await usuarioAtual(), resultado.itens.map((empresa) => empresa.id), hrefDiretorio(filtros));
   const ativos = filtrosAtivos(filtros, resultado.local);
   const marcados = filtros.tipos.length + filtros.causas.length + (filtros.verificados ? 1 : 0);
 
   return (
     <>
-      <h1 className="mt-2 font-serif text-4xl leading-tight font-semibold tracking-tight text-balance sm:text-5xl">
+      <h1 className="mt-2 font-display text-4xl leading-tight font-semibold tracking-tight text-balance sm:text-5xl">
         {tituloDoDiretorio(filtros, resultado.local)}
       </h1>
       <div className="mt-5">
@@ -99,7 +101,7 @@ async function Diretorio({ searchParams }: Pick<PageProps<"/explorar">, "searchP
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-linha pb-3.5">
             <p aria-live="polite" className="text-suave">
-              <strong className="font-serif text-2xl font-semibold text-tinta">{resultado.total.toLocaleString("pt-BR")}</strong>{" "}
+              <strong className="font-display text-2xl font-semibold text-tinta">{resultado.total.toLocaleString("pt-BR")}</strong>{" "}
               {resultado.total === 1 ? "negócio" : "negócios"}
               {ativos.length > 0 ? " com esses filtros" : " no diretório"}
             </p>
@@ -108,7 +110,7 @@ async function Diretorio({ searchParams }: Pick<PageProps<"/explorar">, "searchP
                 atual={filtros.ordem}
                 links={Object.fromEntries((Object.keys(ORDENS) as Ordem[]).map((ordem) => [ordem, mudarFiltro(filtros, { ordem })])) as Record<Ordem, string>}
               />
-              <div role="group" aria-label="Modo de exibição" className="inline-flex rounded-full border border-linha bg-superficie p-0.5">
+              <div role="group" aria-label="Modo de exibição" className="inline-flex rounded-full bg-areia p-0.5">
                 <BotaoVista href={hrefDiretorio({ ...filtros, vista: "grade" })} ativo={filtros.vista === "grade"} rotulo="Ver em grade">
                   <path d="M4 4h7v7H4V4ZM13 4h7v7h-7V4ZM4 13h7v7H4v-7ZM13 13h7v7h-7v-7Z" />
                 </BotaoVista>
@@ -127,10 +129,10 @@ async function Diretorio({ searchParams }: Pick<PageProps<"/explorar">, "searchP
                   href={ativo.href}
                   scroll={false} rel="nofollow"
                   aria-label={`Tirar o filtro ${ativo.rotulo}`}
-                  className="inline-flex items-center gap-2 rounded-full border border-tinta/60 bg-superficie py-1.5 pr-2.5 pl-3.5 text-sm font-medium transition hover:border-tinta"
+                  className="inline-flex items-center gap-2 rounded-full bg-tinta py-1.5 pr-2.5 pl-3.5 text-sm font-medium text-papel transition hover:bg-tinta/85"
                 >
                   {ativo.rotulo}
-                  <span aria-hidden="true" className="text-suave">
+                  <span aria-hidden="true" className="text-papel/70">
                     ✕
                   </span>
                 </Link>
@@ -142,13 +144,13 @@ async function Diretorio({ searchParams }: Pick<PageProps<"/explorar">, "searchP
             filtros.vista === "lista" ? (
               <div className="mt-5 flex flex-col gap-2">
                 {resultado.itens.map((empresa) => (
-                  <EmpresaLinha key={empresa.instagramUsername} empresa={empresa} />
+                  <EmpresaLinha key={empresa.instagramUsername} empresa={empresa} favorito={coracoes(empresa.id)} />
                 ))}
               </div>
             ) : (
               <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {resultado.itens.map((empresa) => (
-                  <EmpresaCard key={empresa.instagramUsername} empresa={empresa} />
+                  <EmpresaCard key={empresa.instagramUsername} empresa={empresa} favorito={coracoes(empresa.id)} />
                 ))}
               </div>
             )
@@ -231,7 +233,7 @@ function Filtros({ filtros, resultado }: { filtros: FiltrosDiretorio; resultado:
         href={mudarFiltro(filtros, { verificados: !filtros.verificados })}
         scroll={false} rel="nofollow"
         aria-current={filtros.verificados ? "true" : undefined}
-        className="cartao flex items-center justify-between gap-3 p-4 transition hover:border-tinta/30"
+        className="cartao flex items-center justify-between gap-3 p-4 transition hover:bg-linha"
       >
         <span>
           <span className="block text-sm font-semibold">Só perfis assumidos</span>
@@ -268,7 +270,7 @@ function OpcaoFiltro({ href, ativo, total, children }: { href: string; ativo: bo
       href={href}
       scroll={false} rel="nofollow"
       aria-current={ativo ? "true" : undefined}
-      className={`flex items-center gap-2.5 rounded-xl px-2 py-1.5 text-sm transition hover:bg-papel ${total === 0 && !ativo ? "opacity-55" : ""}`}
+      className={`flex items-center gap-2.5 rounded-xl px-2 py-1.5 text-sm transition hover:bg-areia ${total === 0 && !ativo ? "opacity-55" : ""}`}
     >
       <span
         aria-hidden="true"
@@ -309,7 +311,7 @@ function Vazio({ filtros, resultado }: { filtros: FiltrosDiretorio; resultado: R
   if (resultado.total > 0) {
     return (
       <div className="cartao mt-5 px-6 py-14 text-center">
-        <p className="font-serif text-2xl">Essa página não existe.</p>
+        <p className="font-display text-2xl">Essa página não existe.</p>
         <Link href={hrefDiretorio({ ...filtros, pagina: 1 })} className="botao-claro mt-5">
           Voltar para a primeira página
         </Link>
@@ -320,7 +322,7 @@ function Vazio({ filtros, resultado }: { filtros: FiltrosDiretorio; resultado: R
     resultado.local?.cidade && !filtros.q && filtros.tipos.length === 0 && filtros.causas.length === 0 && !filtros.verificados;
   return (
     <div className="cartao mt-5 px-6 py-14 text-center">
-      <p className="font-serif text-2xl">
+      <p className="font-display text-2xl">
         {soOLugar ? `Ainda não há negócios do bem em ${resultado.local!.cidade} no diretório.` : "Nenhum negócio com esses filtros por enquanto."}
       </p>
       <p className="mx-auto mt-2 max-w-md text-suave">

@@ -16,7 +16,7 @@ export function contar(valor: number, singular: string, plural: string): string 
 }
 
 const TONS = {
-  neutro: "bg-papel text-suave",
+  neutro: "bg-areia text-suave",
   bom: "bg-folha-50 text-folha",
   atencao: "bg-amber-50 text-amber-800",
   alerta: "bg-coral-50 text-coral-700",
@@ -49,7 +49,7 @@ export function TituloDoBloco({ titulo, descricao, children }: { titulo: string;
   return (
     <div className="mb-4 flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
       <div>
-        <h3 className="font-serif text-xl font-semibold">{titulo}</h3>
+        <h3 className="font-display text-xl font-semibold">{titulo}</h3>
         {descricao && <p className="text-sm text-suave">{descricao}</p>}
       </div>
       {children}

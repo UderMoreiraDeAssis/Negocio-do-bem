@@ -31,5 +31,5 @@ async function Pendente() {
       </div>
     );
   }
-  return <FormTelefoneGoogle email={cadastro.perfil.email} />;
+  return <FormTelefoneGoogle email={cadastro.perfil.email} voltar={cadastro.destino} />;
 }

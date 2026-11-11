@@ -21,7 +21,7 @@ export function Monograma({ nome, chave, tamanho = "md" }: { nome: string; chave
   return (
     <span
       aria-hidden="true"
-      className={`grid shrink-0 place-items-center rounded-full bg-gradient-to-br font-serif font-semibold ring-superficie ${dimensoes} ${paletaDe(chave)}`}
+      className={`grid shrink-0 place-items-center rounded-full bg-gradient-to-br font-display font-semibold ring-superficie ${dimensoes} ${paletaDe(chave)}`}
     >
       {iniciais(nome)}
     </span>

@@ -130,7 +130,7 @@ function Perfil({ embaixador }: { embaixador: EmbaixadorNoSite }) {
       <p className="text-lg font-semibold break-all">@{embaixador.instagramUsername}</p>
       {embaixador.seguidores && (
         <p className="text-papel/75 escuro:text-suave">
-          <strong className="font-serif text-3xl font-semibold text-papel escuro:text-tinta">{embaixador.seguidores}</strong> seguidores no
+          <strong className="font-display text-3xl font-semibold text-papel escuro:text-tinta">{embaixador.seguidores}</strong> seguidores no
           Instagram
         </p>
       )}

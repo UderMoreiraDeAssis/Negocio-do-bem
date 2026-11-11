@@ -28,17 +28,17 @@ const NEGOCIO = {
 };
 
 describe("endereço do site", () => {
-  it("no Vercel usa o domínio de produção, até nos previews", async () => {
-    const seo = await seoCom({ VERCEL_PROJECT_PRODUCTION_URL: "negociodobem.com.br", VERCEL_ENV: "preview", APP_URL: "https://outro.exemplo" });
-    expect(seo.ENDERECO_DO_SITE).toBe("https://negociodobem.com.br");
-    expect(seo.urlAbsoluta("/empresas/x")).toBe("https://negociodobem.com.br/empresas/x");
-    // Preview não entra nos buscadores.
-    expect(seo.INDEXAVEL).toBe(false);
+  it("usa o APP_URL, sem a barra do final", async () => {
+    const seo = await seoCom({ DEPLOY_ENV: "production", APP_URL: "https://meusite.exemplo/" });
+    expect(seo.ENDERECO_DO_SITE).toBe("https://meusite.exemplo");
+    expect(seo.urlAbsoluta("/empresas/x")).toBe("https://meusite.exemplo/empresas/x");
+    expect(seo.INDEXAVEL).toBe(true);
   });
 
-  it("fora do Vercel usa o APP_URL, sem a barra do final", async () => {
-    const seo = await seoCom({ VERCEL_PROJECT_PRODUCTION_URL: "", VERCEL_ENV: "", APP_URL: "https://meusite.exemplo/" });
-    expect(seo.ENDERECO_DO_SITE).toBe("https://meusite.exemplo");
+  it("nos previews, usa o APP_URL do preview e fica fora dos buscadores", async () => {
+    const seo = await seoCom({ DEPLOY_ENV: "preview", APP_URL: "https://stage.exemplo" });
+    expect(seo.ENDERECO_DO_SITE).toBe("https://stage.exemplo");
+    expect(seo.INDEXAVEL).toBe(false);
   });
 });
 

@@ -47,7 +47,7 @@ export function AlternarTema() {
       aria-label="Modo escuro"
       title={tema === "escuro" ? "Mudar para o modo claro" : "Mudar para o modo escuro"}
       onClick={alternar}
-      className="relative inline-flex h-6 w-10 shrink-0 items-center sm:h-7 sm:w-12 rounded-full border border-linha bg-papel transition hover:border-tinta/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral"
+      className="relative inline-flex h-6 w-10 shrink-0 items-center sm:h-7 sm:w-12 rounded-full border border-linha bg-areia transition hover:border-tinta/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral"
     >
       <span
         aria-hidden="true"

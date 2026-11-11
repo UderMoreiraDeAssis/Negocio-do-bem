@@ -48,13 +48,13 @@ export default function InstalacaoAndroid() {
 
       <div className="mt-12 grid gap-4 sm:grid-cols-2">
         <div className="rounded-3xl bg-folha-50 p-6">
-          <h2 className="font-serif text-lg font-semibold text-folha">Dica: atalhos</h2>
+          <h2 className="font-display text-lg font-semibold text-folha">Dica: atalhos</h2>
           <p className="mt-2 text-sm leading-relaxed">
             Segure o ícone do app por um segundo. Aparecem atalhos para ir direto a Explorar, Cadastrar ou ao seu Painel.
           </p>
         </div>
         <div className="cartao p-6">
-          <h2 className="font-serif text-lg font-semibold">Usa outro navegador?</h2>
+          <h2 className="font-display text-lg font-semibold">Usa outro navegador?</h2>
           <p className="mt-2 text-sm leading-relaxed text-suave">
             No Samsung Internet e em outros, procure no menu a opção de instalar ou de adicionar à tela inicial. Se não
             encontrar, abra o site no Chrome.

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Falha de segurança
+    url: https://github.com/fabs-reis/Negocio-do-bem/security/policy
+    about: Não abra issue pública. Siga a política de segurança.

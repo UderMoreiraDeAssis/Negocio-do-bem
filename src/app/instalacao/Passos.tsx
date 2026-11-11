@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 
 // Peças dos tutoriais de /instalacao/android e /instalacao/iphone.
 
+export { Passo, Passos } from "@/components/Passos";
+
 /** Cabeçalho do tutorial, com o link para voltar à escolha do aparelho. */
 export function CabecaDoTutorial({ aparelho, titulo, children }: { aparelho: string; titulo: string; children: ReactNode }) {
   return (
@@ -11,33 +13,9 @@ export function CabecaDoTutorial({ aparelho, titulo, children }: { aparelho: str
         ← Trocar de celular
       </Link>
       <p className="mt-6 text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">{aparelho}</p>
-      <h1 className="mt-2 font-serif text-4xl leading-tight font-semibold tracking-tight text-balance sm:text-5xl">{titulo}</h1>
+      <h1 className="mt-2 font-display text-4xl leading-tight font-semibold tracking-tight text-balance sm:text-5xl">{titulo}</h1>
       <p className="mt-3 text-lg leading-relaxed text-suave">{children}</p>
     </>
-  );
-}
-
-export function Passos({ children }: { children: ReactNode }) {
-  return <ol className="mt-10 space-y-8">{children}</ol>;
-}
-
-export function Passo({ numero, titulo, children }: { numero: number; titulo: ReactNode; children: ReactNode }) {
-  return (
-    <li className="grid grid-cols-[2.5rem_1fr] gap-4">
-      <span
-        aria-hidden="true"
-        className="grid h-10 w-10 place-items-center rounded-full bg-coral font-serif text-xl font-semibold text-white"
-      >
-        {numero}
-      </span>
-      <div className="pt-1.5">
-        <h2 className="font-serif text-xl font-semibold">
-          <span className="sr-only">Passo {numero}: </span>
-          {titulo}
-        </h2>
-        <div className="mt-1.5 space-y-2 leading-relaxed text-suave">{children}</div>
-      </div>
-    </li>
   );
 }
 

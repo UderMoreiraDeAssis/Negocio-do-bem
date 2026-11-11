@@ -1,0 +1,52 @@
+name: Propor melhoria
+description: Melhoria em algo existente, incluindo documentação e manutenção
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Antes de abrir, confira se já existe uma issue sobre o mesmo assunto.
+        Não inclua dados sensíveis nem dados reais de pessoas ou negócios.
+        Falhas de segurança devem seguir a [política de segurança](https://github.com/fabs-reis/Negocio-do-bem/security/policy), sem issue pública.
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto e necessidade
+      description: O que existe hoje, qual melhoria você propõe e quem seria beneficiado?
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Resultado esperado e escopo
+      description: O que precisa mudar ou ser entregue? Informe também o que fica fora do escopo.
+    validations:
+      required: true
+  - type: textarea
+    id: aceite
+    attributes:
+      label: Critérios de aceite
+      description: Descreva resultados observáveis e verificáveis que mostram que a entrega está pronta.
+      placeholder: "- [ ] Resultado que poderá ser verificado."
+    validations:
+      required: true
+  - type: textarea
+    id: validar
+    attributes:
+      label: Como validar
+      description: Explique como verificar o resultado, se já souber.
+  - type: textarea
+    id: dependencias
+    attributes:
+      label: Dependências e trabalhos relacionados
+      description: Informe issues, PRs, sobreposições ou bloqueios. Se não souber, escreva "Nenhum conhecido".
+  - type: textarea
+    id: evidencias
+    attributes:
+      label: Evidências e referências
+      description: Exemplos, prints ou links relevantes. Use apenas dados fictícios.
+  - type: checkboxes
+    id: assumir
+    attributes:
+      label: Quero assumir esta issue
+      description: Marcar interesse não atribui a issue automaticamente. A PM confirma o encaminhamento na triagem e no GitHub Project.
+      options:
+        - label: Sim. Vou registrar meu interesse na issue e abrir um Draft PR quando começar.

@@ -3,6 +3,7 @@ import { fotoDe } from "@/components/FotoEmpresa";
 import { formatarTelefone } from "@/lib/texto";
 import type { Endereco } from "@/lib/endereco";
 import { FormEmpresa } from "./FormEmpresa";
+import { FormInstagram } from "./FormInstagram";
 
 type Empresa = Endereco & {
   id: string;
@@ -23,14 +24,19 @@ type Empresa = Endereco & {
   causas: { causa: string }[];
 };
 
-/** Foto e formulário do perfil, usados no painel do dono e na edição pela moderação. */
-export function EdicaoEmpresa({ empresa, voltar }: { empresa: Empresa; voltar: string }) {
+/**
+ * Foto e formulário do perfil, usados no painel do dono e na edição pela moderação. Só a
+ * moderação troca o @ direto (`trocaDoArroba`); o dono pede a troca na seção do painel.
+ */
+export function EdicaoEmpresa({ empresa, voltar, trocaDoArroba = false }: { empresa: Empresa; voltar: string; trocaDoArroba?: boolean }) {
   return (
     <>
       <section className="cartao space-y-4 p-6 sm:p-8">
-        <h2 className="font-serif text-2xl font-semibold">Foto do perfil</h2>
+        <h2 className="font-display text-2xl font-semibold">Foto do perfil</h2>
         <FormFoto empresa={fotoDe(empresa)} voltar={voltar} />
       </section>
+
+      {trocaDoArroba && <FormInstagram empresa={empresa} voltar={voltar} />}
 
       <FormEmpresa
         voltar={voltar}
