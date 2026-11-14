@@ -1,61 +1,100 @@
 "use client";
 
-import { useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { abertoComoApp } from "@/lib/app";
-import { COOKIE_EVENTOS, enviarEvento, lerEventos } from "@/lib/medicao";
-
-// Os eventos do servidor chegam no cookie depois de um redirecionamento: uma página nova,
-// só um `?aviso=` na mesma página ou a volta do Google. Seguir a URL pediria `usePathname` e
-// `useSearchParams` dentro de um Suspense, e nas páginas com parâmetro dinâmico (o perfil do
-// negócio) esse Suspense nunca se resolvia. Conferir o cookie a cada segundo é uma leitura de
-// texto, vale para todos os casos e também espera o script do Analytics, que carrega depois.
-const INTERVALO_MS = 1000;
-
-function lerCookie(nome: string): string | undefined {
-  const par = document.cookie.split("; ").find((item) => item.startsWith(`${nome}=`));
-  return par === undefined ? undefined : decodeURIComponent(par.slice(nome.length + 1));
-}
+import { consentimentoPositivo, lerConsentimento, lerCookie } from "@/lib/consentimento-analytics";
+import { COOKIE_EVENTOS, enviarEvento, lerEventos, origemDoTrafego, paginaPermitida, sanearEvento } from "@/lib/medicao";
 
 /**
- * Manda ao Google Analytics os eventos que o servidor deixou no cookie (`medir`), os
- * cliques em elementos com `data-medir` e a abertura pelo app instalado (`app_aberto`).
+ * Mantém um único quadro durante a visita às páginas públicas permitidas.
+ * A origem opaca exige destino `*`, restrito à referência do frame atual.
+ * A resposta exige `source` do mesmo frame e origem `null`.
  */
-export function EventosAnalytics() {
-  useEffect(() => {
-    function enviarPendentes() {
-      if (!window.gtag) return;
-      const valor = lerCookie(COOKIE_EVENTOS);
-      if (!valor) return;
-      // Apaga antes de mandar: a próxima conferência não repete os eventos.
-      document.cookie = `${COOKIE_EVENTOS}=; Max-Age=0; Path=/; SameSite=Lax`;
-      for (const { nome, params } of lerEventos(valor)) enviarEvento(nome, params);
-    }
-    enviarPendentes();
-    const intervalo = setInterval(enviarPendentes, INTERVALO_MS);
-    return () => clearInterval(intervalo);
-  }, []);
+export function EventosAnalytics({ consentimento }: { consentimento: string }) {
+  const caminho = usePathname();
+  const quadro = useRef<HTMLIFrameElement>(null);
+  const pronto = useRef(false);
+  const ultimaPagina = useRef("");
+  const enviouAppAberto = useRef(false);
+  const consentimentoAtivo = useRef(consentimento);
+  const pagina = paginaPermitida(caminho);
 
   useEffect(() => {
+    if (consentimentoAtivo.current !== consentimento || !paginaPermitida(caminho)) {
+      consentimentoAtivo.current = consentimento;
+      pronto.current = false;
+      ultimaPagina.current = "";
+    }
+    if (!paginaPermitida(caminho) || !consentimentoPositivo(lerConsentimento())) return;
+
+    function publicarNoQuadro(nome: string, params: Record<string, string>) {
+      const atual = paginaPermitida(window.location.pathname);
+      if (!pronto.current || !atual || !consentimentoPositivo(lerConsentimento()) || lerConsentimento() !== consentimento) return;
+      quadro.current?.contentWindow?.postMessage({
+        tipo: "ndb:medir",
+        nome,
+        params: {
+          ...params,
+          page_location: location.origin + atual.caminho,
+          page_title: atual.titulo,
+          page_referrer: "",
+        },
+      }, "*");
+    }
+
+    function enviarPagina() {
+      const atual = paginaPermitida(window.location.pathname);
+      if (!pronto.current || !atual || !consentimentoPositivo(lerConsentimento()) || lerConsentimento() !== consentimento) return;
+      if (ultimaPagina.current === window.location.pathname) return;
+      ultimaPagina.current = window.location.pathname;
+      publicarNoQuadro("page_view", {
+        origem_trafego: origemDoTrafego(document.referrer, location.origin),
+      });
+    }
+
+    function enviarPendentes() {
+      if (!pronto.current) return;
+      enviarPagina();
+      if (!enviouAppAberto.current && abertoComoApp()) {
+        enviouAppAberto.current = true;
+        enviarEvento("app_aberto", {});
+      }
+      const valor = lerCookie(COOKIE_EVENTOS);
+      if (!valor) return;
+      document.cookie = `${COOKIE_EVENTOS}=; Max-Age=0; Path=/; SameSite=Lax`;
+      for (const evento of lerEventos(valor, consentimento)) enviarEvento(evento.nome, evento.params);
+    }
+
+    function aoReceber(evento: MessageEvent) {
+      if (evento.origin !== "null" || evento.source !== quadro.current?.contentWindow || evento.data?.tipo !== "ndb:pronto") return;
+      pronto.current = true;
+      enviarPendentes();
+    }
+
     function aoClicar(evento: MouseEvent) {
       const alvo = evento.target instanceof Element ? evento.target.closest<HTMLElement>("[data-medir]") : null;
       const { medir: nome, ...params } = alvo?.dataset ?? {};
       if (nome) enviarEvento(nome, params);
     }
+
+    window.ndbEnviarAnalytics = evento => {
+      const permitido = sanearEvento(evento.nome, evento.params);
+      if (!permitido) return;
+      publicarNoQuadro(permitido.nome, permitido.params);
+    };
+
+    enviarPendentes();
+    window.addEventListener("message", aoReceber);
+    window.addEventListener("focus", enviarPendentes);
     document.addEventListener("click", aoClicar);
-    return () => document.removeEventListener("click", aoClicar);
-  }, []);
+    return () => {
+      window.removeEventListener("message", aoReceber);
+      window.removeEventListener("focus", enviarPendentes);
+      document.removeEventListener("click", aoClicar);
+      delete window.ndbEnviarAnalytics;
+    };
+  }, [caminho, consentimento, pagina?.caminho]);
 
-  useEffect(() => {
-    // O site aberto pelo ícone do app instalado. O layout não recarrega entre as páginas,
-    // então conta uma vez por abertura. Espera o script do Analytics carregar.
-    if (!abertoComoApp()) return;
-    const intervalo = setInterval(() => {
-      if (!window.gtag) return;
-      clearInterval(intervalo);
-      enviarEvento("app_aberto", {});
-    }, INTERVALO_MS);
-    return () => clearInterval(intervalo);
-  }, []);
-
-  return null;
+  return pagina ? <iframe key={consentimento} ref={quadro} src="/api/analytics" title="Medição opcional" hidden referrerPolicy="no-referrer" sandbox="allow-scripts" /> : null;
 }

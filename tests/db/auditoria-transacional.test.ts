@@ -6,8 +6,8 @@ import { alternarVisibilidade, indicarEmpresa, removerFoto, salvarEmpresa, troca
 import { excluirEmbaixador, removerFotoDoEmbaixador, salvarEmbaixador, trocarFotoDoEmbaixador } from "@/acoes/embaixadores";
 
 const identidade = vi.hoisted(() => ({ id: "", nome: "Pessoa de teste", email: "pessoa@exemplo.com", moderador: true, emailConfirmado: true }));
-const FOTO_ANTIGA = "/enviados/perfis/antiga.jpg";
-const FOTO_NOVA = "/enviados/perfis/nova.jpg";
+const FOTO_ANTIGA = "/enviados/perfis/aaaaaaaaaaaaaaaaaaaaaaaa.jpg";
+const FOTO_NOVA = "/enviados/perfis/bbbbbbbbbbbbbbbbbbbbbbbb.jpg";
 
 vi.mock("@/lib/auth/sessao", async (importarOriginal) => ({
   ...await importarOriginal<typeof import("@/lib/auth/sessao")>(),
@@ -82,7 +82,7 @@ function edicaoDoEmbaixador() {
 async function limparBanco() {
   await db.$executeRawUnsafe('ALTER TABLE "RegistroAuditoria" DROP CONSTRAINT IF EXISTS "falha_auditoria_teste"');
   await db.$executeRawUnsafe(
-    'TRUNCATE "RegistroAuditoria", "Depoimento", "Reivindicacao", "EmpresaMembro", "EmpresaCausa", "Empresa", "Embaixador", "Sessao", "Usuario" CASCADE',
+    'TRUNCATE "FotoAposentada", "RegistroAuditoria", "Depoimento", "Reivindicacao", "EmpresaMembro", "EmpresaCausa", "Empresa", "Embaixador", "Sessao", "Usuario" CASCADE',
   );
 }
 
@@ -230,7 +230,7 @@ const casos = [
     registro: "empresa.foto_trocada",
     conferir: async (alterada: boolean) => {
       expect((await db.empresa.findUniqueOrThrow({ where: { id: empresaId } })).fotoUrl).toBe(alterada ? FOTO_NOVA : FOTO_ANTIGA);
-      if (!alterada) expect(apagarFoto).not.toHaveBeenCalled();
+      expect(apagarFoto).not.toHaveBeenCalled();
     },
   },
   {
@@ -239,7 +239,7 @@ const casos = [
     registro: "empresa.foto_removida",
     conferir: async (alterada: boolean) => {
       expect((await db.empresa.findUniqueOrThrow({ where: { id: empresaId } })).fotoUrl).toBe(alterada ? null : FOTO_ANTIGA);
-      if (!alterada) expect(apagarFoto).not.toHaveBeenCalled();
+      expect(apagarFoto).not.toHaveBeenCalled();
     },
   },
   {
@@ -270,7 +270,7 @@ const casos = [
     registro: "embaixador.foto_trocada",
     conferir: async (alterada: boolean) => {
       expect((await db.embaixador.findUniqueOrThrow({ where: { id: embaixadorId } })).fotoUrl).toBe(alterada ? FOTO_NOVA : FOTO_ANTIGA);
-      if (!alterada) expect(apagarFoto).not.toHaveBeenCalled();
+      expect(apagarFoto).not.toHaveBeenCalled();
     },
   },
   {
@@ -279,7 +279,7 @@ const casos = [
     registro: "embaixador.foto_removida",
     conferir: async (alterada: boolean) => {
       expect((await db.embaixador.findUniqueOrThrow({ where: { id: embaixadorId } })).fotoUrl).toBe(alterada ? null : FOTO_ANTIGA);
-      if (!alterada) expect(apagarFoto).not.toHaveBeenCalled();
+      expect(apagarFoto).not.toHaveBeenCalled();
     },
   },
   {
@@ -288,7 +288,7 @@ const casos = [
     registro: "embaixador.excluido",
     conferir: async (alterada: boolean) => {
       expect(await db.embaixador.count({ where: { id: embaixadorId } })).toBe(alterada ? 0 : 1);
-      if (!alterada) expect(apagarFoto).not.toHaveBeenCalled();
+      expect(apagarFoto).not.toHaveBeenCalled();
     },
   },
 ];
@@ -317,26 +317,32 @@ describe("alteração e auditoria na mesma transação", () => {
   it.each([
     { nome: "trocar", acao: () => trocarFoto(undefined, foto()), url: FOTO_NOVA },
     { nome: "remover", acao: () => removerFoto(formulario()), url: null },
-  ])("só apaga a foto antiga após confirmar o banco e a auditoria ao $nome", async ({ acao, url }) => {
-    vi.mocked(apagarFoto).mockImplementationOnce(async () => {
-      expect((await db.empresa.findUniqueOrThrow({ where: { id: empresaId } })).fotoUrl).toBe(url);
-      expect(await db.registroAuditoria.count({ where: { alvoId: empresaId } })).toBe(1);
-    });
+  ])("preserva a foto antiga referenciada e confirma a auditoria ao $nome", async ({ acao, url }) => {
+    const historia = `![Foto da história](${FOTO_ANTIGA})`;
+    await db.empresa.update({ where: { id: empresaId }, data: { historia } });
 
     await expect(acao()).rejects.toThrow(/^REDIRECIONAR:/);
-    expect(apagarFoto).toHaveBeenCalledExactlyOnceWith(FOTO_ANTIGA);
+
+    expect(await db.empresa.findUniqueOrThrow({ where: { id: empresaId } })).toMatchObject({ fotoUrl: url, historia });
+    expect(await db.registroAuditoria.count({ where: { alvoId: empresaId } })).toBe(1);
+    expect(apagarFoto).not.toHaveBeenCalled();
   });
 
   it.each([
     { nome: "trocar", acao: () => trocarFotoDoEmbaixador(undefined, foto(doEmbaixador())), url: FOTO_NOVA },
     { nome: "remover", acao: () => removerFotoDoEmbaixador(doEmbaixador()), url: null },
-  ])("só apaga a foto antiga do embaixador após confirmar o banco e a auditoria ao $nome", async ({ acao, url }) => {
-    vi.mocked(apagarFoto).mockImplementationOnce(async () => {
-      expect((await db.embaixador.findUniqueOrThrow({ where: { id: embaixadorId } })).fotoUrl).toBe(url);
-      expect(await db.registroAuditoria.count({ where: { alvoId: embaixadorId } })).toBe(1);
-    });
+    { nome: "excluir", acao: () => excluirEmbaixador(doEmbaixador()), url: undefined },
+  ])("preserva a foto antiga referenciada do embaixador e confirma a auditoria ao $nome", async ({ acao, url }) => {
+    const historia = `![Foto da história](${FOTO_ANTIGA})`;
+    await db.empresa.update({ where: { id: empresaId }, data: { historia } });
 
     await expect(acao()).rejects.toThrow(/^REDIRECIONAR:/);
-    expect(apagarFoto).toHaveBeenCalledExactlyOnceWith(FOTO_ANTIGA);
+
+    const embaixador = await db.embaixador.findUnique({ where: { id: embaixadorId } });
+    if (url === undefined) expect(embaixador).toBeNull();
+    else expect(embaixador).toMatchObject({ fotoUrl: url });
+    expect((await db.empresa.findUniqueOrThrow({ where: { id: empresaId } })).historia).toBe(historia);
+    expect(await db.registroAuditoria.count({ where: { alvoId: embaixadorId } })).toBe(1);
+    expect(apagarFoto).not.toHaveBeenCalled();
   });
 });

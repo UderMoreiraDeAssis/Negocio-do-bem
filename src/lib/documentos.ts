@@ -11,8 +11,22 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 export const TAMANHO_MAXIMO_DOCUMENTO = 5 * 1024 * 1024;
 export const MAXIMO_DE_ARQUIVOS = 2;
 
-export type TipoDeDocumento = "image/jpeg" | "image/png" | "image/webp" | "application/pdf";
-const EXTENSOES: Record<TipoDeDocumento, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf" };
+export type TipoDeDocumento =
+  | "image/jpeg"
+  | "image/png"
+  | "image/webp"
+  | "application/pdf"
+  | "application/msword"
+  | "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const EXTENSOES: Record<TipoDeDocumento, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "application/pdf": "pdf",
+  // Currículos das candidaturas a vagas (#339) usam o mesmo bucket privado.
+  "application/msword": "doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+};
 const TIPOS = Object.fromEntries(Object.entries(EXTENSOES).map(([tipo, extensao]) => [extensao, tipo])) as Record<string, TipoDeDocumento>;
 
 type BucketDeDocumentos = {
@@ -40,6 +54,25 @@ function tipoPelosBytes(inicio: Uint8Array): TipoDeDocumento | null {
   if (texto(0, 4) === "RIFF" && texto(8, 12) === "WEBP") return "image/webp";
   if (texto(0, 5) === "%PDF-") return "application/pdf";
   return null;
+}
+
+/** Currículo: PDF, ou Word (.docx é um zip; .doc começa com a assinatura do formato OLE). */
+function tipoDeCurriculoPelosBytes(inicio: Uint8Array): TipoDeDocumento | null {
+  if (inicio[0] === 0x25 && inicio[1] === 0x50 && inicio[2] === 0x44 && inicio[3] === 0x46 && inicio[4] === 0x2d) return "application/pdf";
+  if (inicio[0] === 0x50 && inicio[1] === 0x4b && inicio[2] === 0x03 && inicio[3] === 0x04) {
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+  if (inicio[0] === 0xd0 && inicio[1] === 0xcf && inicio[2] === 0x11 && inicio[3] === 0xe0) return "application/msword";
+  return null;
+}
+
+/** Confere o currículo do formulário: um arquivo de até 5 MB, PDF ou Word. Sem arquivo, devolve `{ documento: null }`. */
+export async function conferirCurriculo(valor: FormDataEntryValue | null): Promise<{ documento: DocumentoConferido | null } | { erro: string }> {
+  if (!(valor instanceof File) || valor.size === 0) return { documento: null };
+  if (valor.size > TAMANHO_MAXIMO_DOCUMENTO) return { erro: "O currículo pode ter até 5 MB." };
+  const tipo = tipoDeCurriculoPelosBytes(new Uint8Array(await valor.slice(0, 8).arrayBuffer()));
+  if (!tipo) return { erro: "Envie o currículo em PDF ou Word (.doc ou .docx)." };
+  return { documento: { arquivo: valor, tipo } };
 }
 
 export type DocumentoConferido = { arquivo: File; tipo: TipoDeDocumento };

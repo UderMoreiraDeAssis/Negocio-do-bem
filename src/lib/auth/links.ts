@@ -36,7 +36,10 @@ export const VALIDADE_MS: Record<Finalidade, number> = {
   redefinir: 60 * 60 * 1000,
 };
 
-/** Links por conta a cada hora: ninguém lota a caixa de outra pessoa nem gasta a cota do Resend. */
+/**
+ * Links por conta a cada hora, de cada finalidade: ninguém lota a caixa de outra pessoa nem gasta a
+ * cota do Resend, e os pedidos de entrar não gastam a cota de senha nova. O teto da conta é de 3 vezes isso.
+ */
 export const LIMITE_LINKS_POR_HORA = 5;
 const HORA_MS = 60 * 60 * 1000;
 
@@ -48,11 +51,11 @@ function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
-/** Cria o link e devolve o token, ou null se a conta já recebeu links demais na última hora. */
+/** Cria o link e devolve o token, ou null se a conta já recebeu links demais dessa finalidade na última hora. */
 export async function criarLink(conta: Conta, finalidade: Finalidade, destino = "/"): Promise<string | null> {
   const agora = Date.now();
   const recentes = await db.linkEmail.count({
-    where: { usuarioId: conta.id, criadoEm: { gte: new Date(agora - HORA_MS) } },
+    where: { usuarioId: conta.id, finalidade, criadoEm: { gte: new Date(agora - HORA_MS) } },
   });
   if (recentes >= LIMITE_LINKS_POR_HORA) return null;
   // Um link vencido há mais de uma hora já não conta no limite.

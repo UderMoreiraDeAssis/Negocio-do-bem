@@ -92,10 +92,12 @@ export async function Auditoria({ filtros }: { filtros: FiltrosModeracao }) {
                     </Link>
                   </td>
                   <td className="p-3">
-                    {r.alvo ? (
+                    {r.alvo?.href ? (
                       <Link href={r.alvo.href} className="hover:text-coral-700 hover:underline">
                         {r.alvo.rotulo}
                       </Link>
+                    ) : r.alvo ? (
+                      <span className="break-all">{r.alvo.rotulo}</span>
                     ) : (
                       <span className="text-suave">removido</span>
                     )}

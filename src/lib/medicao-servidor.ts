@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { COOKIE_EVENTOS, juntarEvento, type Evento } from "@/lib/medicao";
+import { COOKIE_CONSENTIMENTO, consentimentoPositivo } from "@/lib/consentimento-analytics";
+import { COOKIE_EVENTOS, juntarEvento, sanearEvento, type Evento } from "@/lib/medicao";
 
 /**
  * Registra no Analytics uma ação que deu certo no servidor. O evento espera num cookie
@@ -9,9 +10,11 @@ import { COOKIE_EVENTOS, juntarEvento, type Evento } from "@/lib/medicao";
  * salvo, nunca a tentativa. Chame antes do `redirect`. Sem o Analytics, não faz nada.
  */
 export async function medir(evento: Evento): Promise<void> {
-  if (!process.env.NEXT_PUBLIC_GA_ID) return;
+  if (!process.env.NEXT_PUBLIC_GA_ID || !sanearEvento(evento.nome, evento.params)) return;
   const loja = await cookies();
-  loja.set(COOKIE_EVENTOS, juntarEvento(loja.get(COOKIE_EVENTOS)?.value, evento), {
+  const consentimento = loja.get(COOKIE_CONSENTIMENTO)?.value;
+  if (!consentimento || !consentimentoPositivo(consentimento)) return;
+  loja.set(COOKIE_EVENTOS, juntarEvento(loja.get(COOKIE_EVENTOS)?.value, evento, consentimento), {
     // O script do navegador lê e apaga o cookie: ele não pode ser httpOnly.
     httpOnly: false,
     secure: process.env.NODE_ENV === "production",

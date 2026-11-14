@@ -46,6 +46,9 @@ export function MenuModeracao({ aba, pendentes }: { aba: Aba; pendentes: Partial
           })}
         </div>
       ))}
+      <Link href="/moderacao/vagas" className="flex shrink-0 items-center rounded-full bg-superficie px-4 py-2 text-sm font-medium whitespace-nowrap text-suave transition hover:text-tinta lg:rounded-xl lg:bg-transparent lg:px-3 lg:hover:bg-superficie">
+        Vagas e talentos
+      </Link>
     </nav>
   );
 }

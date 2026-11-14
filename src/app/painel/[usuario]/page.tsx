@@ -77,6 +77,9 @@ async function Conteudo({ params, searchParams }: Pick<PageProps<"/painel/[usuar
             <Link href={`/painel/${empresa.instagramUsername}/clube`} className="botao-claro botao-pequeno">
               Clube do Bem
             </Link>
+            <Link href={`/painel/${empresa.instagramUsername}/vagas`} className="botao-claro botao-pequeno">
+              Vagas
+            </Link>
             <Link href={`/empresas/${empresa.instagramUsername}`} className="botao-claro botao-pequeno">
               Ver perfil público ↗
             </Link>

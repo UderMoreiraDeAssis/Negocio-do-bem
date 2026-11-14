@@ -276,3 +276,42 @@ export async function avisarSenhaTrocada(conta: { nome: string; email: string },
     ),
   });
 }
+
+/** Para os donos: chegou uma candidatura. O e-mail não leva os dados nem o currículo: eles ficam no painel. */
+export async function avisarNovaCandidatura(candidaturaId: string): Promise<void> {
+  if (!envioLigado()) return;
+  const candidatura = await db.candidatura.findUnique({
+    where: { id: candidaturaId },
+    include: {
+      vaga: {
+        select: {
+          id: true,
+          titulo: true,
+          empresa: { select: { nome: true, instagramUsername: true, membros: { select: { usuario: { select: { nome: true, email: true } } } } } },
+        },
+      },
+    },
+  });
+  if (!candidatura) return;
+  const { vaga } = candidatura;
+  for (const { usuario } of vaga.empresa.membros) {
+    await enviarEmail({
+      para: usuario.email,
+      assunto: `Nova candidatura: ${vaga.titulo}`,
+      texto: corpo(
+        `Olá, ${primeiroNome(usuario.nome)}!`,
+        `${candidatura.nome} se candidatou à vaga "${vaga.titulo}" de ${vaga.empresa.nome}.`,
+        `Veja os dados e o currículo no painel:\n${ENDERECO_DO_SITE}/painel/${vaga.empresa.instagramUsername}/vagas`,
+      ),
+    });
+  }
+  await enviarEmail({
+    para: candidatura.email,
+    assunto: `Recebemos sua candidatura: ${vaga.titulo}`,
+    texto: corpo(
+      `Olá, ${primeiroNome(candidatura.nome)}!`,
+      `Sua candidatura à vaga "${vaga.titulo}" de ${vaga.empresa.nome} foi enviada. Seus dados foram só para a empresa, que entra em contato se seguir com você.`,
+      `Quer apagar seus dados? Responda este e-mail.`,
+    ),
+  });
+}

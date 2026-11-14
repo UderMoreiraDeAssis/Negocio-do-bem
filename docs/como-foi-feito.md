@@ -528,6 +528,17 @@ Desde a mudança para o Cloudflare, em 31/10, o site não carregava o Google Ana
 - **A página é `/favoritos`, e não `/painel/favoritos`.** Dentro de `/painel`, um caminho fixo esconderia o painel de um negócio cujo @ fosse `favoritos`, porque `/painel/<@>` é o painel de cada negócio.
 - **Duas migrações.** A tabela nasceu como `EmpresaSeguidor` e já tinha chegado ao banco dos previews quando virou `EmpresaFavorita`. Por isso a segunda migração só renomeia a tabela, em vez de editar a primeira.
 
+### 2 de novembro: preferência e fronteira da medição ([#109](https://github.com/fabs-reis/Negocio-do-bem/issues/109))
+
+A restauração do Analytics no PR #246 continua sendo a direção do produto. A proposta anterior de remoção no PR #144 fica preservada no histórico, mas não substitui essa decisão posterior.
+
+- **A configuração não é consentimento.** O layout mostra controles iguais de aceitar e recusar. A escolha versionada fica no navegador. Sem escolha positiva ou sem armazenamento disponível, o carregador não existe.
+- **O sandbox precisa impedir acesso ao parent.** Um teste Chromium mostrou que `allow-scripts allow-same-origin` lia a página e os cookies funcionais sintéticos. A implementação usa apenas `allow-scripts`, também na CSP da resposta. A origem opaca bloqueia essas leituras. Isso impede cookies GA no frame. A recepção real dos eventos e a equivalência da contagem antiga não foram verificadas.
+- **Só dados permitidos cruzam a fronteira.** O parent confere consentimento e rota a cada envio. O documento recebe mensagens apenas do parent e valida os parâmetros de novo. O parent aceita a mensagem de pronto só do frame atual, com origem `null`. O destino `*` é necessário para esse frame opaco, não é uma transmissão a todas as janelas.
+- **As exclusões prevalecem sobre os eventos antigos.** Login, cadastro de conta e reivindicação não geram Analytics. Consultas livres, títulos reais, identificadores, categoria, cidade e causas ficam fora. As listas completas estão nas [regras de medição](regras-de-negocio.md#medição-de-visitas).
+- **A revogação descarta o documento e as filas opcionais.** Sessão, OAuth, tema e rascunhos ficam intactos. A preferência vale por até 180 dias e pode ser revista no rodapé.
+- **A prova não usa a propriedade real.** Os testes de navegador usam ID sintético e abortam requisições externas. Eles conferem o carregador, a `dataLayer`, a fronteira, a autenticação local e a limpeza. A #109 continua aberta para a verificação da conta Google e a aceitação jurídica.
+
 ### 2 de novembro: embaixadores do bem ([#250](https://github.com/fabs-reis/Negocio-do-bem/issues/250))
 
 Influenciadores que levam o projeto para a cidade ou o estado deles ganharam uma faixa na página inicial, a página `/embaixadores` e um bloco na página da cidade. O visual foi combinado num canvas antes do código. As regras estão em [Embaixadores do bem](regras-de-negocio.md#19-embaixadores-do-bem).
@@ -704,11 +715,7 @@ O e-mail nunca dá permissão, nem depois de confirmado: as contas antigas não 
 
 Toda resposta leva cabeçalhos de segurança (`headers()` no `next.config.ts`):
 
-- **`Content-Security-Policy`:** scripts, estilos, imagens e conexões só do próprio site, do Google Analytics e do Cloudflare Web Analytics.
-  - **Google Analytics:** o `connect-src` libera também `*.google.com`, porque o GA4 manda parte dos envios para `www.google.com/g/collect`. O [guia de CSP do Google](https://developers.google.com/tag-platform/security/guides/csp) pede isso mesmo sem os recursos de anúncios.
-  - **Cloudflare Web Analytics:** o script `static.cloudflareinsights.com` e os envios para `cloudflareinsights.com`. O Cloudflare injeta esse script na resposta, e sem a liberação o navegador o barrava em todas as páginas (issue #289).
-  - **Fotos e previews:** as imagens podem vir também do domínio das fotos no R2 (`NEXT_PUBLIC_R2_PUBLIC_URL`).
-  - **Embutir e enviar para fora:** `frame-ancestors 'none'` impede que outro site embuta as páginas num iframe (clickjacking), e `form-action 'self'` impede formulários de enviar dados para fora.
+- **`Content-Security-Policy`:** as páginas principais não permitem scripts, imagens ou conexões Google. O Cloudflare Web Analytics usa `static.cloudflareinsights.com` e `cloudflareinsights.com`. As imagens podem vir do domínio das fotos no R2 (`NEXT_PUBLIC_R2_PUBLIC_URL`). `frame-ancestors 'none'` impede que outro site embuta as páginas, e `form-action 'self'` impede formulários de enviar dados para fora. A exceção `/api/analytics` permite somente o carregador e os destinos de medição Google (incluindo `*.google.com` no `connect-src`), usa `sandbox allow-scripts`, `frame-ancestors 'self'`, `X-Frame-Options: SAMEORIGIN` e `Referrer-Policy: no-referrer`. Ela só entrega o carregador com escolha positiva válida.
 - **Sem nonce:** a CSP aceita scripts inline (`'unsafe-inline'`), como o script do tema no `layout.tsx` e os do próprio Next. Uma CSP com nonce obriga toda página a ser renderizada a cada acesso e é incompatível com o Partial Prerendering, que o projeto usa com o Cache Components. Ficaríamos sem pré-render e sem cache na CDN.
 - **`Strict-Transport-Security`** (2 anos), **`X-Frame-Options: DENY`** (para navegadores antigos), **`X-Content-Type-Options: nosniff`**, **`Referrer-Policy: strict-origin-when-cross-origin`** (sites abertos a partir do perfil não recebem o endereço completo) e **`Permissions-Policy`** (sem câmera, microfone, localização, pagamento, USB nem `browsing-topics`).
 
@@ -834,6 +841,20 @@ No cliente, os formulários com `useActionState` usam `enviarSemLimpar` (`src/co
 
   Nenhuma das três consulta o banco. A página com erro continua respondendo com status 200: o erro aparece quando o navegador processa a página.
 
+### Cache da consulta pública de CNPJ
+
+`consultarCnpj` (`src/lib/cnpj.ts`) normaliza e valida o documento antes das camadas de cache. Preserva letras e converte para maiúsculas. Fichas com documentos equivalentes compartilham a consulta durante a renderização pelo `cache` do React. Isso também funciona com o sinal do timeout, que desativa a memoização automática do `fetch`.
+
+O `unstable_cache`, compatível com Cache Components, persiste somente os campos públicos já interpretados da ficha na BrasilAPI. A chave inclui a versão `brasilapi-cnpj-v1` e o CNPJ normalizado. A revalidação usa **86400 segundos (24 horas)**. O `fetch` interno não recebe outro cache persistente. Mantém o User-Agent próprio, necessário para evitar o 403, e o timeout de cinco segundos.
+
+Essa é uma exceção para dados cadastrais públicos externos, que mudam pouco. Não é cache do nosso banco nem da página. Fichas, contatos, sessões e permissões continuam fora dessa persistência. O banco continua atualizado a cada requisição, e a moderação continua restrita ao papel lido no banco.
+
+Falhas HTTP, JSON inválido, rede e timeout rejeitam dentro da função persistente. A função pública converte essa rejeição em `null` fora do cache. Uma falha fria mostra o aviso atual e permite recuperação no próximo carregamento. Na revalidação, o Next mantém o sucesso anterior se a atualização falhar e tenta novamente no próximo acesso. Portanto, 24 horas é a janela de atualização, não uma idade máxima garantida durante indisponibilidade.
+
+A integração opt-in usa Next de produção, login real, Postgres descartável e transporte BrasilAPI local com contador. Ela verifica reutilização, CNPJs equivalentes, falhas, recuperação, streaming, banco atualizado e revogação de permissão. O reinício preserva o build e comprova persistência local em disco. A prova diária envelhece apenas o `mtime` de uma entrada identificada, sem mudar bytes, build ou TTL. Não comprova persistência ou revalidação no Cloudflare com OpenNext e R2, nem exclusão de consultas frias simultâneas entre processos. Até 50 CNPJs distintos e frios ainda podem gerar até 50 consultas.
+
+A prova isolada exige containers sem rede e uma cópia sem arquivos `.env` em `/fixture/source`. Use um Postgres descartável com socket em `/fixture/pg`, crie o banco `negocio_do_bem_teste` e aplique as migrações antes da prova. Prepare o build de produção e comece com o cache de fetch vazio. O arquivo `/fixture/fixture.json` identifica o container sintético, o socket, o usuário `postgres` e o banco. O arquivo `/fixture/config.json` aponta para essa fixture e para `/fixture/evidence`. Execute `TESTAR_CACHE_CNPJ=1` com `CACHE_CNPJ_PROVA=/fixture/config.json` e a configuração `tests/apoio/cache-cnpj/vitest.config.mts`. Essa configuração não usa o setup global da suíte.
+
 ### Regras de negócio fora da interface
 
 Regra que decide algo importante vai para `src/lib/`, separada da tela e da Server Action. Assim ela pode ser testada sem navegador.
@@ -841,6 +862,32 @@ Regra que decide algo importante vai para `src/lib/`, separada da tela e da Serv
 O melhor exemplo é `src/lib/reivindicacao.ts`: as Server Actions e as rotas do Instagram só chamam as funções de lá.
 
 Erros que podem ser mostrados para a pessoa usam uma classe própria (`ErroReivindicacao`). Os outros erros sobem normalmente.
+
+### Photo retirement
+
+Story uploads precede text publication. Abandoned edits still create unused objects. The manual command reclaims selected objects without changing that upload sequence.
+
+`FotoAposentada` stores a public storage origin or absolute local directory, an object key, and retirement timestamps. Its composite primary key prevents duplicate retirement. Audit retention does not control safety. The first retirement also creates `foto.descarte_iniciado` as history, within the same transaction. Its read-only history filter accepts canonical R2 URLs and historical Blob or local URLs. This display filter does not authorize storage operations. This is not an upload registry and has no permanent trigger.
+
+Reference publication and retirement use `pg_advisory_xact_lock(7346019)` in `READ COMMITTED` transactions. The retirement scan runs after lock acquisition. It reads every saved story, company profile reference, ambassador profile reference, company website link and claim website link, without status filters. It commits retirement before storage I/O. Storage failure cannot release the key. Successful storage verification sets `confirmadaEm`. A later database failure still reports failure and retains retirement.
+
+`publicacao-fotos.ts` contains the admission check without a runtime `server-only` import. Server Actions, Instagram, claim submission, the migration CAS and seed use it within their write transaction. Company creation and claim submission acquire photo admission before user or company row locks. Claim approval does not copy its website URL into the company. It introduces no new URL reference and takes no photo lock. Migration keeps its comparison of the previous story and profile values. The parser uses the installed `react-markdown` and GFM pipeline. Candidate identity stays strict. Reference matching retains possible aliases by key, including encoded paths and normalized URL paths. Cross-domain matches can refuse an otherwise valid save.
+
+Diagnosis reads without the publication lock and never writes retirement. Its output is an observation, not deletion authority. Explicit deletion repeats the reference scan under the lock. A previous retirement permits a retry when inventory no longer contains the object. Local filesystem checks and R2 API checks confirm absence without consulting the CDN. Legacy Blob and `perfis/` objects remain outside cleanup. Site edits and lost Instagram races retain their physical uploads.
+
+Local deletion requires Linux and `/proc/self/fd`. The command opens the working directory, then each storage component through its parent descriptor with `O_DIRECTORY` and `O_NOFOLLOW`. It compares the final descriptor identity with the selected directory. File checks and deletion use that pinned descriptor. Replacing a pathname cannot redirect deletion to an external directory.
+
+Before confirmation, the command reopens the current storage chain without following symbolic links. The reopened directory must match the pinned directory identity. A changed, missing or inaccessible current directory fails confirmation. Confirmation requires `ENOENT` for the selected entry in that reopened directory. An earlier `ENOENT` from the file check or deletion does not skip this verification. Confirmation records this observation through the checked chain, not permanent future absence.
+
+The final `lstat` and `unlink` are not atomic. Inventory excludes existing symbolic links, and deletion never follows a final symbolic link. A replacement link can itself be unlinked after the file check, without touching its external target. Confirmation does not prove an atomic regular-file-only unlink. Other platforms retain diagnosis but refuse local deletion.
+
+Before activation, identify every database and writer that shares the storage. Remove write access from incompatible versions and old requests. Keep `FOTOS_DOMINIO_EXCLUSIVO` unset until this prerequisite holds. R2 checks compare active Worker versions, bucket domains and the Hyperdrive database identity. These checks do not prove a complete reference domain. Independent databases cannot share the lock. Refuse cleanup if that coordination is absent.
+
+The configured preview photos bucket is shared. It does not prove isolation per PR. The historical database move used a read-only default and terminated sessions of the same role. It does not establish current maintenance conditions or exclude other roles. No production activation or arbitrary-SQL guarantee follows from these procedures.
+
+Keep retirement records during audit retention, deployment changes, database copies and restores. Reconcile imported references and retirement before restoring write access. Do not reuse retired keys. To stop new cleanup, disable its activation variable. Retirement remains necessary for delayed storage requests and stale forms.
+
+Tests use synthetic objects, disposable PostgreSQL and the actual CLI against disposable local storage. They force both race orders through the real save action. Process tests run the seed and migration entrypoints without the Vitest `server-only` alias. Those process tests prove import viability, not managed-reference publication. Separate writer tests cover the migration CAS and real form publication. Remote transport tests do not establish production readiness.
 
 ### Interface
 
@@ -863,6 +910,8 @@ npm run typecheck
 
 - **`tests/unit/`:** funções sem banco. Cobrem CNPJ, senha, normalização de texto, causas, campos de formulário, tempo de leitura, fotos (de quais endereços o site aceita mostrar) e Instagram.
 - **`tests/unit/email.test.ts`:** a chamada ao Resend, quando o envio liga e que uma falha não lança erro.
+- **`tests/unit/cnpj.test.ts`:** projeção, normalização, timeout e rejeição interna. Os substitutos de `next/cache` e React verificam o contrato, não a persistência.
+- **`tests/integracao/cache-cnpj.test.ts`:** prova explícita do cache no consumidor real. O `npm test` comum ignora essa prova e não inicia build nem servidor. Ela exige uma cópia limpa com build Turbopack pronto e sem arquivos `.env`. `CACHE_CNPJ_PROVA` aponta para um JSON com `fixture` e `evidencias`. A fixture Unix sintética deve corresponder às restrições de `tests/apoio/cache-cnpj/prova.mjs`. Nessa cópia, execute `TESTAR_CACHE_CNPJ=1 npx vitest run --config tests/apoio/cache-cnpj/vitest.config.mts tests/integracao/cache-cnpj.test.ts`. O config separado evita que o preparo da suíte comum limpe a fixture da integração.
 - **`tests/db/`:** as consultas do diretório e do painel da moderação, quem recebe cada aviso por e-mail, os links por e-mail (prazo, uso único, limite e cliques ao mesmo tempo) e as regras de reivindicação contra um Postgres de verdade:
   - Entrar com Instagram;
   - pedidos antigos por código de DM;
@@ -881,14 +930,27 @@ npm run typecheck
 - The test setup removes inherited Blob selectors and the public R2 URL. Unit tests enable external storage only with a replacement SDK. The HTTP proof does not upload photos. In CI, Next uses the disposable PostgreSQL database that the database tests prepare.
 - **`npm run test:cloudflare`:** runs a separate Cloudflare proof. Set `TEST_DATABASE_URL` to a disposable PostgreSQL server at `127.0.0.1`. Include an explicit port, user, password, and database name that contains `test`. Do not include query parameters or a fragment. The account must have permission to create databases.
 - The command creates a separate database with a random name. It runs preview migrations and seed through `scripts/cloudflare-build.sh`, then builds the Worker with OpenNext. It prepares the local R2 cache with `opennextjs-cloudflare populateCache local`. The cache state stays in the temporary directory. It starts `wrangler dev --local` on a free loopback port.
+- A prova define `CLOUDFLARE_CF_FETCH_ENABLED=false` nos subprocessos. O Miniflare usa metadados `cf` locais, sem consultar `workers.cloudflare.com`. Erros do Worker continuam fazendo a prova falhar.
 - The public route must render the seeded business and its structured data. Anonymous access to `/moderacao` must return the Next 404 refusal without action forms. Worker errors fail the command. The Next HTTP tests still check authorized writes and denied writes against the database.
 - The command creates a temporary Wrangler configuration without production routes or the upload binding. The R2 cache is local only. `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, and Hyperdrive use the same separate database. Child processes receive only explicit test settings. Local `.env*` and `.dev.vars*` files stop execution before migration, except `.example` templates. The command does not read these files.
+- O ambiente fechado da prova fixa `CLOUDFLARE_CF_FETCH_ENABLED=false`, a opção oficial do Miniflare que impede a busca externa de `Request.cf`. Isso mantém a prova local sem rede externa. A detecção de erros do Worker continua ativa, sem filtros para ocultar falhas de rede.
 - On success or failure, the command stops its Worker and removes its database, temporary configuration, and local cache. It does not publish resources.
   - Dois workflows avisam sem bloquear o merge: a **auditoria de dependências** (`npm audit`, em todo PR e todo dia sobre a `stage`) e o **CodeQL** (análise estática do código, em todo PR, a cada push e toda segunda). Os alertas do CodeQL ficam na aba Security.
   - A auditoria só falha com vulnerabilidade alta ou crítica (`--audit-level=high`).
     - Os `overrides` do `package.json` levam ao `glob` 14 o `@opennextjs/cloudflare` (que pede o 13) e o `@node-minify/core`, que entra pelo `@opennextjs/aws` e fixa o 10.3.3. Os dois tinham avisos de segurança que o OpenNext ainda não corrigiu, e só chamam `glob()` e `globSync()`, que não mudaram no 14. Quando o OpenNext pedir um `glob` corrigido, tire os overrides.
     - Fica uma exceção conhecida: o `minimatch` do ESLint e dos plugins dele ([GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249), moderada). A correção só existe no `minimatch` 11, que não pode mais ser chamado como função, e os plugins do ESLint chamam o 3 assim. Ele só roda no lint, com padrões do próprio repositório. Some quando o ESLint e os plugins subirem o `minimatch`.
   - O **Dependabot** abre PRs para a `stage` toda segunda com as versões novas do npm e das Actions, só depois de alguns dias publicadas (`.github/dependabot.yml`). As Actions ficam presas pelo SHA do commit.
+
+### Preparação da autenticação: B1 da #208
+
+A B1 (#229) prepara os testes e o seed para a troca futura do motor. Não muda regras de autenticação nem o esquema.
+
+- `tests/fixtures/autenticacao.ts` concentra a criação dos dados de contas com senha real. Cada chamada informa nome, e-mail e senha, inclusive `null` para conta sem senha. O helper não confirma e-mail nem acrescenta telefone, papel ou Google.
+- Os testes mantêm suas asserções de comportamento. Hashes inválidos, sessões sintéticas, contas legadas sem telefone e vínculos Google sem confirmação continuam explícitos nos casos que precisam deles.
+- `prisma/contas-exemplo.ts` concentra as cinco contas do seed. Elas continuam confirmadas, com a mesma senha de demonstração e sem telefone. Uma delas continua com o papel de moderação.
+- `tests/db/seed.test.ts` executa o seed real no Postgres de teste. Confere contas, senha, indicações, donos, causas, depoimentos e reivindicação. Repetir o seed preserva os dados existentes. A presença de `moderacao@exemplo.com` ainda encerra o seed. Em deploy, qualquer conta existente impede o preenchimento. Produção continua recusada.
+
+A B2 ainda precisa tratar o esquema aditivo e a cópia dos dados. A B3 troca cadastro, login, saída e sessão. A B4 integra links, redefinição de senha e Google. A B5 remove o código e as colunas antigos depois do período de observação. Nenhuma dessas etapas faz parte da B1. O aceite da A1 não autoriza a B2 nem uma migração de produção.
 
 **A regra do projeto:** mudou uma regra em `src/lib/reivindicacao.ts`, atualize ou crie o teste em `tests/db/`. Para outras regras de `src/lib/`, um teste em `tests/unit/` é muito bem-vindo.
 
@@ -1071,10 +1133,13 @@ Siga a seção "Ativando os avisos por e-mail" do [README](../README.md#ativando
 
 ### Medir uma ação nova no Analytics
 
-1. Acrescente o evento ao tipo `Evento`, em `src/lib/medicao.ts`, só com parâmetros que não identifiquem ninguém.
-2. Na Server Action ou no Route Handler, chame `await medir({ nome, params })` depois de salvar e antes do `redirect`.
-3. Para um clique, use atributos `data-medir` e `data-<parametro>` no elemento, como `medirContato`.
-4. Acrescente o evento à tabela da [seção de medição das regras de negócio](regras-de-negocio.md#medição-de-visitas) e registre os parâmetros novos como dimensões personalizadas no GA4 (Administrador > Definições personalizadas). Se a ação for uma conversão, marque o evento como principal: pela estrela, em Administrador > Eventos, ou, antes de ele chegar, em Criar evento > "Criar com código".
+1. Confira primeiro se a ação e a rota cabem nas [regras de medição](regras-de-negocio.md#medição-de-visitas). Conta, reivindicação, moderação e dados identificáveis continuam excluídos, mesmo com consentimento.
+2. Acrescente somente parâmetros de lista fixa a `PARAMETROS_EVENTOS`, em `src/lib/medicao.ts`. O mesmo esquema é usado no parent e no documento isolado. Uma chave nova não pode aceitar texto livre.
+3. Para uma ação de servidor permitida, acrescente o tipo `Evento` e chame `await medir({ nome, params })` depois de salvar e antes do `redirect`. A função só cria a fila com escolha positiva válida e vincula os eventos a ela.
+4. Para um clique permitido, use `data-medir` e `data-<parametro>`, como `medirContato`. Não use `gtag` direto nem carregue scripts Google na página principal.
+5. Atualize a tabela de regras e as regressões. Rode `npm run lint`, `npm run typecheck` e `npm test` com PostgreSQL descartável. As regressões focadas também podem ser executadas com `npx vitest run --config vitest.consentimento-local.mts`.
+6. Os scripts em `tests/browser/` usam Playwright e Chromium. `CONSENTIMENTO_TEST_URL` escolhe o servidor local e `CONSENTIMENTO_PLAYWRIGHT` pode indicar o módulo Playwright instalado no ambiente de prova. Use ID sintético e mantenha a interceptação externa. `consentimento-analytics.cjs` cobre escolhas e rede, `fronteira-analytics.cjs` cobre parent e cookies, e `login-consentimento.cjs` cria uma conta sintética e comprova a preservação do login. Não use esses scripts em produção. Capturas opcionais usam `CONSENTIMENTO_CAPTURAR=1`.
+7. Qualquer mudança no painel GA4 depende do responsável pela conta. A validação local não confirma essas configurações nem autoriza uma mudança nelas.
 
 ### Mostrar uma mensagem depois de uma ação
 
@@ -1164,6 +1229,7 @@ O PR só conflita se a `main` recebeu algo que não passou pela `stage`. Nesse c
 - **Status 200 não quer dizer que a página abriu.** Com o Cache Components, a página chega com status 200 e o erro do banco vem dentro do conteúdo. Para saber se o site está no ar, confira se a lista de negócios aparece, e não só o status.
 - **O log do Worker perde a mensagem de um erro passado como objeto.** `console.error("Falhou:", erro)` aparece no Observability só com a pilha, sem a mensagem. Escreva a mensagem no texto: `` console.error(`Falhou: ${erro.message}`) `` ([#198](https://github.com/fabs-reis/Negocio-do-bem/issues/198)). Para achar a função de uma linha da pilha (`worker.js:100013`), abra "Editar código" no painel do Worker e vá até a linha, sem implantar nada.
 - **O `glob` do OpenNext é forçado para a 14.0.3 pelo `overrides` do `package.json`.** O `@opennextjs/cloudflare` pede o `glob` 13, e o `@node-minify/core` 9, que entra pelo `@opennextjs/aws`, fixa o 10.3.3. O 10.3.3 deixava o `npm audit` com aviso alto em todo PR ([#217](https://github.com/fabs-reis/Negocio-do-bem/issues/217)): a falha da linha de comando do `glob` ([GHSA-5j98](https://github.com/advisories/GHSA-5j98-mcp5-4vw2)), que o projeto nem usa. Os dois ainda tinham o aviso moderado [GHSA-3g3m](https://github.com/advisories/GHSA-3g3m-2fjr-6pw4), corrigido só no `glob` 14.0.2 ([#227](https://github.com/fabs-reis/Negocio-do-bem/issues/227)), e nenhuma versão do OpenNext corrige. Os dois só chamam `glob()` e `globSync()`, que não mudaram no 14. O `glob` 14 saiu em 28/10/2026 e entrou antes dos 30 dias de quarentena que o `dependabot.yml` dá às versões grandes. Cada override vale só dentro do pacote dele, para não alcançar outras dependências que tragam o `glob`, e não leva a versão do pacote (`@opennextjs/cloudflare@1.20.14`): assim continua valendo quando o Dependabot sobe o OpenNext. Fica o aviso moderado do `minimatch` antigo que vem com o ESLint: forçar a versão 11 quebra o `eslint-plugin-react`, o `eslint-plugin-import` e o `eslint-plugin-jsx-a11y`, que chamam `require("minimatch")` como função. Quando o OpenNext pedir um `glob` corrigido, tire os overrides, rode `npm install` e confira no `npm audit` que os avisos do `glob` não voltaram. Não basta a checagem do CI passar, porque ela só falha com aviso alto.
+- **O Worker leva só o que roda nele.** O Cloudflare recusa Worker com mais de 64 MiB descomprimidos. O trace do Next copiava para o bundle a CLI do Prisma (compiladores de consulta de outros bancos, schema engine), o PGlite do `prisma dev` e o compilador do Tailwind, que nunca rodam no Worker: eram mais de 40 MiB de WebAssembly, e o Worker chegou a 63,2 MiB, a 0,7 MiB do limite ([#363](https://github.com/fabs-reis/Negocio-do-bem/issues/363)). O `outputFileTracingExcludes` do `next.config.ts` tira esses pacotes, e o Worker caiu para uns 20 MiB. Para conferir o tamanho, rode `npm run cf:build` e `npx wrangler deploy --dry-run --outdir /tmp/worker`, e veja o `Total Upload`. Se um deploy falhar com `exceeded the uncompressed size limit`, liste os `.wasm` dessa pasta para ver o que entrou de novo.
 
 ---
 

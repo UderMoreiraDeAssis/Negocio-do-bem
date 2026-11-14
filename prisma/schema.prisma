@@ -46,6 +46,9 @@ model Usuario {
   decisoesDeArroba   TrocaDeArroba[]     @relation("TrocaDecidida")
   ofertasCriadas     Oferta[]            @relation("OfertasCriadas")
   cupons             Cupom[]             @relation("CuponsGerados")
+  vagasCriadas       Vaga[]              @relation("VagasCriadas")
+  candidaturas       Candidatura[]       @relation("Candidaturas")
+  talento            Talento?
   cuponsValidados    Cupom[]             @relation("CuponsValidados")
 }
 
@@ -167,6 +170,7 @@ model Empresa {
   enderecosAntigos EnderecoAntigo[]
   liberacoesClube  LiberacaoClube[]
   ofertas          Oferta[]
+  vagas            Vaga[]
   reivindicacoes   Reivindicacao[]
   trocasDeArroba   TrocaDeArroba[]
 
@@ -388,6 +392,17 @@ model Depoimento {
   @@index([denunciado])
 }
 
+// Keep retirement records when objects or audit history are removed.
+model FotoAposentada {
+  dominio      String
+  chave        String
+  iniciadoEm   DateTime  @default(now())
+  confirmadaEm DateTime?
+
+  @@id([dominio, chave])
+  @@index([chave])
+}
+
 // Embaixador do bem (#250): quem leva o projeto para uma cidade ou um estado inteiro.
 // Só a moderação cadastra. Aparece na página inicial, em /embaixadores e na página da cidade.
 model Embaixador {
@@ -469,4 +484,107 @@ model PausaProvedorCep {
   provedor       String   @id
   falhasSeguidas Int
   pausadoAte     DateTime
+}
+
+// Vaga de emprego, estágio, freela ou bico divulgada por um dono de negócio (#339). Vai ao ar
+// na hora; a moderação pode suspender (ver src/lib/vagas.ts).
+model Vaga {
+  id           String   @id @default(cuid())
+  empresaId    String
+  empresa      Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  criadaPorId  String?
+  criadaPor    Usuario? @relation("VagasCriadas", fields: [criadaPorId], references: [id], onDelete: SetNull)
+  titulo       String
+  // Chaves de AREAS, CONTRATOS e MODALIDADES em src/lib/vagas.ts.
+  area         String
+  contrato     String
+  modalidade   String
+  descricao    String
+  requisitos   String
+  beneficios   String?
+  jornada      String
+  // O valor é obrigatório. Em reais inteiros; `valorMax` vazio quando é um valor só.
+  valorMin     Int
+  valorMax     Int?
+  // "mes" | "hora" | "dia" | "projeto"
+  valorPeriodo String
+  cidade       String
+  uf           String
+  // 23h59 (Brasília) do último dia para se candidatar.
+  prazo        DateTime
+  // "aberta" | "encerrada" (pelo dono) | "suspensa" (pela moderação)
+  status       String   @default("aberta")
+  motivo       String?
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  candidaturas Candidatura[]
+
+  @@index([status, prazo])
+  @@index([empresaId, status])
+}
+
+// Candidatura a uma vaga. Os dados e o currículo só o dono da vaga e a moderação veem. O
+// currículo fica no bucket privado (ver src/lib/documentos.ts) e some com a candidatura.
+model Candidatura {
+  id             String    @id @default(cuid())
+  vagaId         String
+  vaga           Vaga      @relation(fields: [vagaId], references: [id], onDelete: Cascade)
+  usuarioId      String?
+  usuario        Usuario?  @relation("Candidaturas", fields: [usuarioId], references: [id], onDelete: SetNull)
+  nome           String
+  email          String
+  whatsapp       String?
+  cidade         String?
+  // Chave do arquivo no bucket privado e o nome original, para o download.
+  curriculoChave String?
+  curriculoNome  String?
+  // Link do currículo ou do LinkedIn, quando não há arquivo.
+  link           String?
+  mensagem       String?
+  vistaEm        DateTime?
+  criadoEm       DateTime  @default(now())
+
+  @@unique([vagaId, email])
+  @@index([vagaId, criadoEm])
+}
+
+// Perfil "aberto a trabalho" do banco de talentos (#347). Um por conta; a pessoa liga e
+// desliga `aberto` sem apagar. Contato e currículo só para donos de negócios do diretório
+// e para a moderação.
+model Talento {
+  id             String   @id @default(cuid())
+  usuarioId      String   @unique
+  usuario        Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  // Como a pessoa quer aparecer na base.
+  nome           String
+  // Título profissional: "Confeiteira com 5 anos de experiência".
+  titulo         String
+  sobre          String
+  // O que procura, em texto livre, e os filtros: chaves de AREAS, CONTRATOS e MODALIDADES.
+  procura        String
+  habilidades    String[]
+  areas          String[]
+  contratos      String[]
+  modalidades    String[]
+  cidade         String
+  uf             String
+  email          String
+  // Só os dígitos, com o 55.
+  whatsapp       String?
+  // Currículo online, LinkedIn ou portfólio.
+  link           String?
+  // Chave do arquivo no bucket privado DOCUMENTOS e o nome original.
+  curriculoChave String?
+  curriculoNome  String?
+  aberto         Boolean  @default(true)
+  // "ativo" | "suspenso" (pela moderação)
+  status         String   @default("ativo")
+  motivo         String?
+  // Nome, título, habilidades, procura e cidade, minúsculos e sem acentos.
+  busca          String
+  criadoEm       DateTime @default(now())
+  atualizadoEm   DateTime @updatedAt
+
+  @@index([aberto, status, atualizadoEm])
 }
