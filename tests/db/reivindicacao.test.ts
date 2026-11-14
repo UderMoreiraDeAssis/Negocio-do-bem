@@ -1,5 +1,7 @@
+import { Client } from "pg";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { db, type Prisma } from "@/lib/db";
+import { URL_BANCO_TESTE } from "../banco-de-teste";
 import {
   aprovar,
   aprovarPendentesSemDono,
@@ -151,7 +153,7 @@ describe("renovação durante aprovação com troca do ID do Instagram", () => {
     return { promessa, liberar };
   }
 
-  it("renova o login do Instagram sem deadlock na mesma empresa", async () => {
+  it.each(["antes", "depois"] as const)("renova o login do Instagram %s da troca do ID sem deadlock", async (momento) => {
     const pessoa = await criarUsuario();
     const moderador = await criarUsuario("Moderação");
     const empresa = await criarEmpresa("renovacao", { instagramUserId: "id-anterior" });
@@ -175,7 +177,7 @@ describe("renovação durante aprovação com troca do ID do Instagram", () => {
     // As operações SQL são reais. As pausas fixam a ordem sem depender de atrasos.
     const cliente = db.$extends({ query: {
       reivindicacao: {
-        async findUnique({ args, query }) {
+        async findUniqueOrThrow({ args, query }) {
           const pedido = await query(args);
           pedidoLido.liberar();
           await continuarAprovacao.promessa;
@@ -217,8 +219,10 @@ describe("renovação durante aprovação com troca do ID do Instagram", () => {
       resultados.push(Promise.allSettled([processarLoginInstagram({ empresaId: empresa.id, usuarioId: pessoa.id,
         conta: { userId: "id-renovado", username: empresa.instagramUsername } })]));
       await renovacaoPronta.promessa;
-      continuarAprovacao.liberar();
-      await empresaAlterada.promessa;
+      if (momento === "depois") {
+        continuarAprovacao.liberar();
+        await empresaAlterada.promessa;
+      }
       continuarRenovacao.liberar();
 
       // A aprovação segura Empresa. A renovação deve esperar nela, não segurar o pedido antigo.
@@ -228,6 +232,7 @@ describe("renovação durante aprovação com troca do ID do Instagram", () => {
         return bloqueadores;
       }).toContain(pidAprovacao);
       console.info(`Renovação bloqueada pela aprovação, pedido antigo alterado: ${alterouPedido}`);
+      continuarAprovacao.liberar();
       concluirAprovacao.liberar();
       const concluidos = (await Promise.all(resultados)).flat();
       expect(concluidos).toEqual([
@@ -277,6 +282,35 @@ describe("documento e moderação", () => {
     expect(pedido.status).toBe("pendente");
     expect(await donos(empresa.id)).toEqual([]);
     expect((await db.empresa.findUniqueOrThrow({ where: { id: empresa.id } })).moderacao).toBe("rejeitada");
+  });
+
+  it("garante um só dono quando duas pessoas pedem ao mesmo tempo um negócio sem dono", async () => {
+    const [primeira, segunda] = await Promise.all([criarUsuario("Primeira"), criarUsuario("Segunda")]);
+    const empresa = await criarEmpresa("disputa.livre");
+
+    const pedidos = await Promise.all(
+      [primeira, segunda].map((pessoa) => solicitarPorDocumento({ empresaId: empresa.id, usuarioId: pessoa.id, ...dadosDoNegocio })),
+    );
+
+    expect(await db.empresaMembro.count({ where: { empresaId: empresa.id } })).toBe(1);
+    expect(pedidos.map((p) => p.status).sort()).toEqual(["aprovada", "pendente"]);
+    const pendente = await db.reivindicacao.findFirstOrThrow({ where: { empresaId: empresa.id, status: "pendente" } });
+    expect(pendente.notas).toContain("O negócio já tem dono");
+    expect(await db.reivindicacao.count({ where: { empresaId: empresa.id, status: "aprovada", revisadoPorId: null } })).toBe(1);
+  });
+
+  it("garante um só dono quando duas pessoas entram com o Instagram do mesmo negócio sem dono", async () => {
+    const [primeira, segunda] = await Promise.all([criarUsuario("Primeira"), criarUsuario("Segunda")]);
+    const empresa = await criarEmpresa("disputa.instagram");
+    const conta = { userId: "ig-disputa", username: "disputa.instagram" };
+
+    const resultados = await Promise.all(
+      [primeira, segunda].map((pessoa) => processarLoginInstagram({ empresaId: empresa.id, usuarioId: pessoa.id, conta })),
+    );
+
+    expect(await db.empresaMembro.count({ where: { empresaId: empresa.id } })).toBe(1);
+    expect(resultados.map((r) => r.tipo).sort()).toEqual(["em_analise", "verificada"]);
+    expect(await db.reivindicacao.count({ where: { empresaId: empresa.id, status: "pendente" } })).toBe(1);
   });
 
   it("aprova a fila antiga por ordem de chegada, só nos negócios sem dono e no ar", async () => {
@@ -356,6 +390,147 @@ describe("documento e moderação", () => {
     expect(recusada.motivoRecusa).toBe("Não conseguimos confirmar.");
     await expect(aprovar({ reivindicacaoId: pedido.id, revisorId: moderador.id })).rejects.toBeInstanceOf(ErroReivindicacao);
     expect(await db.registroAuditoria.count({ where: { acao: "reivindicacao.recusada" } })).toBe(1);
+  });
+
+  describe("duas pessoas da moderação ao mesmo tempo", () => {
+    async function pedidoEmDisputa() {
+      const pessoa = await criarUsuario("Pessoa");
+      const dono = await criarUsuario("Dono");
+      const empresa = await criarEmpresa("loja.disputa");
+      await db.empresaMembro.create({ data: { empresaId: empresa.id, usuarioId: dono.id } });
+      const pedido = await solicitarPorDocumento({ empresaId: empresa.id, usuarioId: pessoa.id, cnpj: null, site: null, relacao: "Dono", contato: "x", mensagem: null });
+      return { pessoa, dono, empresa, pedido, moderadoras: [await criarUsuario("Moderação 1"), await criarUsuario("Moderação 2")] };
+    }
+
+    function vencedoras(resultados: PromiseSettledResult<void>[]) {
+      for (const r of resultados) if (r.status === "rejected") expect(r.reason).toBeInstanceOf(ErroReivindicacao);
+      return resultados.filter((r) => r.status === "fulfilled").length;
+    }
+
+    it("aprovar e recusar: só uma decisão vale", async () => {
+      const { pessoa, dono, empresa, pedido, moderadoras } = await pedidoEmDisputa();
+
+      const resultados = await Promise.allSettled([
+        aprovar({ reivindicacaoId: pedido.id, revisorId: moderadoras[0]!.id, modo: "transferir" }),
+        recusar({ reivindicacaoId: pedido.id, revisorId: moderadoras[1]!.id, motivo: "Não confere." }),
+      ]);
+
+      expect(vencedoras(resultados)).toBe(1);
+      const final = await db.reivindicacao.findUniqueOrThrow({ where: { id: pedido.id } });
+      const auditoria = await db.registroAuditoria.findMany({ where: { alvoId: empresa.id } });
+      expect(auditoria).toHaveLength(1);
+      if (final.status === "aprovada") {
+        expect(final.motivoRecusa).toBeNull();
+        expect(await donos(empresa.id)).toEqual([pessoa.id]);
+        expect(auditoria[0]!.acao).toBe("reivindicacao.aprovada_com_transferencia");
+      } else {
+        expect(final.status).toBe("recusada");
+        expect(await donos(empresa.id)).toEqual([dono.id]);
+        expect(auditoria[0]!.acao).toBe("reivindicacao.recusada");
+      }
+    });
+
+    it("aprovar duas vezes com modos diferentes: só uma aprovação vale", async () => {
+      const { pessoa, dono, empresa, pedido, moderadoras } = await pedidoEmDisputa();
+
+      const resultados = await Promise.allSettled([
+        aprovar({ reivindicacaoId: pedido.id, revisorId: moderadoras[0]!.id, modo: "adicionar" }),
+        aprovar({ reivindicacaoId: pedido.id, revisorId: moderadoras[1]!.id, modo: "transferir" }),
+      ]);
+
+      expect(vencedoras(resultados)).toBe(1);
+      const auditoria = await db.registroAuditoria.findMany({ where: { alvoId: empresa.id } });
+      expect(auditoria).toHaveLength(1);
+      const esperado = auditoria[0]!.acao === "reivindicacao.aprovada" ? [pessoa.id, dono.id].sort() : [pessoa.id];
+      expect(await donos(empresa.id)).toEqual(esperado);
+    });
+
+    it("aprovar dois pedidos da mesma pessoa para o mesmo negócio: sem deadlock, só um vale", async () => {
+      const pessoa = await criarUsuario("Pessoa");
+      const dono = await criarUsuario("Dono");
+      const empresa = await criarEmpresa("loja.dois.pedidos");
+      await db.empresaMembro.create({ data: { empresaId: empresa.id, usuarioId: dono.id } });
+      const porDocumento = await solicitarPorDocumento({ empresaId: empresa.id, usuarioId: pessoa.id, cnpj: null, site: null, relacao: "Dono", contato: "x", mensagem: null });
+      const porDm = await db.reivindicacao.create({
+        data: { empresaId: empresa.id, usuarioId: pessoa.id, metodo: "codigo_dm", expiraEm: new Date(Date.now() - 1000) },
+      });
+      const moderadoras = [await criarUsuario("Moderação 1"), await criarUsuario("Moderação 2")];
+
+      // Aquece o pool para saber quais conexões do Postgres são as deste teste.
+      const aquecimento = await Promise.all(
+        Array.from({ length: 6 }, () =>
+          db.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid() AS pid FROM pg_sleep(0.2)`.then(([linha]) => linha!.pid),
+        ),
+      );
+      const pidsDoTeste = [...new Set(aquecimento)];
+      expect(pidsDoTeste.length).toBeGreaterThanOrEqual(2);
+
+      // Outra conexão segura o negócio travado até as duas aprovações estarem no ar.
+      // Assim elas se sobrepõem sempre, sem depender de tempo.
+      const segurador = new Client({ connectionString: URL_BANCO_TESTE });
+      await segurador.connect();
+      let resultados: PromiseSettledResult<void>[];
+      let aprovacoes: Promise<PromiseSettledResult<void>[]> | null = null;
+      try {
+        await segurador.query("BEGIN");
+        await segurador.query(`SELECT id FROM "Empresa" WHERE id = $1 FOR UPDATE`, [empresa.id]);
+
+        aprovacoes = Promise.allSettled([
+          aprovar({ reivindicacaoId: porDocumento.id, revisorId: moderadoras[0]!.id }),
+          aprovar({ reivindicacaoId: porDm.id, revisorId: moderadoras[1]!.id }),
+        ]);
+
+        // Espera as duas transações pararem numa trava. Com o negócio travado primeiro,
+        // as duas esperam o segurador. Sem isso, uma espera o segurador e a outra espera a primeira.
+        const deadline = Date.now() + 10_000;
+        for (;;) {
+          const { rows } = await segurador.query<{ esperando: number }>(
+            `SELECT count(*)::int AS esperando FROM pg_stat_activity
+             WHERE datname = current_database() AND pid = ANY($1::int[]) AND wait_event_type = 'Lock'`,
+            [pidsDoTeste],
+          );
+          if (rows[0]!.esperando >= 2) break;
+          if (Date.now() > deadline) throw new Error("As duas aprovações não chegaram à trava a tempo.");
+          await new Promise((r) => setTimeout(r, 20));
+        }
+        await segurador.query("COMMIT");
+        resultados = await aprovacoes;
+      } finally {
+        // Se a espera do PostgreSQL atingir o limite, desbloqueia e drena todas as
+        // operações iniciadas antes do afterEach apagar os fixtures. Sem isso,
+        // transações ainda ativas podem bloquear a limpeza e mascarar a falha real.
+        try {
+          await segurador.query("ROLLBACK").catch(() => undefined);
+          await segurador.end();
+        } finally {
+          if (aprovacoes) await aprovacoes;
+        }
+      }
+
+      // O deadlock (40P01) chega do Prisma como P2034; o usuário veria um erro 500.
+      for (const r of resultados) {
+        if (r.status !== "rejected") continue;
+        const { code, meta } = r.reason as { code?: string; meta?: unknown };
+        expect(`${code} ${JSON.stringify(meta)}`).not.toMatch(/P2034|40P01|deadlock/i);
+      }
+      expect(vencedoras(resultados)).toBe(1);
+
+      const pedidos = await db.reivindicacao.findMany({ where: { empresaId: empresa.id }, orderBy: { id: "asc" } });
+      expect(pedidos.map((p) => p.status).sort()).toEqual(["aprovada", "cancelada"]);
+      expect(await donos(empresa.id)).toEqual([pessoa.id, dono.id].sort());
+      expect(await db.registroAuditoria.count({ where: { alvoId: empresa.id } })).toBe(1);
+    });
+
+    it("recusar duas vezes: só a primeira recusa vale", async () => {
+      const { empresa, pedido, moderadoras } = await pedidoEmDisputa();
+
+      const resultados = await Promise.allSettled(
+        moderadoras.map((m, i) => recusar({ reivindicacaoId: pedido.id, revisorId: m.id, motivo: `Motivo ${i}` })),
+      );
+
+      expect(vencedoras(resultados)).toBe(1);
+      expect(await db.registroAuditoria.count({ where: { alvoId: empresa.id } })).toBe(1);
+    });
   });
 
   it("limita a quantidade de solicitações por dia", async () => {

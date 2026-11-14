@@ -336,6 +336,7 @@ async function Indicacoes() {
           <div className="flex gap-2 border-t border-linha pt-4">
             <form action={moderarEmpresa}>
               <input type="hidden" name="empresaId" value={e.id} />
+              <input type="hidden" name="de" value="pendente" />
               <input type="hidden" name="decisao" value="aprovar" />
               <BotaoEnviar className="botao botao-pequeno" enviando="…">
                 Publicar
@@ -343,6 +344,7 @@ async function Indicacoes() {
             </form>
             <form action={moderarEmpresa}>
               <input type="hidden" name="empresaId" value={e.id} />
+              <input type="hidden" name="de" value="pendente" />
               <input type="hidden" name="decisao" value="rejeitar" />
               <BotaoEnviar className="botao-claro botao-pequeno" enviando="…">
                 Não publicar

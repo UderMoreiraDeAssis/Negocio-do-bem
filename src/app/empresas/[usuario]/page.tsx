@@ -29,6 +29,8 @@ import { temInstagram } from "@/lib/endereco";
 import { linkPerfil, normalizarEndereco } from "@/lib/instagram";
 import { medirContato, type CanalDeContato } from "@/lib/medicao";
 import { rotuloDoDesconto, rotuloOndeVale } from "@/lib/ofertas";
+import { condicaoDeVagaPublica } from "@/lib/vagas";
+import { VagaCard } from "@/components/VagaCard";
 import { FORA_DA_BUSCA, jsonLdDoNegocio, metadadosDaPagina, paginaDaCidade } from "@/lib/seo";
 import { formatarData, formatarFavoritos, formatarTelefone, tempoDeLeitura } from "@/lib/texto";
 import { FormDepoimento } from "./FormDepoimento";
@@ -82,6 +84,15 @@ async function Perfil({ params, searchParams }: Pick<PageProps<"/empresas/[usuar
     oferta && usuario
       ? await db.cupom.findUnique({ where: { ofertaId_usuarioId: { ofertaId: oferta.id, usuarioId: usuario.id } }, select: { codigo: true } })
       : null;
+
+  const vagas = publico
+    ? await db.vaga.findMany({
+        where: { empresaId: empresa.id, ...condicaoDeVagaPublica() },
+        orderBy: { criadoEm: "desc" },
+        take: 10,
+        include: { empresa: { select: { nome: true, instagramUsername: true, fotoUrl: true } } },
+      })
+    : [];
 
   return (
     <article>
@@ -198,6 +209,27 @@ async function Perfil({ params, searchParams }: Pick<PageProps<"/empresas/[usuar
               <SemHistoria empresa={empresa} dono={dono} />
             )}
           </section>
+
+          {(vagas.length > 0 || dono) && (
+            <section id="vagas" className="scroll-mt-24 border-t border-linha py-10">
+              <p className="text-xs font-semibold tracking-[0.2em] text-coral-700 uppercase">Trabalhe com a gente</p>
+              <h2 className="mt-1 font-display text-2xl font-semibold">Vagas abertas</h2>
+              {vagas.length > 0 ? (
+                <ul className="mt-5 grid gap-4">
+                  {vagas.map((vaga) => (
+                    <VagaCard key={vaga.id} vaga={vaga} mostrarEmpresa={false} />
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-3 text-suave">Nenhuma vaga aberta agora.</p>
+              )}
+              {dono && (
+                <Link href={`/painel/${empresa.instagramUsername}/vagas`} className="botao-claro mt-5">
+                  Publicar ou gerenciar vagas
+                </Link>
+              )}
+            </section>
+          )}
 
           <Causas causas={causas} link={publico} />
 

@@ -10,28 +10,28 @@ const corrigida = original.replace(ancora, ancora + opcao);
 
 describe("compatibilidade do bundle OpenNext", () => {
   it("preserva os nomes na fonte original da versão fixada", () => {
-    expect(corrigirFonte("1.20.14", original)).toBe(corrigida);
+    expect(corrigirFonte("1.20.16", original)).toBe(corrigida);
     expect(corrigida.match(/keepNames: true/g)).toHaveLength(1);
   });
 
   it("aceita a fonte já corrigida sem uma segunda alteração", () => {
-    expect(corrigirFonte("1.20.14", corrigida)).toBe(corrigida);
-    expect(corrigirFonte("1.20.14", corrigirFonte("1.20.14", original))).toBe(corrigida);
+    expect(corrigirFonte("1.20.16", corrigida)).toBe(corrigida);
+    expect(corrigirFonte("1.20.16", corrigirFonte("1.20.16", original))).toBe(corrigida);
   });
 
   it("recusa uma versão diferente antes de alterar a fonte", () => {
-    expect(() => corrigirFonte("1.20.15", original)).toThrow("Unsupported OpenNext version");
+    expect(() => corrigirFonte("1.20.17", original)).toThrow("Unsupported OpenNext version");
   });
 
   it.each([
     original.replace(ancora, ""),
     original.replace(ancora, ancora + ancora),
   ])("recusa uma âncora ausente ou duplicada", (fonte) => {
-    expect(() => corrigirFonte("1.20.14", fonte)).toThrow("Expected one OpenNext source anchor");
+    expect(() => corrigirFonte("1.20.16", fonte)).toThrow("Expected one OpenNext source anchor");
   });
 
   it("recusa outra alteração mesmo com a âncora intacta", () => {
-    expect(() => corrigirFonte("1.20.14", `${original}\n// unexpected change\n`)).toThrow("Unexpected OpenNext source");
+    expect(() => corrigirFonte("1.20.16", `${original}\n// unexpected change\n`)).toThrow("Unexpected OpenNext source");
   });
 
   it("executa a correção no caminho comum antes das migrações", () => {

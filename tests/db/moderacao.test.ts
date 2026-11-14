@@ -8,6 +8,7 @@ import {
   listarDepoimentos,
   listarNegocios,
 } from "@/lib/moderacao/consultas";
+import { decidirDenunciaDoDepoimento, moderarNegocio } from "@/lib/moderacao/decisoes";
 import { DIA, type SituacaoNegocio } from "@/lib/moderacao/filtros";
 import { atividadeSemanal, distribuicaoDoDiretorio, resumoDoPainel, saudeDosDados } from "@/lib/moderacao/indicadores";
 import { textoDeBusca } from "@/lib/texto";
@@ -337,11 +338,101 @@ describe("listarAuditoria", () => {
     expect(await acoes({ alvo: { tipo: "empresa", id: livraria.id } })).toEqual(["empresa.aprovada", "empresa.rejeitada"]);
   });
 
+  it("mostra a foto como alvo, com o nome do arquivo e sem afirmar que foi removida", async () => {
+    const url = "https://abc123.public.blob.vercel-storage.com/historias/aaaaaaaaaaaaaaaaaaaaaaaa.jpg";
+    await db.registroAuditoria.create({ data: { usuarioId: null, acao: "foto.descarte_iniciado", alvoTipo: "foto", alvoId: url } });
+    const alvo = { tipo: "foto", id: url } as const;
+
+    const r = await listarAuditoria({ ...sem, alvo });
+    expect(r.itens.map((i) => i.acao)).toEqual(["foto.descarte_iniciado"]);
+    expect(r.itens[0]!.alvo).toEqual({ rotulo: "Foto historias/aaaaaaaaaaaaaaaaaaaaaaaa.jpg", href: null });
+    expect(await descreverFiltroDaAuditoria({ pessoa: "", alvo })).toEqual({
+      pessoa: null,
+      alvo: "Foto historias/aaaaaaaaaaaaaaaaaaaaaaaa.jpg",
+    });
+  });
+
   it("descreve os filtros com o nome da pessoa e do alvo", async () => {
     expect(await descreverFiltroDaAuditoria({ pessoa: moderadora.id, alvo: { tipo: "empresa", id: padaria.id } })).toEqual({
       pessoa: "Marta Moderadora",
       alvo: "Padaria Flor",
     });
     expect(await descreverFiltroDaAuditoria({ pessoa: "sistema", alvo: null })).toEqual({ pessoa: "Sistema", alvo: null });
+  });
+});
+
+describe("decisões simultâneas da moderação", () => {
+  const registrosNovos = (desde: Date) => db.registroAuditoria.findMany({ where: { criadoEm: { gte: desde } } });
+
+  it("publicar e não publicar a mesma indicação: só uma decisão vale", async () => {
+    const indicacao = await criarEmpresa("indicada.nova", { moderacao: "pendente" });
+    const desde = new Date();
+
+    const resultados = await Promise.all([
+      moderarNegocio({ empresaId: indicacao.id, de: "pendente", decisao: "aprovada", moderadorId: moderadora.id }),
+      moderarNegocio({ empresaId: indicacao.id, de: "pendente", decisao: "rejeitada", moderadorId: dona.id }),
+    ]);
+
+    expect(resultados.filter(Boolean)).toHaveLength(1);
+    const final = await db.empresa.findUniqueOrThrow({ where: { id: indicacao.id } });
+    const registros = await registrosNovos(desde);
+    expect(registros).toHaveLength(1);
+    expect(registros[0]!.acao).toBe(final.moderacao === "aprovada" ? "empresa.aprovada" : "empresa.rejeitada");
+  });
+
+  it("tirar do ar duas vezes: só um registro na auditoria", async () => {
+    const desde = new Date();
+
+    const resultados = await Promise.all(
+      [moderadora, dona].map((m) => moderarNegocio({ empresaId: padaria.id, de: "aprovada", decisao: "rejeitada", moderadorId: m.id })),
+    );
+
+    expect(resultados.filter(Boolean)).toHaveLength(1);
+    expect((await db.empresa.findUniqueOrThrow({ where: { id: padaria.id } })).moderacao).toBe("rejeitada");
+    expect(await registrosNovos(desde)).toHaveLength(1);
+  });
+
+  it("desfaz decisões condicionais quando a auditoria falha", async () => {
+    const denunciado = await db.depoimento.findFirstOrThrow({ where: { denunciado: true, status: "publicado" } });
+    await db.$executeRawUnsafe('ALTER TABLE "RegistroAuditoria" ADD CONSTRAINT "falha_auditoria_condicional_teste" CHECK (false) NOT VALID');
+    try {
+      await expect(moderarNegocio({ empresaId: padaria.id, de: "aprovada", decisao: "rejeitada", moderadorId: moderadora.id })).rejects.toThrow();
+      await expect(decidirDenunciaDoDepoimento({ depoimentoId: denunciado.id, remover: true, moderadorId: moderadora.id })).rejects.toThrow();
+      expect((await db.empresa.findUniqueOrThrow({ where: { id: padaria.id } })).moderacao).toBe("aprovada");
+      expect(await db.depoimento.findUniqueOrThrow({ where: { id: denunciado.id } })).toMatchObject({
+        denunciado: true,
+        status: "publicado",
+      });
+    } finally {
+      await db.$executeRawUnsafe('ALTER TABLE "RegistroAuditoria" DROP CONSTRAINT "falha_auditoria_condicional_teste"');
+    }
+  });
+
+  it("não aplica a decisão quando o negócio já mudou de situação", async () => {
+    expect(await moderarNegocio({ empresaId: padaria.id, de: "pendente", decisao: "rejeitada", moderadorId: moderadora.id })).toBe(false);
+    expect((await db.empresa.findUniqueOrThrow({ where: { id: padaria.id } })).moderacao).toBe("aprovada");
+  });
+
+  it("remover e manter o mesmo depoimento denunciado: só uma decisão vale", async () => {
+    const denunciado = await db.depoimento.findFirstOrThrow({ where: { denunciado: true } });
+    const desde = new Date();
+
+    const resultados = await Promise.all([
+      decidirDenunciaDoDepoimento({ depoimentoId: denunciado.id, remover: true, moderadorId: moderadora.id }),
+      decidirDenunciaDoDepoimento({ depoimentoId: denunciado.id, remover: false, moderadorId: dona.id }),
+    ]);
+
+    expect(resultados.filter(Boolean)).toHaveLength(1);
+    const final = await db.depoimento.findUniqueOrThrow({ where: { id: denunciado.id } });
+    const registros = await registrosNovos(desde);
+    expect(final.denunciado).toBe(false);
+    expect(registros).toHaveLength(1);
+    if (registros[0]!.acao === "depoimento.removido") {
+      expect(final.status).toBe("removido");
+      expect(final.motivoDenuncia).toBe("Ofensivo");
+    } else {
+      expect(final.status).toBe("publicado");
+      expect(final.motivoDenuncia).toBeNull();
+    }
   });
 });

@@ -1,5 +1,6 @@
+import { unlink } from "node:fs/promises";
+import path from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
-import { apagarFoto } from "@/lib/armazenamento";
 import { db } from "@/lib/db";
 import { aplicarFotoDoInstagram, autorizado, negociosSemFoto } from "@/lib/fotos-instagram";
 
@@ -31,7 +32,7 @@ function criarEmpresa(username: string, extra: Partial<{ fotoUrl: string; modera
 afterEach(async () => {
   const comFoto = await db.empresa.findMany({ where: { fotoUrl: { startsWith: "/enviados/" } }, select: { fotoUrl: true } });
   const gravadas = comFoto.filter((e) => /^\/enviados\/perfis\/[0-9a-f]{24}\.webp$/.test(e.fotoUrl ?? ""));
-  await Promise.all(gravadas.map((e) => apagarFoto(e.fotoUrl)));
+  await Promise.all(gravadas.map((e) => unlink(path.join(process.cwd(), "public", e.fotoUrl!.slice(1)))));
 });
 beforeEach(limparBanco);
 afterAll(async () => {

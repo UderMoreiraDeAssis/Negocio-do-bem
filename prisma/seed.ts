@@ -5,8 +5,9 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { ambienteDeDeploy } from "../src/lib/ambiente";
-import { gerarHashSenha } from "../src/lib/auth/senha";
+import { criarContasExemplo, SENHA_DEMO } from "./contas-exemplo";
 import { textoDeBusca } from "../src/lib/texto";
+import { OPCOES_TRANSACAO_FOTOS, validarReferenciasFotos } from "../src/lib/publicacao-fotos";
 
 // O build dos previews também roda o seed, nunca o de produção.
 const emProducao = ambienteDeDeploy()
@@ -17,7 +18,6 @@ if (emProducao) {
 }
 
 const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
-const SENHA_DEMO = "senha-demo-123";
 
 type NegocioExemplo = {
   instagramUsername: string;
@@ -218,37 +218,31 @@ async function main() {
     return;
   }
 
-  const senhaHash = await gerarHashSenha(SENHA_DEMO);
-  // As contas de exemplo já vêm com o e-mail confirmado, para indicar e escrever sem abrir link nenhum.
-  const emailConfirmadoEm = new Date();
-  const pessoas = {
-    moderacao: await db.usuario.create({ data: { nome: "Equipe de Moderação", email: "moderacao@exemplo.com", senhaHash, emailConfirmadoEm, papel: "moderador" } }),
-    ana: await db.usuario.create({ data: { nome: "Ana Lúcia Santos", email: "ana@exemplo.com", senhaHash, emailConfirmadoEm } }),
-    joao: await db.usuario.create({ data: { nome: "João Batista", email: "joao@exemplo.com", senhaHash, emailConfirmadoEm } }),
-    bia: await db.usuario.create({ data: { nome: "Bia Fernandes", email: "bia@exemplo.com", senhaHash, emailConfirmadoEm } }),
-    carla: await db.usuario.create({ data: { nome: "Carla Moreira", email: "carla@exemplo.com", senhaHash, emailConfirmadoEm } }),
-  };
+  const pessoas = await criarContasExemplo(db);
 
   const empresas = new Map<string, string>();
   for (const [i, n] of NEGOCIOS.entries()) {
-    const empresa = await db.empresa.create({
-      data: {
-        instagramUsername: n.instagramUsername,
-        nome: n.nome,
-        resumo: n.resumo,
-        categoria: n.categoria,
-        cidade: n.cidade,
-        uf: n.uf,
-        historia: n.historia ?? "",
-        motivoIndicacao: n.motivo ?? null,
-        status: n.dono ? "verificada" : "indicada",
-        moderacao: n.moderacao ?? "aprovada",
-        indicadaPorId: n.dono ? pessoas[n.dono as keyof typeof pessoas].id : [pessoas.carla, pessoas.ana, pessoas.joao][i % 3]!.id,
-        busca: textoDeBusca(n),
-        causas: { create: n.causas.map((causa) => ({ causa })) },
-        ...(n.dono ? { membros: { create: { usuarioId: pessoas[n.dono as keyof typeof pessoas].id } } } : {}),
-      },
-    });
+    const empresa = await db.$transaction(async (tx) => {
+      await validarReferenciasFotos(tx, { historia: n.historia ?? "" });
+      return tx.empresa.create({
+        data: {
+          instagramUsername: n.instagramUsername,
+          nome: n.nome,
+          resumo: n.resumo,
+          categoria: n.categoria,
+          cidade: n.cidade,
+          uf: n.uf,
+          historia: n.historia ?? "",
+          motivoIndicacao: n.motivo ?? null,
+          status: n.dono ? "verificada" : "indicada",
+          moderacao: n.moderacao ?? "aprovada",
+          indicadaPorId: n.dono ? pessoas[n.dono as keyof typeof pessoas].id : [pessoas.carla, pessoas.ana, pessoas.joao][i % 3]!.id,
+          busca: textoDeBusca(n),
+          causas: { create: n.causas.map((causa) => ({ causa })) },
+          ...(n.dono ? { membros: { create: { usuarioId: pessoas[n.dono as keyof typeof pessoas].id } } } : {}),
+        },
+      });
+    }, OPCOES_TRANSACAO_FOTOS);
     empresas.set(n.instagramUsername, empresa.id);
   }
 
@@ -265,18 +259,22 @@ async function main() {
   }
 
   // Uma reivindicação esperando a moderação, para ver o fluxo funcionando.
-  await db.reivindicacao.create({
-    data: {
-      empresaId: empresas.get("cafe.arcoiris.exemplo")!,
-      usuarioId: pessoas.carla.id,
-      metodo: "documento",
-      cnpj: "11222333000181",
-      site: "https://cafearcoiris.example.com/",
-      relacao: "Sou sócia e cuido do Instagram do café",
-      contato: "carla@exemplo.com",
-      expiraEm: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    },
-  });
+  const siteDoExemplo = "https://cafearcoiris.example.com/";
+  await db.$transaction(async (tx) => {
+    await validarReferenciasFotos(tx, { site: siteDoExemplo });
+    await tx.reivindicacao.create({
+      data: {
+        empresaId: empresas.get("cafe.arcoiris.exemplo")!,
+        usuarioId: pessoas.carla.id,
+        metodo: "documento",
+        cnpj: "11222333000181",
+        site: siteDoExemplo,
+        relacao: "Sou sócia e cuido do Instagram do café",
+        contato: "carla@exemplo.com",
+        expiraEm: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    });
+  }, OPCOES_TRANSACAO_FOTOS);
 
   // Embaixadores fictícios, para ver a faixa da página inicial, /embaixadores e o bloco da cidade.
   // Sem foto: o site mostra as iniciais.

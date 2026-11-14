@@ -54,7 +54,7 @@ export function integracoes(): Integracao[] {
     {
       nome: "Google Analytics",
       ligada: Boolean(process.env.NEXT_PUBLIC_GA_ID),
-      ligadaTexto: "As visitas são medidas pelo Google Analytics.",
+      ligadaTexto: "O Google Analytics só mede páginas públicas após consentimento neste navegador.",
       desligadaTexto: "Só a produção mede visitas.",
     },
     {

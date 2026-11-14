@@ -12,7 +12,7 @@ const HASH_CORRIGIDO = "4979c2622eee9b5a332bc75d2036016d9e80be1a07dd184cf9589bd4
 
 /** @param {string} versao @param {string} fonte */
 export function corrigirFonte(versao, fonte) {
-  if (versao !== "1.20.14") throw new Error("Unsupported OpenNext version. Expected 1.20.14.");
+  if (versao !== "1.20.16") throw new Error("Unsupported OpenNext version. Expected 1.20.16.");
   if (fonte.split(ANCORA).length !== 2) throw new Error("Expected one OpenNext source anchor.");
   const hash = createHash("sha256").update(fonte).digest("hex");
   if (hash === HASH_CORRIGIDO) return fonte;

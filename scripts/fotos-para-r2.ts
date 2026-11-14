@@ -24,6 +24,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
+import { migrarReferenciasFotos } from "../src/lib/publicacao-fotos";
 
 const BUCKET = process.env.FOTOS_R2_BUCKET || "negocio-do-bem-fotos";
 const URL_PUBLICA = (process.env.FOTOS_R2_URL || "https://fotos.negociodobem.com").replace(/\/$/, "");
@@ -157,10 +158,10 @@ async function main() {
       const historia = trocar(empresa.historia);
       if (fotoUrl === empresa.fotoUrl && historia === empresa.historia) continue;
       // Grava só se ninguém mexeu no negócio desde a leitura; senão, a próxima rodada pega.
-      const { count } = await db.empresa.updateMany({
-        where: { id: empresa.id, fotoUrl: empresa.fotoUrl, historia: empresa.historia },
-        data: { fotoUrl, historia },
-      });
+      const { count } = await migrarReferenciasFotos(db,
+        { id: empresa.id, fotoUrl: empresa.fotoUrl, historia: empresa.historia },
+        { fotoUrl, historia },
+      );
       if (count) trocados++;
       else mudaram.push(empresa.instagramUsername);
     }

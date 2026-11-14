@@ -8,8 +8,8 @@ vi.mock("@/lib/armazenamento", () => ({
   apagarFoto: vi.fn(),
 }));
 
-const FOTO_NOVA = "/enviados/perfis/importada.webp";
-const FOTO_DONO = "/enviados/perfis/do-dono.webp";
+const FOTO_NOVA = "/enviados/perfis/aaaaaaaaaaaaaaaaaaaaaaaa.webp";
+const FOTO_DONO = "/enviados/perfis/bbbbbbbbbbbbbbbbbbbbbbbb.webp";
 const foto = () => ({ arquivo: new File([new Uint8Array([1])], "perfil.webp"), tipo: "image/webp" as const });
 
 async function limparBanco() {
@@ -37,7 +37,7 @@ function criarEmpresa(fotoUrl: string | null = null) {
 beforeEach(async () => {
   vi.restoreAllMocks();
   vi.mocked(guardarFoto).mockReset().mockResolvedValue(FOTO_NOVA);
-  vi.mocked(apagarFoto).mockReset().mockResolvedValue();
+  vi.mocked(apagarFoto).mockReset().mockResolvedValue("bloqueada");
   await limparBanco();
 });
 
@@ -84,15 +84,11 @@ describe("foto importada e auditoria na mesma transação", () => {
       await db.empresa.update({ where: { id: empresa.id }, data: { fotoUrl: FOTO_DONO } });
       return FOTO_NOVA;
     });
-    vi.mocked(apagarFoto).mockImplementationOnce(async () => {
-      expect((await db.empresa.findUniqueOrThrow({ where: { id: empresa.id } })).fotoUrl).toBe(FOTO_DONO);
-      expect(await db.registroAuditoria.count()).toBe(0);
-    });
-
     expect(await aplicarFotoDoInstagram(empresa.id, foto())).toBe("ja_tem_foto");
 
     expect((await db.empresa.findUniqueOrThrow({ where: { id: empresa.id } })).fotoUrl).toBe(FOTO_DONO);
-    expect(apagarFoto).toHaveBeenCalledExactlyOnceWith(FOTO_NOVA);
+    expect(await db.registroAuditoria.count()).toBe(0);
+    expect(apagarFoto).not.toHaveBeenCalled();
   });
 
   it("não envia nem apaga arquivos quando o negócio já tem foto", async () => {
@@ -108,9 +104,9 @@ describe("foto importada e auditoria na mesma transação", () => {
   it("não apaga o objeto quando o resultado do commit é incerto", async () => {
     const empresa = await criarEmpresa();
     const transacaoOriginal = db.$transaction.bind(db);
-    vi.spyOn(db, "$transaction").mockImplementationOnce(async (operacao) => {
+    vi.spyOn(db, "$transaction").mockImplementationOnce(async (operacao, opcoes) => {
       if (typeof operacao !== "function") throw new Error("O teste exige uma transação interativa.");
-      await transacaoOriginal(operacao);
+      await transacaoOriginal(operacao, opcoes);
       throw new Error("Resultado do commit incerto.");
     });
 

@@ -28,6 +28,8 @@ O raciocínio por trás das decisões e a história do projeto estão em [Como o
 18. [Comportamentos atuais que valem conhecer](#18-comportamentos-atuais-que-valem-conhecer)
 19. [Embaixadores do bem](#19-embaixadores-do-bem)
 20. [Clube do Bem](#20-clube-do-bem)
+21. [Vagas](#21-vagas)
+22. [Banco de talentos](#22-banco-de-talentos)
 
 ---
 
@@ -45,6 +47,9 @@ O raciocínio por trás das decisões e a história do projeto estão em [Como o
 | Oferta | `Oferta` | Um desconto por pouco tempo (até 15 dias) que um dono liberado cria para o Clube do Bem. |
 | Cupom | `Cupom` | O código que uma pessoa gera para usar a oferta na compra. Uso único, validado pelo dono. |
 | Liberação do clube | `LiberacaoClube` | A permissão que a moderação dá a um dono, depois de conferir o CNPJ na Receita, para criar ofertas do Clube do Bem. |
+| Vaga | `Vaga` | Uma vaga, estágio, freela ou bico que um dono divulga ([#339](https://github.com/fabs-reis/Negocio-do-bem/issues/339)). |
+| Candidatura | `Candidatura` | O pedido de uma pessoa para uma vaga, com os dados e o currículo. |
+| Talento | `Talento` | O perfil "aberto a trabalho" de uma conta no banco de talentos: o que sabe fazer, o que procura, contato e currículo ([#347](https://github.com/fabs-reis/Negocio-do-bem/issues/347)). |
 | Favorito | `EmpresaFavorita` | Um negócio que uma conta guardou com o coração, para achar de novo na página Favoritos. É a primeira parte do Clube do Bem ([#248](https://github.com/fabs-reis/Negocio-do-bem/issues/248)). |
 | Denúncia | campos `denunciado`, `motivoDenuncia` e `denunciadoPorId` do `Depoimento` | O aviso de que um depoimento tem algo errado. |
 | Causa | `EmpresaCausa` + lista em `src/lib/causas.ts` | Um valor que o negócio pratica, como "Escala 5x2" ou "Antirracista". Vira selo no perfil e filtro na busca. |
@@ -97,7 +102,7 @@ Código: `src/acoes/conta.ts`, `src/lib/auth/`.
   - Cancelar no Google, ou qualquer falha, volta para `/entrar` com um aviso, mantendo o `voltar`.
   - O login pelo Google não passa pelo limite de tentativas, porque não confere senha.
 - **Limite de tentativas** (`src/lib/auth/tentativas.ts`), conferido antes do scrypt, porque cada conferência de senha custa ~32 MB de memória:
-  - **por IP:** 10 tentativas de login, cadastro, troca de senha no painel, pedido de senha nova em `/esqueci-a-senha` e senha nova pelo link, somadas, a cada 15 minutos;
+  - **por IP:** 10 tentativas de login, cadastro, troca de senha no painel, pedido de senha nova em `/esqueci-a-senha`, pedido de "Entrar por link" e senha nova pelo link, somadas, a cada 15 minutos;
   - **de onde vem o IP:** no Cloudflare, só do cabeçalho `cf-connecting-ip`, escrito pela rede, quando `CLOUDFLARE_DEPLOY=1`. Em outra hospedagem, de nenhum cabeçalho, a menos que quem cuida do site defina `AUTENTICACAO_PROXY_CONFIAVEL=1` (há um proxy seu na frente, que escreve o `x-forwarded-for`): então vale o último valor desse cabeçalho, se for um IP. Um cabeçalho que o visitante pode escrever nunca vale;
   - **IPv6:** o IPv4 escrito como IPv6 (`::ffff:203.0.113.5`) conta como o IPv4. Os outros endereços IPv6 contam pelo prefixo /64, então todos os endereços da mesma rede dividem a cota;
   - **sem IP confiável:** em produção, login, cadastro, pedido de recuperação, envio de senha pelo link e troca no painel são recusados antes da senha e sem criar contador. O servidor registra um aviso de configuração. Em desenvolvimento e nos testes, essas ações seguem sem limite por IP, e o limite por e-mail continua valendo;
@@ -109,7 +114,7 @@ Código: `src/acoes/conta.ts`, `src/lib/auth/`.
   - a comparação é em tempo constante.
 - **Esqueci minha senha** (`/esqueci-a-senha`, `pedirRedefinicaoDeSenha` e `criarSenhaComLink`). Usa o mesmo sistema de [links por e-mail](#e-mail-confirmado-e-links-por-e-mail), com o link de senha nova:
   - a pessoa digita o e-mail e volta para `/entrar` com "Se existe uma conta com esse e-mail, mandamos um link para criar uma senha nova". A resposta é a mesma com ou sem conta, e o link é criado e mandado depois da resposta, para o tempo também não revelar quais e-mails têm conta;
-  - cada pedido gasta uma tentativa do limite por IP, o mesmo do login. A conta também tem o limite de 5 links por hora: depois dele, a resposta é a mesma e o e-mail não sai;
+  - cada pedido gasta uma tentativa do limite por IP, o mesmo do login. A conta também tem o limite de 5 links de senha nova por hora: depois dele, a resposta é a mesma e o e-mail não sai;
   - o link vale **1 hora** e **uma vez só**, e funciona também na conta criada pelo Google, que passa a ter senha;
   - o link abre `/link`, "Crie uma senha nova", com a conta e os campos da senha nova e da repetição dela. A página não redireciona quem já está logado: quem desconfia de invasão abre o link na conta aberta;
   - a senha nova segue a regra do cadastro (8 a 200 caracteres) e precisa ser igual à repetição. Um erro no formulário não gasta o link. A troca passa pelo limite por IP, porque calcula o scrypt;
@@ -174,10 +179,10 @@ Código: `src/lib/auth/links.ts`, `src/acoes/conta.ts`, `src/app/api/link/route.
 - **Abrir o link não usa o link.** `/api/link` guarda o token num cookie (`ndb_link`, `httpOnly`, só no caminho `/link`) e leva a `/link`, que mostra a conta e pede um clique em "Entrar" ou em "Confirmar meu e-mail", ou mostra os campos da senha nova.
   - Chegar a `/api/link` sem token apaga o cookie: num computador dividido, a próxima pessoa não herda um link que ainda vale. Um token novo substitui o anterior.
   - Filtros de e-mail que abrem links sozinhos (Outlook, antivírus) não gastam o link nem confirmam um e-mail sem a pessoa.
-  - O token sai do endereço antes de a página carregar o Google Analytics.
+  - O token sai do endereço no redirecionamento. A página `/link` é excluída da medição opcional.
 - **Depois do clique,** o link de entrar leva ao `voltar` de quando foi pedido. O de confirmar mostra "E-mail confirmado" e um botão para continuar de onde a pessoa estava.
 - **O banco guarda só o SHA-256 do token,** como na sessão.
-- **Limite:** no máximo **5 links por conta a cada hora**, somando os três tipos.
+- **Limite:** no máximo **5 links por conta a cada hora, de cada tipo**: os links de entrar não gastam a cota do link de senha nova. O "Entrar por link" também gasta uma tentativa do limite por IP.
   - Ao mandar de novo a confirmação, ou o link de senha nova pelo painel, quem passou do limite vê "Você pediu muitos e-mails na última hora".
   - No "Entrar por link" e no "Esqueci minha senha", a resposta continua a mesma, e o e-mail simplesmente não sai.
   - Os links vencidos há mais de uma hora são apagados quando a conta recebe outro.
@@ -446,6 +451,7 @@ Código: `moderarEmpresa` e `publicarIndicacoesPendentes` em `src/acoes/moderaca
   - **Não publicar** → `moderacao = "rejeitada"`, e o negócio some para o público;
   - **Editar perfil** → abre a edição pela moderação antes de decidir, por exemplo para corrigir um nome ou tirar uma causa duvidosa.
 - **Auditoria:** registra `empresa.aprovada` ou `empresa.rejeitada`, uma linha por negócio, com o @ nos detalhes. A decisão e a auditoria são confirmadas juntas: se a auditoria falhar, o negócio continua como estava.
+- **Duas pessoas da moderação ao mesmo tempo:** cada botão leva a situação que a pessoa viu na tela, e a decisão só vale se o negócio ainda estiver nela (código em `src/lib/moderacao/decisoes.ts`). Se outra pessoa decidiu antes, nada muda, nada é registrado e aparece o aviso "Outra pessoa da moderação já tinha decidido isso. A lista mostra como ficou".
 - **O que muda num negócio tirado do ar:**
   - o @ continua ocupado, então ninguém consegue indicar de novo;
   - a página de reivindicação responde 404, e um pedido que chegue mesmo assim fica com a moderação;
@@ -522,7 +528,7 @@ O @ do Instagram não é pedido: é o do próprio perfil.
 
 ### A decisão da moderação
 
-Na aba "Reivindicações" (`/moderacao?aba=reivindicacoes`) ficam os pedidos que não foram aprovados na hora: disputas, negócios tirados do ar, pedidos de contas já removidas dos donos e pedidos feitos antes da aprovação automática. Eles aparecem dos mais antigos para os mais novos, até 50 por vez.
+Na aba "Reivindicações" (`/moderacao?aba=reivindicacoes`) ficam os pedidos que não foram aprovados na hora: disputas, negócios tirados do ar, pedidos de contas já removidas dos donos e pedidos feitos antes da aprovação automática. Se duas pessoas pedem o mesmo negócio sem dono ao mesmo tempo, só a primeira aprovação vale e a outra cai aqui como disputa, com a nota "O negócio já tem dono". Eles aparecem dos mais antigos para os mais novos, até 50 por vez.
 
 **Fila antiga:** quando há pedidos pendentes que podem ser aprovados sozinhos (`pendentesQueAprovamSozinhos`: negócio sem dono e no ar, de conta que não foi removida dos donos dele), o topo da aba mostra o botão **"Aprovar os N pedidos sem dono"** (`aprovarPendentesSemDono`). Ele aplica a mesma regra da aprovação na hora a esses pedidos, por ordem de chegada. Se duas pessoas pediram o mesmo negócio, só a primeira elegível é aprovada, e o pedido da segunda continua na fila, agora como disputa. A auditoria registra quem da moderação clicou.
 
@@ -534,7 +540,7 @@ Cada pedido mostra:
 - no pedido por dados do negócio:
   - relação, contato, CNPJ formatado e site;
   - a mensagem;
-  - **os dados da Receita para o CNPJ** (razão social, nome fantasia, situação cadastral, município e UF), consultados na BrasilAPI na hora. A consulta manda um User-Agent próprio, porque sem ele a BrasilAPI responde 403. Ela é só um apoio: se falhar, aparece "Não foi possível consultar a Receita agora" e a análise segue;
+  - **os dados da Receita para o CNPJ** (razão social, nome fantasia, situação cadastral, município e UF), consultados na BrasilAPI. Somente o resultado público bem-sucedido fica em cache por CNPJ normalizado, com revalidação após 24 horas. Documentos equivalentes compartilham a consulta. A consulta mantém o User-Agent próprio para evitar o 403 e o timeout de cinco segundos. Sem sucesso anterior, uma falha mostra "Não foi possível consultar a Receita agora" e a análise segue. O próximo carregamento pode tentar novamente. Se a revalidação falhar, o sucesso anterior permanece disponível até uma atualização bem-sucedida. A janela diária não garante idade máxima durante indisponibilidade. Esse cache não inclui fichas, contatos, sessões nem permissões.
 - num pedido antigo por código de DM, o código e o lembrete de conferir se a DM veio do @ do negócio;
 - as anotações automáticas do sistema, quando houver;
 - os donos atuais (nome e e-mail), quando houver.
@@ -552,15 +558,15 @@ O que a moderação confere: se o CNPJ, o site e o contato batem com o @ do Inst
 
 **O que a aprovação faz,** tudo numa transação só:
 
-1. Cria o vínculo de dono (ou mantém, se já existia).
-2. No modo "transferir", remove todos os outros donos.
-3. Marca o negócio como `verificada` e `aprovada`, o que também o publica.
-4. Liga os IDs do Instagram ao negócio, se o pedido trouxe algum. Se a mesma conta do Instagram estava ligada a outro perfil, a ligação sai de lá.
-5. Marca o pedido como `aprovada`, com quem aprovou e quando.
+1. Marca o pedido como `aprovada`, com quem aprovou e quando, se ele ainda estiver `pendente`. Se não estiver, para aqui.
+2. Cria o vínculo de dono (ou mantém, se já existia).
+3. No modo "transferir", remove todos os outros donos.
+4. Marca o negócio como `verificada` e `aprovada`, o que também o publica.
+5. Liga os IDs do Instagram ao negócio e ao pedido, se o pedido trouxe algum. Se a mesma conta do Instagram estava ligada a outro perfil, a ligação sai de lá.
 6. Cancela os **outros pedidos pendentes da mesma pessoa** para o mesmo negócio. Pedidos de **outras pessoas** para o mesmo negócio continuam pendentes, e a moderação decide cada um.
 7. Registra na auditoria `reivindicacao.aprovada` ou `reivindicacao.aprovada_com_transferencia`.
 
-**Duas pessoas da moderação ao mesmo tempo:** se um pedido já foi decidido, a segunda decisão é recusada com o aviso "Esta solicitação já tinha sido decidida por outra pessoa da moderação".
+**Duas pessoas da moderação ao mesmo tempo:** só a primeira decisão vale, mesmo quando as duas chegam juntas. A decisão começa marcando o pedido como decidido, com a condição de ele ainda estar `pendente`, e o banco segura o pedido até o fim da transação. A aprovação antes disso trava o negócio, para que toda aprovação do mesmo negócio siga a mesma ordem e duas aprovações simultâneas de pedidos da mesma pessoa nunca se travem uma na outra. A segunda decisão é recusada com o aviso "Esta solicitação já tinha sido decidida por outra pessoa da moderação", e nada dela é aplicado nem registrado na auditoria.
 
 **Depois da decisão,** a pessoa recebe um e-mail com o resultado ([seção 14](#14-avisos-por-e-mail)) e acompanha em `/painel`, em "Minhas solicitações de reivindicação". Aparecem as 20 mais recentes, menos as canceladas, com o status e, se recusada, o motivo.
 
@@ -760,7 +766,7 @@ Código: `src/app/painel/`.
 - É a resposta para "meu negócio foi indicado e eu não quero aparecer": a pessoa reivindica o perfil e oculta.
 - **Auditoria:** registra `empresa.ocultada` e `empresa.reexibida`. Se a auditoria falhar, a visibilidade não muda.
 
-**Toda edição** atualiza o texto de busca do negócio e fica na auditoria (`empresa.editada`, `empresa.foto_trocada`, `empresa.foto_removida`). Se a auditoria falhar, a edição, a troca e a remoção da foto não são gravadas. A foto antiga só é apagada depois da confirmação.
+**Toda edição** atualiza o texto de busca do negócio e fica na auditoria (`empresa.editada`, `empresa.foto_trocada`, `empresa.foto_removida`). Se a auditoria falhar, a edição, a troca e a remoção da foto não são gravadas. A foto antiga continua no armazenamento (veja a [seção 9](#9-fotos)).
 
 ---
 
@@ -795,7 +801,7 @@ Código: `src/lib/fotos.ts`, `src/lib/armazenamento.ts`, `src/components/reduzir
 
 **Quem envia:**
 
-- **Foto do perfil:** o dono ou a moderação. Trocar ou remover apaga a foto antiga do armazenamento.
+- **Profile photo:** the owner or moderation can replace or remove the profile reference. The stored object remains, including unused Instagram uploads.
 - **Foto do perfil vinda do Instagram:** a rotina de fotos, para negócios que ainda não têm foto (veja abaixo).
 - **Foto do embaixador:** a moderação, ou a consulta ao Instagram para quem está sem foto (veja [Embaixadores do bem](#19-embaixadores-do-bem)).
 - **Foto da história:** o dono ou a moderação, pelo botão "Foto" do editor. Ela é guardada na hora e entra no texto onde está o cursor.
@@ -832,6 +838,23 @@ Código: `scripts/fotos-instagram.ts` (roda no computador de quem cuida do proje
   - em produção sem o binding ou a URL pública R2, a pessoa vê uma mensagem de erro em vez de o site quebrar.
 
 **O site só mostra fotos guardadas por ele mesmo** (`ehFotoDoSite`): endereços do domínio do bucket R2 configurado ou da pasta `/enviados/`. As fotos antigas do Vercel Blob foram copiadas para o R2, e um endereço do Blob também não aparece. Uma imagem de outro endereço avisaria aquele servidor a cada visita ao perfil, então ela simplesmente não aparece.
+
+### Unused story photos and manual retirement
+
+Code: `src/lib/ciclo-fotos.ts`, `src/lib/publicacao-fotos.ts`, `src/lib/fotos-historias.ts` and `scripts/limpar-fotos-historias.ts`.
+
+- **Diagnosis is read-only:** run `npm run fotos:limpar -- listar`. The command requires an explicit `DATABASE_URL` and does not load `.env` files. It identifies the database and storage without displaying credentials. Incomplete remote configuration does not select local storage.
+- **Deletion requires an explicit selection:** run `npm run fotos:limpar -- descartar URL [URL ...]`. Only generated `historias/` keys in the selected storage qualify. Profile objects, legacy Blob objects and ambiguous paths remain outside the deletion scope. Inventory excludes existing symbolic links.
+- **Saved references protect objects.** Diagnosis checks every company, including hidden, pending and rejected companies. Profile references, ambassador profile references, shared story references, company website links and saved claim website links count. Claim status does not exclude its saved URL. The Markdown/GFM parser includes images, definitions and links. Key matching also preserves possible aliases, encoded paths, query parameters and fragments. Conservative matching can retain an unused object.
+- **Retirement precedes physical deletion.** The database stores `FotoAposentada`, keyed by storage domain and object key. The domain identifies the public origin or the absolute local storage directory. Audit history is not the safety store. The first retirement also records `foto.descarte_iniciado` as history in the same transaction. Retirement remains after success, failure, interruption or an uncertain response.
+- **Publication and retirement use one PostgreSQL transaction lock with `READ COMMITTED`.** If publication commits first, retirement must preserve the object. If retirement commits first, publication must reject the reference. The form retains its text and requests another upload. Actions, Instagram, migration and seed use reference admission. Key checks span retirement domains to reject possible aliases conservatively.
+- **Local deletion requires Linux and `/proc/self/fd`.** The command opens each directory component with `O_NOFOLLOW`. Deletion uses the verified directory descriptor, not its replaceable pathname. It never follows a final symbolic link. A replacement link can itself be unlinked after the file check, without touching its target. This does not prove an atomic regular-file-only unlink. Other platforms retain read-only diagnosis and refuse local deletion.
+- **Local confirmation checks the current storage chain.** The command reopens that chain without following symbolic links and compares its directory identity with the pinned directory. A changed, missing or inaccessible current directory fails confirmation. The selected key must be absent from the reopened directory, even after an earlier `ENOENT`. Confirmation records this absence observation, not permanent future absence. It never removes a replacement object to obtain confirmation.
+- **Storage must confirm absence.** Local deletion checks the filesystem. R2 deletion checks the storage API, not the public domain or CDN. A failed check reports `falha`, never confirmed deletion. Repeat the same explicit selection after an interruption. A retirement record permits that check even when the object disappeared from inventory.
+- **Activation requires a complete reference domain.** Keep `FOTOS_DOMINIO_EXCLUSIVO` unset until all databases, storage aliases and writers are known. Remove write access from incompatible versions and old requests before setting it to `confirmado`. One database lock cannot coordinate independent databases. Refuse deletion when completeness or coordination is unknown.
+- **Configuration is not production proof.** Production has one configured photos bucket. Previews have another shared bucket, not proven isolation per PR. R2 metadata checks establish some associations, not every consumer. The earlier read-only database move does not prove current maintenance conditions. Its session termination covers only the same database role. Arbitrary SQL and restores can bypass admission.
+- **Retention continues by default.** Site edits do not physically delete photos, even locally. Unused profile objects and abandoned story uploads can remain and incur storage costs. This change reclaims selected unused objects. It does not prevent new orphan uploads, add quotas or install a service or scheduler.
+- **Keep retirement records.** Do not remove them with audit history. Reconcile restores and database copies before permitting publication or cleanup. Disabling cleanup does not release retired keys.
 
 ---
 
@@ -874,6 +897,7 @@ Código: `src/acoes/depoimentos.ts`, `decidirDenuncia` em `src/acoes/moderacao.t
 - **Decisões:**
   - **Manter no ar:** limpa a denúncia, e o depoimento pode ser denunciado de novo no futuro. Registra `depoimento.mantido`. A denúncia só é limpa junto com a auditoria.
   - **Remover:** o depoimento passa a `removido` e sai do site. Registra `depoimento.removido`. A remoção só vale junto com a auditoria. Não existe botão para desfazer.
+- **Duas pessoas da moderação ao mesmo tempo:** a decisão só vale se o depoimento ainda está publicado e com a denúncia aberta. Se outra pessoa decidiu antes, nada muda e aparece o aviso "Outra pessoa da moderação já tinha decidido isso. A lista mostra como ficou".
 
 ---
 
@@ -1043,12 +1067,12 @@ Toda decisão e edição importante grava quem fez, o quê, em qual alvo e quand
 A aba "Auditoria" do painel mostra os registros do mais novo ao mais antigo, 50 por página:
 
 - cada ação aparece com uma descrição em português (`ACOES_AUDITORIA`, em `src/lib/dominio.ts`) e com o código embaixo;
-- quem fez leva à ficha da conta, e o alvo leva ao negócio, à conta, ao perfil do depoimento ou ao embaixador, enquanto ele existir. Alvo apagado aparece como "removido";
-- **filtros:** por ação (a lista mostra quantas vezes cada uma aparece), por quem fez (inclusive "sistema") e por alvo. O link "histórico" de cada linha, o "Histórico" da aba Negócios e o "Tudo o que esta conta fez" da ficha usam esses filtros.
+- quem fez leva à ficha da conta, e o alvo leva ao negócio, à conta, ao perfil do depoimento ou ao embaixador, enquanto ele existir. Alvo apagado aparece como "removido". O alvo de tipo foto não tem página: aparece como "Foto" e o nome do arquivo (`historias/…` ou `perfis/…`), e a tela não diz se o arquivo ainda existe;
+- **filtros:** por ação (a lista mostra quantas vezes cada uma aparece), por quem fez (inclusive "sistema") e por alvo (empresa, conta, pedido, depoimento, embaixador ou foto). O link "histórico" de cada linha, o "Histórico" da aba Negócios e o "Tudo o que esta conta fez" da ficha usam esses filtros.
 
 Nas Server Actions de indicação, edição do perfil, visibilidade, foto do perfil, decisões de moderação e cadastro dos embaixadores, e na gravação da foto importada do Instagram (dos negócios e dos embaixadores), a alteração no banco e sua auditoria são confirmadas na mesma transação. Se o registro de auditoria falhar, a alteração no banco também é desfeita. Na foto importada, a escrita continua condicional: a foto enviada pelo dono sempre vale mais do que a importada.
 
-O armazenamento das fotos não participa da transação do banco. A foto antiga só é apagada depois de confirmar a alteração e a auditoria. Se o envio da foto nova funcionar e a transação falhar, o perfil mantém a foto antiga, mas o arquivo novo pode ficar sem referência no armazenamento. Se o resultado da confirmação for incerto, nenhum arquivo é apagado. A foto importada só é apagada quando a transação confirma que o dono já tinha uma foto.
+O armazenamento das fotos não participa da transação do banco. Trocar ou remover a foto do perfil, de um negócio ou de um embaixador, não apaga o arquivo antigo, e a foto importada do Instagram que perde a corrida também fica no armazenamento. Se o envio da foto nova funcionar e a transação falhar, o perfil mantém a foto antiga, mas o arquivo novo pode ficar sem referência no armazenamento. Só o descarte manual da seção 9 apaga arquivos, e apenas os de `historias/`.
 
 These tests use a real PostgreSQL database and mock external storage. They do not verify the behavior of a live R2 bucket. [Issue #82](https://github.com/fabs-reis/Negocio-do-bem/issues/82) and [PR #94](https://github.com/fabs-reis/Negocio-do-bem/pull/94) cover safe reconciliation of files without database references. That work is separate from the audit transaction guarantee.
 
@@ -1060,6 +1084,7 @@ These tests use a real PostgreSQL database and mock external storage. They do no
 | `empresa.foto_trocada` / `empresa.foto_removida` | O dono trocou ou removeu a foto do perfil. |
 | `empresa.arroba_trocado` | O dono trocou o @ do Instagram. Os detalhes trazem o @ antigo e o novo. Com `_pela_moderacao`, foi a moderação. |
 | `empresa.foto_do_instagram` | A rotina de fotos colocou a foto do Instagram num negócio sem foto. Os detalhes trazem o @. |
+| `foto.descarte_iniciado` ("Iniciou o descarte de uma foto sem uso") | O arquivo deixou de ter referências e entrou no protocolo de descarte. A identidade fica em `alvoId`. O registro não pode ser removido por retenção genérica da auditoria. |
 | `empresa.editada_pela_moderacao`, `empresa.foto_trocada_pela_moderacao`, `empresa.foto_removida_pela_moderacao` | As mesmas, feitas pela moderação. Os detalhes trazem o @. |
 | `empresa.ocultada` / `empresa.reexibida` | O dono tirou ou devolveu o negócio ao diretório. |
 | `empresa.arroba_pedido` | O dono pediu a troca do @. Os detalhes trazem o @ atual e o pedido. |
@@ -1140,6 +1165,12 @@ O site manda poucos e-mails: só quando alguém precisa agir ou saber de uma dec
 | Links por e-mail | `LinkEmail` | Ninguém vê o token: só o hash é guardado, com o e-mail para onde o link foi, para onde ele leva e quando foi usado. Os vencidos há mais de uma hora são apagados quando a conta recebe outro link. |
 | Nome completo e CPF informados no pedido de verificação | `LiberacaoClube.nomeCompleto` e `cpfMascarado` | Só a moderação. O CPF inteiro **nunca é guardado**: só os 6 dígitos do meio (`***.982.247-**`), os mesmos que a Receita mostra dos sócios. Serve para comparar com o quadro de sócios. A pessoa autoriza numa caixa obrigatória do formulário. Somem se a conta for apagada. |
 | Foto do RG ou da CNH, no pedido de verificação | Bucket R2 privado `DOCUMENTOS` (a chave em `LiberacaoClube.documentoChaves`) | Só a moderação, por uma rota protegida, com cada abertura na auditoria. Apagada quando a moderação decide, ou depois de 30 dias sem decisão. Nunca em endereço público. |
+| Vagas | `Vaga` | **Públicas** no site enquanto abertas e dentro do prazo. |
+| Candidaturas (nome, e-mail, WhatsApp, cidade, mensagem, link) | `Candidatura` | Só os donos do negócio da vaga e a moderação. Nunca aparecem no site público. |
+| Currículo de uma candidatura | Bucket R2 privado `DOCUMENTOS` (a chave em `Candidatura.curriculoChave`) | Só os donos do negócio da vaga e a moderação, por `/api/curriculos/<id>`, com cada abertura na auditoria. |
+| Perfil de talento (nome, título, sobre, habilidades, o que procura, cidade) | `Talento` | **Público** em `/vagas/talentos` enquanto a pessoa está aberta a trabalho e a moderação não suspendeu. Fora do Google (`noindex`) e do sitemap. |
+| Contato do talento (e-mail, WhatsApp, link) | `Talento` | Só a própria pessoa, a moderação e quem é dono de um negócio aprovado e fora do modo oculto. |
+| Currículo do talento | Bucket R2 privado `DOCUMENTOS` (a chave em `Talento.curriculoChave`) | Os mesmos do contato, por `/api/talentos/<id>/curriculo`, com cada abertura por outra conta na auditoria. Apagado quando a pessoa troca, remove ou apaga o perfil. |
 | Dados do perfil do negócio | `Empresa` | **Público** quando o negócio está publicado. |
 | Dados do pedido de reivindicação (relação, contato, CNPJ, site, mensagem) | `Reivindicacao` | Só a moderação. A pessoa vê o status e o motivo da recusa. |
 | Depoimentos | `Depoimento` | **Públicos**, com nome e data. |
@@ -1163,35 +1194,42 @@ O site manda poucos e-mails: só quando alguém precisa agir ou saber de uma dec
 
 ### Medição de visitas
 
-- O site usa o **Google Analytics 4**, só em produção: ele só carrega quando `NEXT_PUBLIC_GA_ID` está configurado, e essa variável só existe nas variáveis de build da produção do Cloudflare.
-- A "medição otimizada" está ligada. Ela conta:
-  - páginas vistas;
-  - rolagem;
-  - cliques para outros sites;
-  - buscas no diretório (o parâmetro `q` da URL).
-- O site manda também estes eventos (`src/lib/medicao.ts`):
+Código: `src/components/PreferenciasAnalytics.tsx`, `src/components/EventosAnalytics.tsx`, `src/lib/consentimento-analytics.ts`, `src/lib/medicao.ts`, `src/lib/medicao-servidor.ts` e `src/app/api/analytics/route.ts`.
 
-  | Evento | Quando | Parâmetros |
+- O provedor continua sendo **Google Analytics 4**, conforme #13, #203 e a restauração de produção em #246. A remoção proposta no PR #144 é histórica e não define a direção atual do produto. Nenhum provedor novo foi adicionado.
+- **Finalidade e necessidade:** entender visitas, páginas públicas, classes de origem do tráfego e interações mínimas. A medição não é necessária ao serviço. A base adotada para esse tratamento opcional é a escolha positiva prévia. A validação jurídica pelo responsável continua pendente na #109.
+- **Antes de aceitar, após recusar ou sem armazenamento disponível:** não há carregador Google, listener de cliques da medição, fila de eventos ou cookie opcional novo. `NEXT_PUBLIC_GA_ID` continua sendo uma variável de build exclusiva da produção do Cloudflare, mas sua presença não autoriza medição.
+- **Escolha:** aceitar e recusar têm o mesmo estilo e destaque. O site continua acessível após a recusa. O botão **Preferências de privacidade**, no rodapé, reabre os controles e permite revogar. `ndb_consentimento` guarda apenas versão do aviso, escolha e instante, por até 180 dias. Uma versão inválida, antiga ou vencida não autoriza medição.
+- **Separação funcional:** sessão (`ndb_sessao`), cookies de OAuth e links de acesso, tema e rascunhos não são medição. Aceitar, recusar e revogar não os apagam e não condicionam o login.
+- **Rotas permitidas:** início, explorar, sobre, cidades, embaixadores, Clube do Bem, categorias (`/tipos`), cupons, favoritos, participar e instruções de instalação. Perfis públicos, páginas de cidades e páginas de categorias usam caminhos e títulos genéricos, sem identificadores. Conta, login, reivindicação, painel, moderação, causas e rotas desconhecidas ficam fora. Nenhum parâmetro de consulta ou fragmento entra nos eventos.
+- **Isolamento:** o carregador fica no endpoint local `/api/analytics`, com `sandbox="allow-scripts"` no iframe e `sandbox allow-scripts` na CSP da resposta. `allow-same-origin` não é permitido. A origem opaca impede o script de ler a página principal, cookies, localStorage e rascunhos. Não foi criado outro domínio ou provedor. A resposta permite Google apenas nesse documento (incluindo `*.google.com` para `/g/collect`) e usa `frame-ancestors 'self'`. A página principal não permite conexões Google.
+- **Mensagens:** o parent envia somente parâmetros saneados à referência `contentWindow` daquele frame. O destino `*` é necessário para a origem opaca. O parent só aceita a mensagem de pronto com `source` igual ao frame atual e `origin` igual a `null`. O documento só aceita mensagens do seu `parent`, com a origem real do site, e valida de novo rotas, eventos e parâmetros. Nunca recebe o endereço privado ou os campos da página.
+- **Armazenamento da medição e `client_id` estável:** o sandbox impede cookies GA e o acesso ao armazenamento do site. A inicialização declara `analytics_storage`, `ad_storage`, `ad_user_data` e `ad_personalization` como negados por padrão e, após validar a escolha positiva, atualiza `analytics_storage: 'granted'` com um `client_id` derivado da escolha vigente, mantendo o mesmo frame durante a navegação entre páginas públicas permitidas.
+- **Troca de rota e limpeza:** a navegação entre páginas públicas permitidas reutiliza o mesmo frame. Entrar em área excluída ou revogar o consentimento remove o frame e interrompe seus scripts e filas em memória. A medição otimizada remota não observa a página principal. Páginas vistas são enviadas explicitamente com endereço genérico, título fixo e referrer vazio.
+- **Origem do tráfego:** apenas `direto`, `busca`, `rede_social`, `interno` ou `outro`, por lista fixa de domínios conhecidos. Não são enviados domínio de origem, caminho, busca ou referrer privado.
+- **Eventos permitidos (listas fechadas, sem cidade nem identificadores pessoais):**
+
+  | Evento | Comportamento atual | Parâmetros permitidos |
   | --- | --- | --- |
-  | `sign_up` | Conta criada | `method`: `senha` ou `google` |
-  | `login` | Entrou numa conta que já existia | `method`: `senha`, `google` ou `link` |
-  | `negocio_cadastrado` | Negócio publicado no diretório | `tipo` (`indicacao` ou `dono`), `categoria`, `uf`, `cidade`, `com_instagram` (`sim` ou `nao`) |
-  | `perfil_reivindicado` | Pedido de dono enviado | `method` (`documento` ou `instagram`), `resultado` (`verificada` ou `em_analise`) |
-  | `depoimento_publicado` | Depoimento publicado | `categoria` |
-  | `negocio_favoritado` | Alguém pôs um negócio nos favoritos (também ao gerar o cupom). Quem já tinha favoritado não conta de novo | `categoria`, `uf` |
-  | `oferta_criada` | Um dono criou uma oferta do clube | `categoria`, `uf` |
-  | `cupom_gerado` | Alguém gerou um cupom. Pedir de novo o mesmo cupom não conta | `categoria`, `uf` |
-  | `cupom_usado` | Um dono marcou um cupom como usado | `categoria`, `uf` |
-  | `contato_negocio` | Clique em Ligar, WhatsApp, Instagram, site ou e-mail no perfil de um negócio público, menos do próprio dono | `canal` (`telefone`, `whatsapp`, `instagram`, `site` ou `email`), `categoria`, `uf` |
-  | `cadastro_etapa` | Cada etapa do cadastro por etapas em `/participar` | `etapa` e, depois da escolha, `tipo` |
-  | `app_instalado` | Site instalado como app pelo Chrome ou pelo Edge. O Safari não avisa quando alguém instala | — |
-  | `app_aberto` | Site aberto pelo ícone do app instalado, uma vez por abertura | — |
-  | `instalacao_aparelho` | Escolha do celular em `/instalacao` | `aparelho` (`iphone` ou `android`) |
+  | `sign_up` | Só após criação de conta e escolha positiva | `method` (`senha` ou `google`) |
+  | `login` | Só após login e escolha positiva | `method` (`senha`, `google` ou `link`) |
+  | `negocio_cadastrado` | Só após publicação e escolha positiva | `tipo`, `categoria`, `uf`, `com_instagram` |
+  | `perfil_reivindicado` | Só após pedido e escolha positiva | `method` (`documento` ou `instagram`), `resultado` (`verificada` ou `em_analise`) |
+  | `depoimento_publicado` | Só após publicação e escolha positiva | `categoria` |
+  | `negocio_favoritado` | Só após favoritar e escolha positiva | `categoria`, `uf` |
+  | `oferta_criada` | Só após criar oferta e escolha positiva | `categoria`, `uf` |
+  | `cupom_gerado` | Só após gerar cupom e escolha positiva | `categoria`, `uf` |
+  | `cupom_usado` | Só após validar cupom e escolha positiva | `categoria`, `uf` |
+  | `contato_negocio` | Contato no perfil público, exceto pelo próprio dono | `canal`, `categoria`, `uf` |
+  | `cadastro_etapa` | Etapa fixa do cadastro público | `etapa`, `tipo` opcional |
+  | `app_instalado` | Instalação do app | — |
+  | `app_aberto` | Abertura pelo app instalado | — |
+  | `instalacao_aparelho` | Escolha do aparelho em `/instalacao` | `aparelho` (`iphone` ou `android`) |
 
-- Os eventos de ação só contam o que deu certo no servidor, nunca a tentativa. A ação deixa o evento no cookie `ndb_eventos` (5 minutos, legível pelo navegador), e o navegador o manda ao Analytics na página seguinte, em até 1 segundo, e apaga o cookie. Sem o Analytics configurado, o cookie não é criado.
-- O Analytics usa cookies e não recebe nome, e-mail, telefone, @ nem o nome do negócio. Os eventos levam só a categoria, a cidade e a UF do negócio, que já são públicas no perfil. O site não manda `user_id`.
-- O **Cloudflare Web Analytics** também mede as visitas. Ele é ligado no painel do Cloudflare, e não no código: o Cloudflare injeta nas páginas o script `static.cloudflareinsights.com/beacon.min.js`, que conta as visitas e o tempo de carregamento sem cookies e sem identificar quem visita. Para desligar, desative o Web Analytics do domínio no painel do Cloudflare.
-- Por decisão do projeto, o site não mostra aviso de cookies. A página "Como funciona" explica a medição na seção de privacidade.
+- `page_view` mede páginas permitidas. Cidade, causas, texto livre, títulos reais, nomes, e-mails, telefones, @, nome do negócio e `user_id` não são enviados. Valores fora das listas fixas são recusados.
+- **Cloudflare Web Analytics:** mede visitas e tempo de carregamento sem cookies e sem identificar quem visita, injetado pelo Cloudflare (`static.cloudflareinsights.com/beacon.min.js`).
+- **Fila:** só ações bem-sucedidas e consentidas criam `ndb_eventos`, por até 5 minutos e com até cinco eventos mínimos. A fila é vinculada ao valor exato da escolha. Aceitar não recupera eventos anteriores. Revogar descarta a fila e remove cookies opcionais acessíveis, sem tocar nos funcionais. Não há Measurement Protocol ou fingerprint.
+- **Limite da prova local:** os testes usam ID sintético e interceptam chamadas externas. Eles não contatam o Google nem comprovam recebimento na propriedade real. Retenção, compartilhamento, recursos de publicidade, dados já recebidos e configuração efetiva da conta Google precisam de verificação pelo responsável. O código desativa sinais Google e personalização de publicidade na inicialização, mas isso não substitui essa verificação. A #109 continua aberta até a aceitação dessas pendências.
 
 ### Proteções da interface
 
@@ -1349,7 +1387,8 @@ O sistema funciona hoje assim. Algumas destas situações podem ser intencionais
 
 **Fotos**
 
-- Fotos da história que saem do texto, ou que foram enviadas e nunca salvas, continuam no armazenamento.
+- Fotos da história que saem do texto, ou que foram enviadas e nunca salvas, aguardam o diagnóstico e descarte manual descritos na seção 9. Sem domínio exclusivo confirmado, permanecem no armazenamento.
+- Fotos de perfil de negócios e de embaixadores, trocadas ou removidas, e a que perde a corrida do Instagram, também ficam em `perfis/` enquanto a exclusão estiver bloqueada. O diagnóstico lista só `historias/`, então essas fotos ainda não aparecem nele.
 
 Os [próximos passos do README](../README.md#próximos-passos-sugeridos) listam outras ideias.
 
@@ -1373,8 +1412,8 @@ Embaixadores são pessoas, em geral influenciadores, que levam o projeto para um
 - **Onde atua:** uma cidade da lista do IBGE ou um estado inteiro.
 - **Ordem:** de 0 a 999, do menor para o maior, na faixa e em `/embaixadores`. O empate vai pelo nome.
 - **"Na faixa da página inicial"** e **"Aparece no site":** fora do site, o embaixador não aparece em lugar nenhum.
-- **Excluir** apaga o cadastro e a foto, e pede para marcar "Confirmo". Para só tirar do site, basta desmarcar "Aparece no site".
-- Cada cadastro, edição, troca de foto e exclusão vai para a [auditoria](#13-auditoria), na mesma transação: se a auditoria falhar, nada muda. A foto antiga só é apagada depois disso.
+- **Excluir** apaga o cadastro, mas o arquivo da foto continua no armazenamento, e pede para marcar "Confirmo". Para só tirar do site, basta desmarcar "Aparece no site".
+- Cada cadastro, edição, troca de foto e exclusão vai para a [auditoria](#13-auditoria), na mesma transação: se a auditoria falhar, nada muda. A foto antiga continua no armazenamento, como a do negócio (veja a [seção 9](#9-fotos)).
 
 ### Onde aparece
 
@@ -1430,7 +1469,7 @@ Embaixadores são pessoas, em geral influenciadores, que levam o projeto para um
 
 ### Foto
 
-- A moderação envia, troca ou remove, como a foto do negócio.
+- A moderação envia, troca ou remove, como a foto do negócio. Trocar ou remover não apaga o arquivo antigo, e uma foto que entrou em descarte não pode voltar a ser usada.
 - Um embaixador sem foto ganha a do Instagram na próxima consulta, como "Sistema" na auditoria (`embaixador.foto_do_instagram`). A foto enviada pela moderação nunca é trocada.
 - Sem foto nenhuma, aparecem as iniciais.
 
@@ -1508,3 +1547,34 @@ Código: regras em `src/lib/ofertas.ts` (com testes em `tests/db/ofertas.test.ts
 ### O que fica para depois
 
 O QR code, o e-mail de fim de oferta com "Repetir oferta", o agendamento, a revisão das primeiras ofertas, o filtro "Com cupom" no `/explorar`, a denúncia de oferta e os avisos no celular.
+
+---
+
+## 21. Vagas
+
+Código: `src/lib/vagas.ts`, `src/acoes/vagas.ts`, `/vagas`, `/painel/<@>/vagas` e `/moderacao/vagas` ([#339](https://github.com/fabs-reis/Negocio-do-bem/issues/339)).
+
+- **Quem publica:** qualquer dono de um negócio aprovado e fora do modo oculto, no painel (`/painel/<@>/vagas`). A vaga vai ao ar na hora; a moderação tira do ar depois, como nos depoimentos e nas ofertas. Cada negócio tem no máximo 10 vagas abertas por vez.
+- **O que a vaga tem:** cargo (5 a 80 caracteres), área, tipo de contratação (CLT, PJ ou MEI, estágio, temporário, freela, diária ou bico), modalidade (presencial, híbrido, remoto), o que a pessoa vai fazer (30 a 2000), requisitos (10 a 1500), benefícios (opcional, até 500), jornada ou prazo, cidade (lista do IBGE) e o último dia para se candidatar (até 60 dias, contando hoje; termina às 23h59 de Brasília).
+- **O valor é obrigatório:** de R$ 1 a R$ 1.000.000, um valor só ou uma faixa, por mês, hora, dia ou projeto. Não existe "a combinar".
+- **O texto não leva contato nem discriminação:** links, e-mails, telefones, documentos e Pix são recusados (mesma regra das ofertas), porque as candidaturas chegam pela plataforma. Exigências de sexo, idade, "boa aparência", cor ou filhos também são recusadas. O dono marca o compromisso com a lei trabalhista e com a seleção sem discriminação.
+- **Quem vê:** `/vagas` lista as vagas abertas, dentro do prazo, de negócios do diretório, da mais nova para a mais antiga, 20 por página. Os filtros (busca, área, contratação, modalidade, estado) são um formulário GET e funcionam sem JavaScript. Cada vaga tem página própria (`/vagas/<id>`) com dados estruturados `JobPosting` para o Google, e as vagas abertas também aparecem no perfil do negócio. Vaga encerrada, vencida, suspensa ou de negócio oculto dá 404.
+- **Encerrar e suspender:** qualquer dono encerra a vaga (as candidaturas continuam no painel). A moderação suspende com um motivo, que o dono vê, ou devolve ao ar, em `/moderacao/vagas`. Tudo fica na auditoria (`vaga.criada`, `vaga.encerrada`, `vaga.suspensa`, `vaga.reativada`).
+- **Candidatura:** não precisa de conta. É um formulário em três etapas (dados, currículo, mensagem e envio); sem JavaScript, as três etapas aparecem juntas. Pede nome, e-mail, o currículo em PDF, DOC ou DOCX de até 5 MB **ou** um link (currículo ou LinkedIn), e o consentimento para enviar os dados à empresa. WhatsApp, cidade e mensagem (até 1000) são opcionais. O tipo do arquivo é conferido pelos primeiros bytes, não pela extensão. Cada e-mail se candidata uma vez por vaga, e uma vaga recebe no máximo 500 candidaturas.
+- **Privacidade:** os dados e o currículo só chegam aos donos do negócio e à moderação. O currículo fica no bucket R2 privado `DOCUMENTOS` (o mesmo da verificação do clube, com nome aleatório e sem endereço público) e só abre por `/api/curriculos/<id>`, que responde 404 a todos os outros, nunca vai para cache e registra cada abertura na auditoria (`candidatura.curriculo_visto`).
+- **Apagar:** o dono apaga uma candidatura e o currículo dela no painel (também quando a pessoa pede, pelo e-mail de confirmação). Fica na auditoria (`candidatura.apagada`). Ainda não há apagamento automático por prazo.
+- **Avisos por e-mail:** os donos recebem "Nova candidatura" (só o nome do candidato e o link do painel, sem dados nem currículo) e o candidato recebe a confirmação.
+
+## 22. Banco de talentos
+
+Código: `src/lib/talentos.ts`, `src/acoes/talentos.ts`, `/vagas/talentos`, `/vagas/talentos/meu-perfil`, `/vagas/talentos/<id>` e `/moderacao/vagas` ([#347](https://github.com/fabs-reis/Negocio-do-bem/issues/347)).
+
+- **O que é:** o "aberto a trabalho" de quem procura emprego. A pessoa conta o que sabe fazer e o que procura, e os negócios do diretório chegam até ela, mesmo sem vaga aberta. Em `/vagas`, as abas "Vagas abertas" e "Banco de talentos" levam de um lado ao outro.
+- **Quem cria:** qualquer conta com o e-mail confirmado, em `/vagas/talentos/meu-perfil`. Um perfil por conta; salvar de novo atualiza o mesmo perfil.
+- **O que o perfil tem:** como a pessoa quer aparecer (3 a 80 caracteres), título profissional (5 a 100), sobre (30 a 1500), o que procura (10 a 500), de 1 a 15 habilidades separadas por vírgula (2 a 40 caracteres cada, sem repetidas), pelo menos uma área, um tipo de contratação e uma modalidade (as mesmas listas das vagas), cidade (lista do IBGE) e e-mail. WhatsApp, link (LinkedIn, portfólio ou currículo online) e o currículo em PDF, DOC ou DOCX de até 5 MB são opcionais. A pessoa marca o consentimento para os negócios verem o contato.
+- **O texto público não leva contato:** título, sobre, o que procura e habilidades recusam links, e-mails, telefones e Pix (a mesma regra das vagas e ofertas). O contato vai nos campos próprios, que só os negócios veem.
+- **Aberto ou pausado:** a caixa "Estou aberto a trabalho" (ou o botão Pausar) tira o perfil da base sem apagar. Pausado, só a própria pessoa e a moderação veem a página do perfil.
+- **Quem vê:** `/vagas/talentos` lista os perfis abertos e não suspensos, do atualizado mais recente para o mais antigo, 20 por página, com filtros (busca por nome, título, habilidades, o que procura e cidade; área; contratação; modalidade; estado) num formulário GET que funciona sem JavaScript. A lista e os perfis ficam fora do Google. Contato e currículo aparecem só para a própria pessoa, a moderação e donos de negócios aprovados e fora do modo oculto (os mesmos que podem publicar vagas); os outros veem um convite para entrar ou cadastrar o negócio.
+- **Currículo:** fica no bucket privado `DOCUMENTOS`, com o tipo conferido pelos primeiros bytes, e só abre por `/api/talentos/<id>/curriculo`, que responde 404 a todos os outros e nunca vai para cache. Cada abertura por outra conta fica na auditoria (`talento.curriculo_visto`). Trocar ou remover o currículo apaga o arquivo antigo.
+- **Moderação:** em `/moderacao/vagas` (e na página do perfil), a moderação tira o perfil da base com um motivo, que a pessoa vê em "Meu perfil", ou devolve. Fica na auditoria (`talento.suspenso`, `talento.reativado`).
+- **Apagar:** a pessoa apaga o perfil e o currículo em "Meu perfil" (`talento.apagado` na auditoria). As candidaturas que ela já enviou para vagas continuam com as empresas.
