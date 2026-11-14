@@ -19,22 +19,19 @@ afterEach(() => {
 });
 
 describe("guardarFoto e apagarFoto", () => {
-  it("usa o bucket R2 configurado", async () => {
+  it("usa o bucket R2 sem apagar a foto anterior", async () => {
     vi.stubEnv("NEXT_PUBLIC_R2_PUBLIC_URL", "https://fotos.exemplo.com");
-
     const url = await guardarFoto(FOTO, "perfis");
     expect(put).toHaveBeenCalledWith(expect.stringMatching(/^perfis\/[0-9a-f]{24}\.jpg$/), FOTO.arquivo, {
       httpMetadata: { contentType: "image/jpeg" },
     });
     expect(url).toMatch(/^https:\/\/fotos\.exemplo\.com\/perfis\//);
-
-    await apagarFoto(URL_FOTO);
-    expect(apagar).toHaveBeenCalledWith("perfis/x.jpg");
+    expect(await apagarFoto(URL_FOTO)).toBe("bloqueada");
+    expect(apagar).not.toHaveBeenCalled();
   });
 
   it("em produção, sem R2 configurado, recusa guardar a foto", async () => {
     vi.stubEnv("NODE_ENV", "production");
-
     await expect(guardarFoto(FOTO, "perfis")).rejects.toThrow("Configure NEXT_PUBLIC_R2_PUBLIC_URL");
     await apagarFoto(URL_FOTO);
     expect(put).not.toHaveBeenCalled();

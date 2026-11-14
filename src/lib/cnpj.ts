@@ -1,3 +1,6 @@
+import { unstable_cache } from "next/cache";
+import { cache } from "react";
+
 // Validação de CNPJ, incluindo o formato alfanumérico que a Receita Federal
 // passou a emitir em julho de 2026 (12 caracteres de A-Z/0-9 + 2 dígitos).
 
@@ -44,14 +47,65 @@ export type DadosCnpj = {
   email: string | null;
 };
 
+function extrairDadosCnpj(dados: Record<string, unknown>): DadosCnpj {
+  const texto = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+  return {
+    razaoSocial: texto(dados.razao_social) ?? "(sem razão social)",
+    nomeFantasia: texto(dados.nome_fantasia),
+    situacao: texto(dados.descricao_situacao_cadastral),
+    municipio: texto(dados.municipio),
+    uf: texto(dados.uf),
+    socios: (Array.isArray(dados.qsa) ? (dados.qsa as Record<string, unknown>[]) : [])
+      .map((socio) => ({
+        nome: texto(socio.nome_socio),
+        qualificacao: texto(socio.qualificacao_socio),
+        // A Receita mostra do sócio pessoa física só os 6 dígitos do meio ("***325350**").
+        cpfMascarado: texto(socio.cnpj_cpf_do_socio),
+      }))
+      .filter((socio): socio is SocioCnpj => socio.nome !== null),
+    telefone: texto(dados.ddd_telefone_1),
+    email: texto(dados.email)?.toLowerCase() ?? null,
+  };
+}
+
+async function buscarCnpjNaBrasilApi(cnpj: string): Promise<DadosCnpj> {
+  const resposta = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, {
+    headers: { "User-Agent": "NegocioDoBem/1.0 (+https://github.com/fabs-reis/Negocio-do-bem)" },
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!resposta.ok) throw new Error("A consulta à BrasilAPI falhou.");
+  const dados = (await resposta.json()) as Record<string, unknown>;
+  return extrairDadosCnpj(dados);
+}
+
+/** Persiste só a projeção pública bem-sucedida. O React compartilha a consulta durante a renderização. */
+const consultarCnpjNormalizado = cache(unstable_cache(
+  buscarCnpjNaBrasilApi,
+  ["brasilapi-cnpj-v1"],
+  { revalidate: 86400 },
+));
+
 /**
  * Consulta pública na BrasilAPI, para a moderação conferir o nome registrado e os sócios.
+ * Normaliza antes de compartilhar. Converte falhas fora do cache persistente para permitir nova tentativa.
  * Retorna null se a consulta falhar. Na reivindicação é só um apoio e nunca bloqueia a
  * análise; na liberação para o Clube do Bem, sem a consulta não há liberação.
  */
 export async function consultarCnpj(valor: string): Promise<DadosCnpj | null> {
-  const resultado = await buscarNaReceita(valor);
-  return resultado === "nao_encontrado" ? null : resultado;
+  const cnpj = limparCnpj(valor);
+  if (!cnpjValido(cnpj)) return null;
+  try {
+    return await consultarCnpjNormalizado(cnpj);
+  } catch (erro) {
+    if (erro instanceof Error && erro.message.startsWith("Invariant: incrementalCache missing in unstable_cache")) {
+      try {
+        return await buscarCnpjNaBrasilApi(cnpj);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
 }
 
 /**
@@ -64,31 +118,13 @@ export async function buscarNaReceita(valor: string): Promise<DadosCnpj | "nao_e
   if (!cnpjValido(cnpj)) return null;
   try {
     const resposta = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, {
-      // Sem um User-Agent próprio, a BrasilAPI recusa o pedido (403).
       headers: { "User-Agent": "NegocioDoBem/1.0 (+https://github.com/fabs-reis/Negocio-do-bem)" },
       signal: AbortSignal.timeout(5000),
     });
     if (resposta.status === 404) return "nao_encontrado";
     if (!resposta.ok) return null;
     const dados = (await resposta.json()) as Record<string, unknown>;
-    const texto = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
-    return {
-      razaoSocial: texto(dados.razao_social) ?? "(sem razão social)",
-      nomeFantasia: texto(dados.nome_fantasia),
-      situacao: texto(dados.descricao_situacao_cadastral),
-      municipio: texto(dados.municipio),
-      uf: texto(dados.uf),
-      socios: (Array.isArray(dados.qsa) ? (dados.qsa as Record<string, unknown>[]) : [])
-        .map((socio) => ({
-          nome: texto(socio.nome_socio),
-          qualificacao: texto(socio.qualificacao_socio),
-          // A Receita mostra do sócio pessoa física só os 6 dígitos do meio ("***325350**").
-          cpfMascarado: texto(socio.cnpj_cpf_do_socio),
-        }))
-        .filter((socio): socio is SocioCnpj => socio.nome !== null),
-      telefone: texto(dados.ddd_telefone_1),
-      email: texto(dados.email)?.toLowerCase() ?? null,
-    };
+    return extrairDadosCnpj(dados);
   } catch {
     return null;
   }

@@ -57,6 +57,7 @@ async function Conteudo() {
           <ItemDeLista href="/painel" icone={ICONES_DE_LISTA.painel} titulo="Meu painel" detalhe="Negócios, indicações e senha" />
           <ItemDeLista href="/favoritos" icone={ICONES_DE_LISTA.coracao} titulo="Favoritos" />
           <ItemDeLista href="/cupons/meus" icone={ICONES_DE_LISTA.cupom} titulo="Meus cupons" />
+          <ItemDeLista href="/vagas/talentos/meu-perfil" icone={ICONES_DE_LISTA.painel} titulo="Aberto a trabalho" detalhe="Seu perfil no banco de talentos" />
           {usuario.moderador && <ItemDeLista href="/moderacao" icone={ICONES_DE_LISTA.escudo} titulo="Moderação" />}
         </ul>
       )}

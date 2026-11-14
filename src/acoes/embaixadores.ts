@@ -1,13 +1,14 @@
 "use server";
 
 import { notFound, redirect } from "next/navigation";
-import { apagarFoto, conferirFoto, guardarFoto } from "@/lib/armazenamento";
+import { conferirFoto, guardarFoto } from "@/lib/armazenamento";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { exigirModerador } from "@/lib/auth/sessao";
 import { db } from "@/lib/db";
 import { atualizarPeloInstagram, lerEmbaixador } from "@/lib/embaixadores";
 import { texto, valoresDoFormulario, type EstadoFormulario } from "@/lib/formulario";
 import { lerId } from "@/lib/moderacao/filtros";
+import { ErroFotoDescartada, OPCOES_TRANSACAO_FOTOS, validarReferenciasFotos } from "@/lib/publicacao-fotos";
 
 // Cadastro dos embaixadores do bem, só pela moderação (aba Embaixadores).
 
@@ -97,11 +98,16 @@ export async function trocarFotoDoEmbaixador(_estado: EstadoFormulario, dados: F
     console.error("Falha ao guardar a foto do embaixador", erro);
     return { erro: "Não conseguimos guardar a foto agora. Tente de novo em instantes." };
   }
-  await db.$transaction(async (tx) => {
-    await tx.embaixador.update({ where: { id: embaixador.id }, data: { fotoUrl } });
-    await registrarAuditoria(tx, { usuarioId: usuario.id, acao: "embaixador.foto_trocada", alvoTipo: "embaixador", alvoId: embaixador.id });
-  });
-  await apagarFoto(embaixador.fotoUrl);
+  try {
+    await db.$transaction(async (tx) => {
+      await validarReferenciasFotos(tx, { fotoUrl });
+      await tx.embaixador.update({ where: { id: embaixador.id }, data: { fotoUrl } });
+      await registrarAuditoria(tx, { usuarioId: usuario.id, acao: "embaixador.foto_trocada", alvoTipo: "embaixador", alvoId: embaixador.id });
+    }, OPCOES_TRANSACAO_FOTOS);
+  } catch (erro) {
+    if (erro instanceof ErroFotoDescartada) return { erro: erro.message };
+    throw erro;
+  }
   redirect(paginaDoEmbaixador(embaixador.id, "foto_salva"));
 }
 
@@ -109,14 +115,14 @@ export async function removerFotoDoEmbaixador(dados: FormData): Promise<void> {
   const usuario = await exigirModerador();
   const embaixador = await embaixadorDoFormulario(dados);
   await db.$transaction(async (tx) => {
+    await validarReferenciasFotos(tx, { fotoUrl: null });
     await tx.embaixador.update({ where: { id: embaixador.id }, data: { fotoUrl: null } });
     await registrarAuditoria(tx, { usuarioId: usuario.id, acao: "embaixador.foto_removida", alvoTipo: "embaixador", alvoId: embaixador.id });
-  });
-  await apagarFoto(embaixador.fotoUrl);
+  }, OPCOES_TRANSACAO_FOTOS);
   redirect(paginaDoEmbaixador(embaixador.id, "foto_removida"));
 }
 
-/** Apaga o cadastro e a foto. Para só tirar do site, basta desmarcar "Aparece no site". */
+/** Apaga o cadastro. O arquivo da foto continua no armazenamento. Para só tirar do site, basta desmarcar "Aparece no site". */
 export async function excluirEmbaixador(dados: FormData): Promise<void> {
   const usuario = await exigirModerador();
   const embaixador = await embaixadorDoFormulario(dados);
@@ -130,6 +136,5 @@ export async function excluirEmbaixador(dados: FormData): Promise<void> {
       detalhes: `${embaixador.nome} (@${embaixador.instagramUsername})`,
     });
   });
-  await apagarFoto(embaixador.fotoUrl);
   redirect("/moderacao?aba=embaixadores&aviso=embaixador_excluido");
 }

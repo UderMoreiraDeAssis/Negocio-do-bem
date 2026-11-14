@@ -44,6 +44,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: urlAbsoluta("/embaixadores") },
     { url: urlAbsoluta("/sobre") },
     { url: urlAbsoluta("/clube-do-bem") },
+    { url: urlAbsoluta("/vagas") },
     { url: urlAbsoluta("/participar") },
     { url: urlAbsoluta("/instalacao") },
     { url: urlAbsoluta("/instalacao/android") },

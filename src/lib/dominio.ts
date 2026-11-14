@@ -105,6 +105,7 @@ export const ACOES_AUDITORIA: Record<string, string> = {
   "depoimento.removido": "Removeu um depoimento denunciado",
   "usuario.senha_trocada": "Trocou a própria senha no painel",
   "usuario.senha_redefinida": "Trocou a senha pelo link do e-mail",
+  "foto.descarte_iniciado": "Iniciou o descarte de uma foto sem uso",
   "usuario.moderacao_dada": "Deu a moderação a uma conta",
   "usuario.moderacao_tirada": "Tirou a moderação de uma conta",
   "embaixador.criado": "Cadastrou um embaixador",
@@ -120,6 +121,11 @@ export const ACOES_AUDITORIA: Record<string, string> = {
   "clube.suspenso": "Suspendeu um dono do Clube do Bem",
   "oferta.criada": "Criou uma oferta do Clube do Bem",
   "oferta.encerrada": "Encerrou uma oferta do Clube do Bem",
+  "talento.criado": "Entrou no banco de talentos",
+  "talento.apagado": "Apagou o próprio perfil de talento",
+  "talento.suspenso": "Tirou um perfil do banco de talentos",
+  "talento.reativado": "Devolveu um perfil ao banco de talentos",
+  "talento.curriculo_visto": "Abriu o currículo de um talento",
 };
 
 /** A caixa de e-mail do projeto, para quem quer falar com a equipe (ex.: ser embaixador). */

@@ -12,11 +12,11 @@ const dominioFotos = process.env.NEXT_PUBLIC_R2_PUBLIC_URL ? ` ${new URL(process
 
 const politicaDeConteudo = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' https://*.googletagmanager.com ${SCRIPT_DO_CLOUDFLARE}${desenvolvimento ? " 'unsafe-eval'" : ""}`,
+  `script-src 'self' 'unsafe-inline' ${SCRIPT_DO_CLOUDFLARE}${desenvolvimento ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob:${dominioFotos} ${ANALYTICS}`,
+  `img-src 'self' data: blob:${dominioFotos}`,
   "font-src 'self' data:",
-  `connect-src 'self' ${ANALYTICS} ${ENVIOS_DO_GOOGLE} ${ENVIOS_DO_CLOUDFLARE}${desenvolvimento ? " ws:" : ""}`,
+  `connect-src 'self' ${ENVIOS_DO_CLOUDFLARE}${desenvolvimento ? " ws:" : ""}`,
   "frame-src 'self'",
   "object-src 'none'",
   "base-uri 'self'",
@@ -40,8 +40,31 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "**/*": ["./node_modules/pg-cloudflare/dist/**", "./node_modules/pg-cloudflare/esm/**"],
   },
+  // Ferramentas de build e de desenvolvimento que o trace pega por engano e que
+  // nunca rodam no Worker: a CLI do Prisma (compiladores de outros bancos, schema
+  // engine), o PGlite do `prisma dev` e o compilador do Tailwind. Juntas, passavam
+  // de 40 MiB e deixavam o Worker no limite de 64 MiB do Cloudflare (#363).
+  outputFileTracingExcludes: {
+    "**/*": [
+      "./node_modules/prisma/**",
+      "./node_modules/@prisma/dev/**",
+      "./node_modules/@electric-sql/**",
+      "./node_modules/@tailwindcss/**",
+      "./node_modules/tailwindcss/**",
+    ],
+  },
   async headers() {
-    return [{ source: "/:caminho*", headers: cabecalhosDeSeguranca }];
+    return [
+      { source: "/:caminho*", headers: cabecalhosDeSeguranca },
+      {
+        source: "/api/analytics",
+        headers: [
+          { key: "Content-Security-Policy", value: `default-src 'none'; script-src 'unsafe-inline' https://www.googletagmanager.com; connect-src ${ANALYTICS} ${ENVIOS_DO_GOOGLE}; img-src ${ANALYTICS} ${ENVIOS_DO_GOOGLE}; frame-ancestors 'self'; base-uri 'none'; form-action 'none'; sandbox allow-scripts` },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+        ],
+      },
+    ];
   },
   async redirects() {
     return [

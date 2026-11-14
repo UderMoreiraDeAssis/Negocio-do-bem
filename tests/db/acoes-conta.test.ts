@@ -6,6 +6,7 @@ import * as senha from "@/lib/auth/senha";
 import { LIMITE_POR_EMAIL, LIMITE_POR_IP, reservarTentativaDoEmail } from "@/lib/auth/tentativas";
 import { db } from "@/lib/db";
 import { enviarEmail, type Email } from "@/lib/email";
+import { dadosDeContaComSenha } from "../fixtures/autenticacao";
 
 // Estes testes passam pelas ações de verdade (entrar, cadastrar e trocarSenha). Só o que
 // precisa de uma requisição do Next fica de mentira: os cabeçalhos, o redirect, os
@@ -100,7 +101,7 @@ async function cadastrarVezes(vezes: number, cabecalhosDaVez: (indice: number) =
 }
 
 async function criarUsuario(email: string) {
-  const usuario = await db.usuario.create({ data: { nome: "Pessoa de teste", email, senhaHash: await senha.gerarHashSenha(SENHA_CERTA) } });
+  const usuario = await db.usuario.create({ data: await dadosDeContaComSenha({ nome: "Pessoa de teste", email, senha: SENHA_CERTA }) });
   vi.clearAllMocks();
   return usuario;
 }

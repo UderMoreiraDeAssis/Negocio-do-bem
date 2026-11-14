@@ -244,7 +244,8 @@ export async function listarDepoimentos(filtros: { q: string; situacao: Situacao
   return paginar(total, itens, POR_PAGINA);
 }
 
-export type AlvoDoRegistro = { rotulo: string; href: string };
+/** `href` é null quando o alvo não tem página própria, como uma foto. */
+export type AlvoDoRegistro = { rotulo: string; href: string | null };
 
 /** Troca o tipo e o id do alvo de cada registro por um nome e um link, quando o alvo ainda existe. */
 async function comAlvos<T extends { alvoTipo: string; alvoId: string }>(registros: T[]) {
@@ -268,6 +269,10 @@ async function comAlvos<T extends { alvoTipo: string; alvoId: string }>(registro
   }
   for (const r of reivindicacoes) {
     alvos.set(`reivindicacao:${r.id}`, { rotulo: `Pedido para ${r.empresa.nome}`, href: `/moderacao/negocios/${r.empresa.instagramUsername}` });
+  }
+  // A foto não tem página nem cadastro: o nome do arquivo basta. O registro não diz se ele ainda existe.
+  for (const r of registros) {
+    if (r.alvoTipo === "foto") alvos.set(`foto:${r.alvoId}`, { rotulo: `Foto ${r.alvoId.split("/").slice(-2).join("/")}`, href: null });
   }
   for (const e of embaixadores) alvos.set(`embaixador:${e.id}`, { rotulo: e.nome, href: `/moderacao/embaixadores/${e.id}` });
   return registros.map((r) => ({ ...r, alvo: alvos.get(`${r.alvoTipo}:${r.alvoId}`) ?? null }));

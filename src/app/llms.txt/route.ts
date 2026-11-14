@@ -19,6 +19,7 @@ O ${NOME_DO_SITE} é um diretório gratuito e colaborativo de negócios brasilei
 - [Embaixadores do bem](${urlAbsoluta("/embaixadores")}): quem divulga o projeto em cada cidade ou estado. Cada um tem a própria página (\`/embaixadores/<@>\`), com o Instagram e os negócios da região.
 - [Como funciona](${urlAbsoluta("/sobre")}): manifesto, moderação, como o dono assume o perfil e privacidade.
 - [Clube do Bem](${urlAbsoluta("/clube-do-bem")}): como funcionam os cupons de desconto, para quem compra e para o dono do negócio, e como os negócios são verificados.
+- [Vagas](${urlAbsoluta("/vagas")}): vagas, estágios, freelas e bicos publicados por donos de negócios do diretório, com valor informado e candidatura pelo site.
 - [Cadastrar um negócio](${urlAbsoluta("/participar")}): cadastro por etapas para indicar um negócio do bem ou cadastrar o próprio, com ou sem Instagram.
 - [Instale o app](${urlAbsoluta("/instalacao")}): passo a passo para instalar o site como app no iPhone e no Android.
 

@@ -20,12 +20,7 @@ function Icone({ children }: { children: ReactNode }) {
 
 const ICONES = {
   inicio: <path d="M3 11l9-7.5L21 11M5.5 9.5V20h13V9.5M10 20v-6h4v6" />,
-  explorar: (
-    <>
-      <circle cx="11" cy="11" r="6.5" />
-      <path d="M16 16l4.5 4.5" />
-    </>
-  ),
+  vagas: <path d="M4 8.5h16V19H4zM9 8.5V6a1 1 0 011-1h4a1 1 0 011 1v2.5M4 13.5h16" />,
   cupons: <path d="M3 9V6.5A1.5 1.5 0 014.5 5h15A1.5 1.5 0 0121 6.5V9a3 3 0 000 6v2.5a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 17.5V15a3 3 0 000-6zM14 5.5v13" strokeDasharray="2 2.4" />,
   favoritos: <path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0112 7.3a4.3 4.3 0 017.5 2.5C19.5 15.4 12 20 12 20z" />,
   conta: (
@@ -66,7 +61,8 @@ export function BarraInferior({ perfil }: { perfil: PerfilDaBarra }) {
         ]
       : [
           inicio,
-          { rotulo: "Explorar", href: "/explorar", icone: "explorar", rotas: ["/explorar", "/empresas", "/cidades", "/causas", "/tipos"] },
+          // A busca (Explorar) fica no ícone da lupa no topo; a aba é de Vagas.
+          { rotulo: "Vagas", href: "/vagas", icone: "vagas", rotas: ["/vagas"] },
           cupons,
           { rotulo: "Favoritos", href: "/favoritos", icone: "favoritos", rotas: ["/favoritos"] },
           conta,
