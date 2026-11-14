@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { z } from "zod";
-import { apagarFoto, conferirFoto, guardarFoto } from "@/lib/armazenamento";
+import { conferirFoto, guardarFoto } from "@/lib/armazenamento";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { listarCidades } from "@/lib/consultas";
 import { db, type Prisma } from "@/lib/db";
@@ -11,6 +11,7 @@ import { campoMunicipio, errosPorCampo, texto } from "@/lib/formulario";
 import { ehFotoDoSite } from "@/lib/fotos";
 import { normalizarUsername } from "@/lib/instagram";
 import { arquivoDaFoto, buscarPreviaDoInstagram, configPrevia } from "@/lib/previa-instagram";
+import { OPCOES_TRANSACAO_FOTOS, validarReferenciasFotos } from "@/lib/publicacao-fotos";
 import { normalizarTexto } from "@/lib/texto";
 
 // Embaixadores do bem (#250): quem leva o projeto para uma cidade ou um estado
@@ -239,13 +240,12 @@ async function gravarFotoDoInstagram(id: string, foto: string): Promise<void> {
   if (!conferida || "erro" in conferida) return;
   const fotoUrl = await guardarFoto(conferida, "perfis");
   // A moderação pode ter enviado uma foto enquanto esta subia: vale a dela.
-  const gravada = await db.$transaction(async (tx) => {
+  await db.$transaction(async (tx) => {
+    await validarReferenciasFotos(tx, { fotoUrl });
     const { count } = await tx.embaixador.updateMany({ where: { id, fotoUrl: null }, data: { fotoUrl } });
-    if (count === 0) return false;
+    if (count === 0) return;
     await registrarAuditoria(tx, { usuarioId: null, acao: "embaixador.foto_do_instagram", alvoTipo: "embaixador", alvoId: id });
-    return true;
-  });
-  if (!gravada) await apagarFoto(fotoUrl);
+  }, OPCOES_TRANSACAO_FOTOS);
 }
 
 export type ResultadoDoInstagram = "atualizado" | "sem_resposta";

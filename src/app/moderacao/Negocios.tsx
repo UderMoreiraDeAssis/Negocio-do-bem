@@ -91,6 +91,7 @@ export async function Negocios({ filtros }: { filtros: FiltrosModeracao }) {
                   <input type="hidden" name="empresaId" value={e.id} />
                   <input type="hidden" name="aba" value="negocios" />
                   <input type="hidden" name="voltar" value={aqui} />
+                  <input type="hidden" name="de" value={e.moderacao} />
                   <input type="hidden" name="decisao" value={e.moderacao === "aprovada" ? "rejeitar" : "aprovar"} />
                   <BotaoEnviar className={`${e.moderacao === "aprovada" ? "botao-claro" : "botao"} botao-pequeno`} enviando="…">
                     {e.moderacao === "aprovada" ? "Tirar do ar" : e.moderacao === "rejeitada" ? "Publicar de novo" : "Publicar"}

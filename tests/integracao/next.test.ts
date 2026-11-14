@@ -31,7 +31,7 @@ const CAMPOS: Record<Acao, (alvos: Alvos) => Record<string, string>> = {
   publicarIndicacoesPendentes: () => ({}),
   aprovarReivindicacao: ({ reivindicacaoId }) => ({ reivindicacaoId, modo: "adicionar" }),
   recusarReivindicacao: ({ reivindicacaoId }) => ({ reivindicacaoId, motivo: "Prova de runtime" }),
-  moderarEmpresa: ({ empresaId }) => ({ empresaId, decisao: "rejeitar", aba: "negocios" }),
+  moderarEmpresa: ({ empresaId }) => ({ empresaId, de: "aprovada", decisao: "rejeitar", aba: "negocios" }),
   decidirDenuncia: ({ depoimentoId }) => ({ depoimentoId, decisao: "remover" }),
   removerDono: ({ empresaId, donoId }) => ({ empresaId, usuarioId: donoId, motivo: "Prova de runtime", confirmo: "sim" }),
 };
@@ -284,20 +284,29 @@ describe("Next em produção", () => {
   });
 
   it("libera na CSP o Google Analytics e o Cloudflare Web Analytics", async () => {
+    const lerCsp = (cabecalho: string | null) =>
+      new Map(
+        (cabecalho ?? "")
+          .split(";")
+          .map((trecho) => trecho.trim().split(/\s+/))
+          .map(([nome, ...fontes]) => [nome, fontes] as const),
+      );
     const resposta = await fetch(`${origem}/sobre`);
     await resposta.text();
-    const diretivas = new Map(
-      (resposta.headers.get("content-security-policy") ?? "")
-        .split(";")
-        .map((trecho) => trecho.trim().split(/\s+/))
-        .map(([nome, ...fontes]) => [nome, fontes] as const),
-    );
-    // O Cloudflare injeta o script do Web Analytics, e o GA4 também envia para www.google.com/g/collect.
-    expect(diretivas.get("script-src")).toEqual(expect.arrayContaining(["https://*.googletagmanager.com", "https://static.cloudflareinsights.com"]));
-    expect(diretivas.get("connect-src")).toEqual(
-      expect.arrayContaining(["https://*.google-analytics.com", "https://*.google.com", "https://cloudflareinsights.com"]),
-    );
+    const diretivas = lerCsp(resposta.headers.get("content-security-policy"));
+    // O Cloudflare injeta o script do Web Analytics; o GA4 fica isolado em /api/analytics e envia para www.google.com/g/collect.
+    expect(diretivas.get("script-src")).toContain("https://static.cloudflareinsights.com");
+    expect(diretivas.get("connect-src")).toContain("https://cloudflareinsights.com");
     expect(diretivas.get("frame-ancestors")).toEqual(["'none'"]);
+
+    const medicao = await fetch(`${origem}/api/analytics`);
+    await medicao.text();
+    const diretivasMedicao = lerCsp(medicao.headers.get("content-security-policy"));
+    expect(diretivasMedicao.get("script-src")).toContain("https://www.googletagmanager.com");
+    expect(diretivasMedicao.get("connect-src")).toEqual(
+      expect.arrayContaining(["https://*.google-analytics.com", "https://*.google.com"]),
+    );
+    expect(diretivasMedicao.get("frame-ancestors")).toEqual(["'self'"]);
   });
 
   describe.each(["visitante", "membro"])("%s", (papel) => {
@@ -383,7 +392,7 @@ describe("Next em produção", () => {
 
     it("executa moderarEmpresa e grava a decisão e a auditoria", async () => {
       log!.write("\nPROVA: POST moderarEmpresa como moderador\n");
-      const resposta = await enviar("moderarEmpresa", cookieModerador, { empresaId, decisao: "rejeitar", aba: "negocios" });
+      const resposta = await enviar("moderarEmpresa", cookieModerador, { empresaId, de: "aprovada", decisao: "rejeitar", aba: "negocios" });
       await resposta.text();
       expect(resposta.status).toBe(303);
       expect(resposta.headers.get("location")).toContain("aviso=feito");

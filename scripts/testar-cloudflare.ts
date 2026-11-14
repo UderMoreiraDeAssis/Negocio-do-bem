@@ -35,6 +35,26 @@ export function configuracaoLocal(url: string, raiz: string) {
   };
 }
 
+/** O teste local não busca metadados de uma conexão real nem herda configurações externas. */
+export function ambienteDaProva(banco: string, raiz: string, pasta: string) {
+  return {
+    PATH: [join(raiz, "node_modules/.bin"), dirname(process.execPath), "/usr/bin", "/bin"].join(delimiter),
+    HOME: pasta,
+    DATABASE_URL: banco,
+    DATABASE_URL_UNPOOLED: banco,
+    TEST_DATABASE_URL: banco,
+    DEPLOY_ENV: "preview",
+    CLOUDFLARE_DEPLOY: "1",
+    CLOUDFLARE_CF_FETCH_ENABLED: "false",
+    NEXT_TELEMETRY_DISABLED: "1",
+    WRANGLER_SEND_METRICS: "false",
+    WRANGLER_LOG_PATH: join(pasta, "wrangler.log"),
+    DOTENV_CONFIG_PATH: join(pasta, "empty.env"),
+    CI: "1",
+    NODE_ENV: "production" as const,
+  };
+}
+
 export function erroServidor(texto: string): boolean {
   return /(?:\[ERROR\]|\b\w*Error:|⨯)/.test(texto);
 }
@@ -64,21 +84,7 @@ async function executar() {
   const cancelar = () => cancelamento.abort();
   process.once("SIGINT", cancelar);
   process.once("SIGTERM", cancelar);
-  const ambiente = {
-    PATH: [join(raiz, "node_modules/.bin"), dirname(process.execPath), "/usr/bin", "/bin"].join(delimiter),
-    HOME: pasta,
-    DATABASE_URL: banco,
-    DATABASE_URL_UNPOOLED: banco,
-    TEST_DATABASE_URL: banco,
-    DEPLOY_ENV: "preview",
-    CLOUDFLARE_DEPLOY: "1",
-    NEXT_TELEMETRY_DISABLED: "1",
-    WRANGLER_SEND_METRICS: "false",
-    WRANGLER_LOG_PATH: join(pasta, "wrangler.log"),
-    DOTENV_CONFIG_PATH: join(pasta, "empty.env"),
-    CI: "1",
-    NODE_ENV: "production" as const,
-  };
+  const ambiente = ambienteDaProva(banco, raiz, pasta);
   writeFileSync(ambiente.DOTENV_CONFIG_PATH, "");
   const configuracao = join(pasta, "wrangler.json");
   writeFileSync(configuracao, JSON.stringify(configuracaoLocal(banco, raiz), null, 2));

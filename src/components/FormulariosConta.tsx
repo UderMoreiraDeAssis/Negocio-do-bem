@@ -90,6 +90,7 @@ export function FormPedirLink({ voltar }: { voltar: string }) {
         <input id="email" name="email" type="email" autoComplete="email" required defaultValue={valorTexto(estado?.valores, "email")} className="campo" aria-invalid={!!erros.email} />
         {erros.email ? <p className="erro-campo">{erros.email}</p> : <p className="ajuda">O link vale por 15 minutos e uma vez só.</p>}
       </div>
+      {estado?.erro && <Aviso tipo="erro">{estado.erro}</Aviso>}
       <BotaoEnviar pendente={pendente} className="botao w-full" enviando="Enviando…">
         Mandar o link
       </BotaoEnviar>

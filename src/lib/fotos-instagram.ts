@@ -1,6 +1,7 @@
 import "server-only";
 import { timingSafeEqual } from "node:crypto";
-import { apagarFoto, conferirFoto, guardarFoto } from "@/lib/armazenamento";
+import { conferirFoto, guardarFoto } from "@/lib/armazenamento";
+import { OPCOES_TRANSACAO_FOTOS, validarReferenciasFotos } from "@/lib/publicacao-fotos";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { db } from "@/lib/db";
 import type { TipoDeFoto } from "@/lib/fotos";
@@ -56,6 +57,7 @@ export async function aplicarFotoDoInstagram(
   const fotoUrl = await guardarFoto(foto, "perfis");
   // O dono pode ter enviado uma foto enquanto esta subia: nesse caso, vale a dele.
   const gravada = await db.$transaction(async (tx) => {
+    await validarReferenciasFotos(tx, { fotoUrl });
     const { count } = await tx.empresa.updateMany({ where: { id: empresaId, fotoUrl: null }, data: { fotoUrl } });
     if (count === 0) return false;
     await registrarAuditoria(tx, {
@@ -66,11 +68,8 @@ export async function aplicarFotoDoInstagram(
       detalhes: `@${empresa.instagramUsername}`,
     });
     return true;
-  });
-  if (!gravada) {
-    await apagarFoto(fotoUrl);
-    return "ja_tem_foto";
-  }
+  }, OPCOES_TRANSACAO_FOTOS);
+  if (!gravada) return "ja_tem_foto";
   return "gravada";
 }
 

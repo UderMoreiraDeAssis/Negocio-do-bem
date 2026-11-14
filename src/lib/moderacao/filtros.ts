@@ -1,6 +1,8 @@
 // Seções e filtros do painel da moderação (/moderacao), lidos da URL.
 // Como no diretório, só valores conhecidos passam: o resto volta para o padrão.
 
+import { identidadeDaFoto } from "@/lib/fotos-historias";
+
 export const ABAS = {
   "visao-geral": "Visão geral",
   reivindicacoes: "Reivindicações",
@@ -50,7 +52,7 @@ export const SITUACOES_DEPOIMENTO = {
 export type SituacaoDepoimento = keyof typeof SITUACOES_DEPOIMENTO;
 
 /** O que pode ser alvo de um registro da auditoria. */
-export const TIPOS_DE_ALVO = ["empresa", "usuario", "reivindicacao", "depoimento", "embaixador"] as const;
+export const TIPOS_DE_ALVO = ["empresa", "usuario", "reivindicacao", "depoimento", "embaixador", "foto"] as const;
 export type Alvo = { tipo: (typeof TIPOS_DE_ALVO)[number]; id: string };
 
 export const POR_PAGINA = 30;
@@ -71,6 +73,10 @@ function primeiro(params: Params, nome: string): string {
 function opcao<T extends string>(valor: string, opcoes: Record<T, string>, padrao: T): T {
   return Object.hasOwn(opcoes, valor) ? (valor as T) : padrao;
 }
+
+/** Historical Blob and local URLs remain valid for read-only history. */
+const ENDERECO_DE_FOTO =
+  /^(?:https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com|\/enviados)\/(?:historias|perfis)\/[a-f0-9]{24}\.(?:jpg|png|webp)$/;
 
 /** Os ids do banco são cuid: letras minúsculas e números. */
 export function lerId(valor: unknown): string | null {
@@ -97,8 +103,15 @@ export function lerFiltros(params: Params): FiltrosModeracao {
   const pagina = Number.parseInt(primeiro(params, "pagina") || "1", 10);
   const acao = primeiro(params, "acao");
   const pessoa = primeiro(params, "pessoa");
-  const [tipoAlvo, idAlvo] = primeiro(params, "alvo").split(":");
-  const alvoValido = (TIPOS_DE_ALVO as readonly string[]).includes(tipoAlvo ?? "") && lerId(idAlvo);
+  // O id pode ter ":" (endereço da foto): só o primeiro separa o tipo.
+  const textoDoAlvo = primeiro(params, "alvo");
+  const separador = textoDoAlvo.indexOf(":");
+  const tipoAlvo = textoDoAlvo.slice(0, Math.max(separador, 0));
+  const idAlvo = textoDoAlvo.slice(separador + 1);
+  // This filter selects history records. It does not authorize storage operations.
+  const alvoValido =
+    (TIPOS_DE_ALVO as readonly string[]).includes(tipoAlvo) &&
+    (tipoAlvo === "foto" ? (ENDERECO_DE_FOTO.test(idAlvo) || identidadeDaFoto(idAlvo) === idAlvo) : lerId(idAlvo) !== null);
   return {
     aba,
     q: primeiro(params, "q").slice(0, 100),
@@ -108,7 +121,7 @@ export function lerFiltros(params: Params): FiltrosModeracao {
     depoimentos: opcao(situacao, SITUACOES_DEPOIMENTO, "todos"),
     acao: /^[a-z_]{1,30}\.[a-z_]{1,40}$/.test(acao) ? acao : "",
     pessoa: pessoa === "sistema" ? pessoa : (lerId(pessoa) ?? ""),
-    alvo: alvoValido ? { tipo: tipoAlvo as Alvo["tipo"], id: idAlvo! } : null,
+    alvo: alvoValido ? { tipo: tipoAlvo as Alvo["tipo"], id: idAlvo } : null,
   };
 }
 

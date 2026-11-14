@@ -150,11 +150,16 @@ export async function entrar(_estado: EstadoFormulario, dados: FormData): Promis
 /**
  * Pede o link para entrar sem senha. A resposta é a mesma com ou sem conta, e o
  * link é criado e mandado depois da resposta, para o tempo também não revelar nada.
+ * Cada pedido gasta uma tentativa do IP, como em `pedirRedefinicaoDeSenha`.
  */
 export async function pedirLinkDeAcesso(_estado: EstadoFormulario, dados: FormData): Promise<EstadoFormulario> {
   const resultado = campoEmail.safeParse(texto(dados, "email").trim().toLowerCase());
   if (!resultado.success) {
     return { erros: { email: resultado.error.issues[0]?.message ?? "Digite um e-mail válido." }, valores: valoresDoFormulario(dados) };
+  }
+  const ip = await ipDaRequisicao();
+  if (!(await tentativaDoIpLiberada(ip))) {
+    return { erro: ip ? MENSAGEM_LIMITE : MENSAGEM_SEM_IP, valores: valoresDoFormulario(dados) };
   }
   const usuario = await db.usuario.findUnique({
     where: { email: resultado.data },

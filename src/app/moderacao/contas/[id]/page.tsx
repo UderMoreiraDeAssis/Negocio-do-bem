@@ -203,9 +203,13 @@ async function Conteudo({ params }: Pick<PageProps<"/moderacao/contas/[id]">, "p
                   {r.alvo && (
                     <>
                       {" · "}
-                      <Link href={r.alvo.href} className="hover:text-coral-700 hover:underline">
-                        {r.alvo.rotulo}
-                      </Link>
+                      {r.alvo.href ? (
+                        <Link href={r.alvo.href} className="hover:text-coral-700 hover:underline">
+                          {r.alvo.rotulo}
+                        </Link>
+                      ) : (
+                        r.alvo.rotulo
+                      )}
                     </>
                   )}
                   {r.detalhes && <span className="block text-suave">{r.detalhes}</span>}

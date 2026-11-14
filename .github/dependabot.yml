@@ -23,6 +23,16 @@ updates:
       semver-patch-days: 3
       semver-minor-days: 7
       semver-major-days: 30
+    ignore:
+      # Os tipos seguem o Node que roda o projeto (24: engines, CI e build do Cloudflare); subir junto com o Node.
+      - dependency-name: "@types/node"
+        versions: [">=25"]
+      # O typescript-eslint aceita TypeScript só até <6.1.0; tirar quando aceitar.
+      - dependency-name: typescript
+        versions: [">=6.1"]
+      # Os plugins do eslint-config-next ainda declaram suporte só até o ESLint 9; tirar quando declararem.
+      - dependency-name: eslint
+        versions: [">=10"]
     groups:
       npm-minor-e-patch:
         patterns:

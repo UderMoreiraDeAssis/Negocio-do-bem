@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { apagarFoto } from "@/lib/armazenamento";
+import { unlink } from "node:fs/promises";
+import path from "node:path";
 import { db } from "@/lib/db";
 import { atualizarPeloInstagram, atualizarSeguidoresDoDia, embaixadorDoEndereco, embaixadoresNoSite } from "@/lib/embaixadores";
 import { esquecerPrevias } from "@/lib/previa-instagram";
@@ -11,7 +12,7 @@ const FOTO = "https://scontent.cdninstagram.com/v/foto.webp";
 const WEBP = new Uint8Array([...Buffer.from("RIFF"), 0, 0, 0, 0, ...Buffer.from("WEBP")]);
 
 async function limparBanco() {
-  await db.$executeRawUnsafe(`TRUNCATE "RegistroAuditoria", "Embaixador", "Empresa" CASCADE`);
+  await db.$executeRawUnsafe(`TRUNCATE "FotoAposentada", "RegistroAuditoria", "Embaixador", "Empresa" CASCADE`);
 }
 
 function criarEmbaixador(username: string, extra: Partial<Parameters<typeof db.embaixador.create>[0]["data"]> = {}) {
@@ -46,7 +47,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
   // Sem domínio R2 configurado, as fotos gravadas nos testes vão para public/enviados: apaga depois.
   const comFoto = await db.embaixador.findMany({ where: { fotoUrl: { startsWith: "/enviados/perfis/" } }, select: { fotoUrl: true } });
-  await Promise.all(comFoto.filter((e) => /^\/enviados\/perfis\/[0-9a-f]{24}\.webp$/.test(e.fotoUrl ?? "")).map((e) => apagarFoto(e.fotoUrl)));
+  await Promise.all(comFoto.filter((e) => /^\/enviados\/perfis\/[0-9a-f]{24}\.webp$/.test(e.fotoUrl ?? "")).map((e) => unlink(path.join(process.cwd(), "public", e.fotoUrl!.slice(1))).catch(() => {})));
 });
 afterAll(async () => {
   await limparBanco();
